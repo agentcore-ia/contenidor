@@ -1,0 +1,30 @@
+{
+  "name": "capta-content-engine",
+  "version": "1.0.0",
+  "description": "Internal content rendering engine for Capta Instagram posts.",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "install:browsers": "playwright install chromium"
+  },
+  "keywords": [
+    "capta",
+    "content-engine",
+    "playwright",
+    "supabase"
+  ],
+  "author": "Capta",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.50.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "openai": "^6.10.0",
+    "playwright": "^1.53.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

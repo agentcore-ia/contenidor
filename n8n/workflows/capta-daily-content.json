@@ -1,0 +1,448 @@
+{
+  "name": "Capta - Daily Content",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-daily",
+      "name": "Schedule Daily 09:00 ART",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://localhost:3000/health",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "health-check",
+      "name": "Health Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        500,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-engine-ok",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "engine-healthy",
+      "name": "Engine Healthy?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        780,
+        300
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "skip-engine-down",
+      "name": "Skip: Engine Down",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1060,
+        460
+      ],
+      "notes": "El engine no respondio /health. Revisar servicio antes de la corrida."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://localhost:3000/today",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "neverError": true
+          }
+        }
+      },
+      "id": "get-today",
+      "name": "Get Today Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1060,
+        140
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-today-success",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "has-content",
+      "name": "Has Content Today?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1340,
+        140
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "skip-no-content",
+      "name": "Skip: No Content Today",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1620,
+        320
+      ],
+      "notes": "No hay contenido pendiente para hoy. Cargar el calendario si se esperaba publicacion."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "set-calendar-id",
+              "name": "calendar_id",
+              "value": "={{ $json.calendar_id }}",
+              "type": "string"
+            },
+            {
+              "id": "set-topic",
+              "name": "topic",
+              "value": "={{ $json.topic }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-calendar-id",
+      "name": "Extract Calendar ID + Topic",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1620,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/generate-and-render",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"calendar_id\":\"{{ $json.calendar_id }}\"}",
+        "options": {
+          "timeout": 180000,
+          "response": {
+            "neverError": true
+          }
+        }
+      },
+      "id": "generate-and-render",
+      "name": "Generate and Render",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1900,
+        140
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 15000,
+      "alwaysOutputData": true,
+      "notes": "Hasta 3 minutos por post (Playwright). Si OpenAI o Storage fallan, el engine devuelve 502."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-render-success",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "render-ok",
+      "name": "Render OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2200,
+        140
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "skip-render-failed",
+      "name": "Skip: Render Failed",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2480,
+        320
+      ],
+      "notes": "Generate and render fallo. Revisar logs del engine (OpenAI / Storage / Playwright)."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "set-post-id",
+              "name": "post_id",
+              "value": "={{ $json.post_id }}",
+              "type": "string"
+            },
+            {
+              "id": "set-image-url",
+              "name": "image_url",
+              "value": "={{ $json.image_url }}",
+              "type": "string"
+            },
+            {
+              "id": "set-cap-ig",
+              "name": "caption_instagram",
+              "value": "={{ $json.caption_instagram }}",
+              "type": "string"
+            },
+            {
+              "id": "set-cap-x",
+              "name": "caption_x",
+              "value": "={{ $json.caption_x }}",
+              "type": "string"
+            },
+            {
+              "id": "set-cap-li",
+              "name": "caption_linkedin",
+              "value": "={{ $json.caption_linkedin }}",
+              "type": "string"
+            },
+            {
+              "id": "set-topic-final",
+              "name": "topic",
+              "value": "={{ $('Extract Calendar ID + Topic').item.json.topic }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-review-payload",
+      "name": "Prepare Review Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2480,
+        140
+      ],
+      "notes": "Punto de extension: conectar aqui nodos de Slack, Email, Notion, etc. para revision humana antes de publicar."
+    }
+  ],
+  "connections": {
+    "Schedule Daily 09:00 ART": {
+      "main": [
+        [
+          {
+            "node": "Health Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Health Check": {
+      "main": [
+        [
+          {
+            "node": "Engine Healthy?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Engine Healthy?": {
+      "main": [
+        [
+          {
+            "node": "Get Today Content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip: Engine Down",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Today Content": {
+      "main": [
+        [
+          {
+            "node": "Has Content Today?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Content Today?": {
+      "main": [
+        [
+          {
+            "node": "Extract Calendar ID + Topic",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip: No Content Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Calendar ID + Topic": {
+      "main": [
+        [
+          {
+            "node": "Generate and Render",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate and Render": {
+      "main": [
+        [
+          {
+            "node": "Render OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render OK?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Review Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip: Render Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Argentina/Buenos_Aires"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "capta"
+    },
+    {
+      "name": "content"
+    }
+  ],
+  "active": false,
+  "versionId": "1"
+}
