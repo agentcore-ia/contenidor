@@ -155,6 +155,9 @@ switch (cmd) {
   case 'seed':
     await applySql('seed', arg ?? 'supabase/seed_capta.sql');
     break;
+  case 'migrate':
+    await applySql('migrate', arg ?? 'supabase/migrations/001_dashboard_v2.sql');
+    break;
   case 'create-bucket':
     await createBucket();
     break;
@@ -162,7 +165,7 @@ switch (cmd) {
     await checkStatus();
     break;
   default:
-    console.error('Uso: node scripts/db-setup.js <schema|seed|create-bucket|status>');
+    console.error('Uso: node scripts/db-setup.js <schema|seed|migrate|create-bucket|status>');
     process.exit(1);
 }
 

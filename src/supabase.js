@@ -201,7 +201,7 @@ export async function updateGeneratedPostImageUrl(postId, imageUrl) {
     .from('generated_posts')
     .update({
       image_url: imageUrl,
-      status: 'rendered'
+      status: 'needs_review'
     })
     .eq('id', postId)
     .select('*')

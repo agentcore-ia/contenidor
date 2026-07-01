@@ -19,6 +19,9 @@ create table if not exists content_categories (
   description text,
   default_template_id text not null default 'pain_point_01',
   prompt_guidance text,
+  objective text,
+  hook_examples jsonb not null default '[]'::jsonb,
+  avoid_rules jsonb not null default '[]'::jsonb,
   sort_order integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -54,7 +57,7 @@ create table if not exists generated_posts (
   visual_direction text,
   background_idea text,
   image_url text,
-  status text not null default 'generated' check (status in ('generated', 'rendered', 'reviewed', 'published')),
+  status text not null default 'generated' check (status in ('generated', 'needs_review', 'approved', 'posted', 'rejected')),
   model text,
   raw_generation jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
@@ -141,3 +144,25 @@ create index if not exists generated_posts_calendar_id_idx
 
 create index if not exists post_assets_post_id_idx
   on post_assets (post_id);
+
+create table if not exists inspirations (
+  id uuid primary key default gen_random_uuid(),
+  brand_id uuid not null references brands(id) on delete cascade,
+  category_id uuid references content_categories(id) on delete set null,
+  title text not null,
+  image_url text not null,
+  notes text,
+  why_it_works text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists inspirations_set_updated_at on inspirations;
+create trigger inspirations_set_updated_at
+before update on inspirations
+for each row execute function set_updated_at();
+
+create index if not exists inspirations_brand_id_idx on inspirations (brand_id);
+
+create index if not exists inspirations_brand_id_idx
+  on inspirations (brand_id);

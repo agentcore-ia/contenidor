@@ -3,6 +3,7 @@ import express from 'express';
 import { requireRequestField } from './src/errors.js';
 import { generateAndRenderPost, generatePostForCalendar, getTodayContent, renderAndStorePost } from './src/contentEngine.js';
 import { getGeneratedPost } from './src/supabase.js';
+import { registerDashboardRoutes } from './src/dashboard.js';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -96,6 +97,8 @@ app.post('/generate-and-render', async (req, res) => {
     return handleError('generate-and-render', error, res);
   }
 });
+
+registerDashboardRoutes(app);
 
 app.listen(port, () => {
   console.log(`Capta Content Engine listening on port ${port}`);
