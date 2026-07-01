@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/playwright:v1.53.0-jammy
+FROM node:22-bookworm
 
 ENV NODE_ENV=production \
     PORT=3000 \
