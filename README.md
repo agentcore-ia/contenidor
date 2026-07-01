@@ -93,6 +93,10 @@ Desarrollo:
 npm run dev
 ```
 
+## Deploy
+
+Ver [`DEPLOY.md`](./DEPLOY.md) para instrucciones de Easypanel / Docker Compose / VPS.
+
 ## Endpoints
 
 ### Health

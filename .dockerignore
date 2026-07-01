@@ -1,0 +1,17 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+*.log
+playwright-report
+test-results
+supabase
+n8n
+README.md
+DEPLOY.md
+Dockerfile
+.dockerignore
+docker-compose.yml
