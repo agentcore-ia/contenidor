@@ -1,4 +1,4 @@
-FROM node:20-slim
+FROM mcr.microsoft.com/playwright:v1.53.0-jammy
 
 ENV NODE_ENV=production \
     PORT=3000 \
