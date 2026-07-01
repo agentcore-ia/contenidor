@@ -8,6 +8,8 @@ import { registerDashboardRoutes } from './src/dashboard.js';
 const app = express();
 const port = process.env.PORT || 3000;
 
+console.log('[startup] booting...', { port, node: process.version, cwd: process.cwd() });
+
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/health', (_req, res) => {
@@ -98,7 +100,16 @@ app.post('/generate-and-render', async (req, res) => {
   }
 });
 
+process.on('uncaughtException', (err) => {
+  console.error('[fatal] uncaughtException:', err);
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[fatal] unhandledRejection:', reason);
+});
+
 registerDashboardRoutes(app);
+console.log('[startup] routes registered, starting listen...');
 
 app.listen(port, () => {
   console.log(`Capta Content Engine listening on port ${port}`);
