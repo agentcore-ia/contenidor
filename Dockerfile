@@ -1,19 +1,8 @@
-FROM node:22-bookworm
-
-ENV NODE_ENV=production \
-    PORT=3000 \
-    CONTENT_TIME_ZONE=America/Argentina/Buenos_Aires
-
+FROM node:22-alpine
 WORKDIR /app
-
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
-
 COPY server.js ./
-COPY entrypoint.sh ./
-RUN chmod +x entrypoint.sh
 COPY src ./src
-
 EXPOSE 3000
-
-CMD ["./entrypoint.sh"]
+CMD ["node", "server.js"]
