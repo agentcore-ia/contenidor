@@ -24,7 +24,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "http://localhost:3000/health",
+        "url": "http://contenidor:3000/health",
         "options": {
           "timeout": 10000
         }
@@ -92,7 +92,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "http://localhost:3000/today",
+        "url": "http://contenidor:3000/today",
         "options": {
           "timeout": 15000,
           "response": {
@@ -192,7 +192,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:3000/generate-and-render",
+        "url": "http://contenidor:3000/generate-and-render",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\"calendar_id\":\"{{ $json.calendar_id }}\"}",

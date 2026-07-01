@@ -69,12 +69,12 @@ Como n8n y el engine van a correr en el mismo Easypanel, n8n puede hablarle por 
 Las URLs del workflow hoy apuntan a `http://localhost:3000`. Cambiar las 3 URLs en el editor de n8n:
 
 1. Abrir el workflow `Capta - Daily Content` en n8n.
-2. Nodo **Health Check**: cambiar URL a `http://capta-content-engine:3000/health`.
-3. Nodo **Get Today Content**: cambiar URL a `http://capta-content-engine:3000/today`.
-4. Nodo **Generate and Render**: cambiar URL a `http://capta-content-engine:3000/generate-and-render`.
+2. Nodo **Health Check**: cambiar URL a `http://<nombre-servicio>:3000/health`.
+3. Nodo **Get Today Content**: cambiar URL a `http://<nombre-servicio>:3000/today`.
+4. Nodo **Generate and Render**: cambiar URL a `http://<nombre-servicio>:3000/generate-and-render`.
 5. **Save**.
 
-Alternativamente, re-deployar el workflow con la URL ya corregida. Editar `n8n/workflows/capta-daily-content.json`, reemplazar `http://localhost:3000` por `http://capta-content-engine:3000` en las 3 URLs, commit, push, y correr:
+Alternativamente, re-deployar el workflow con la URL ya corregida. Editar `n8n/workflows/capta-daily-content.json`, reemplazar `http://localhost:3000` por `http://<nombre-servicio>:3000` en las 3 URLs, commit, push, y correr:
 
 ```powershell
 $env:N8N_URL = "https://agentcore-n8n.8zp1cp.easypanel.host"
