@@ -6,7 +6,7 @@ jobs:
   push:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
     steps:
       - uses: actions/checkout@v4
@@ -17,9 +17,14 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: docker build -t ghcr.io/agentcore-ia/contenidor:latest .
       - run: docker push ghcr.io/agentcore-ia/contenidor:latest
-      - name: Make package public (best effort)
-        continue-on-error: true
+      - name: Make package public
         run: |
-          gh api -X PATCH "/orgs/agentcore-ia/packages/container/contenidor/visibility" -f visibility=public 2>&1 ||
-          gh api -X PATCH "/user/packages/container/contenidor/visibility" -f visibility=public 2>&1 ||
-          echo "cannot make public"
+          echo "=== Auth check ==="
+          gh auth status 2>&1
+          echo "=== Trying org namespace ==="
+          gh api -X PATCH "/orgs/agentcore-ia/packages/container/contenidor/visibility" -f visibility=public 2>&1 && echo "OK" && exit 0
+          echo "=== Trying user namespace ==="
+          gh api -X PATCH "/user/packages/container/contenidor/visibility" -f visibility=public 2>&1 && echo "OK" && exit 0
+          echo "=== Trying repo scope ==="
+          gh api -X PATCH "/repos/agentcore-ia/contenidor/packages/container/contenidor/visibility" -f visibility=public 2>&1 && echo "OK" && exit 0
+          echo "FAILED to make package public"
