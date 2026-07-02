@@ -17,3 +17,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: docker build -t ghcr.io/agentcore-ia/contenidor:latest .
       - run: docker push ghcr.io/agentcore-ia/contenidor:latest
+      - name: Make package public
+        run: |
+          curl -X PATCH \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Content-Type: application/json" \
+            -d '{"visibility":"public"}' \
+            "https://api.github.com/orgs/agentcore-ia/packages/container/contenidor/visibility" \
+            || echo "Note: might not work for org packages"
