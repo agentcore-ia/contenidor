@@ -6,7 +6,7 @@ import { getGeneratedPost } from './src/supabase.js';
 import { registerDashboardRoutes } from './src/dashboard.js';
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 80;
 
 console.log('[startup] booting...', { port, node: process.version, cwd: process.cwd() });
 
