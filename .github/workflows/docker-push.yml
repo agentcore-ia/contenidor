@@ -19,10 +19,17 @@ jobs:
       - run: docker push ghcr.io/agentcore-ia/contenidor:latest
       - name: Make package public
         run: |
-          curl -X PATCH \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            -H "Content-Type: application/json" \
-            -d '{"visibility":"public"}' \
-            "https://api.github.com/orgs/agentcore-ia/packages/container/contenidor/visibility" \
-            || echo "Note: might not work for org packages"
+          echo "=== Trying to make package public ==="
+          # Try org namespace
+          echo "--- Trying org namespace ---"
+          gh api -X PATCH "/orgs/agentcore-ia/packages/container/contenidor/visibility" -f visibility=public 2>&1
+          if [ $? -eq 0 ]; then echo "OK (org)"; exit 0; fi
+          # Try user namespace
+          echo "--- Trying user namespace ---"
+          gh api -X PATCH "/user/packages/container/contenidor/visibility" -f visibility=public 2>&1
+          if [ $? -eq 0 ]; then echo "OK (user)"; exit 0; fi
+          # Try repo-scoped
+          echo "--- Trying repo-scoped ---"
+          gh api -X PATCH "/repos/agentcore-ia/contenidor/packages/container/contenidor/visibility" -f visibility=public 2>&1
+          if [ $? -eq 0 ]; then echo "OK (repo)"; exit 0; fi
+          echo "WARNING: could not make package public"
