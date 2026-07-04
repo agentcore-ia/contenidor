@@ -142,6 +142,33 @@ curl -X POST http://localhost:3000/render \
 
 Renderiza el PNG `1080x1350`, lo sube a `post-assets`, guarda `generated_posts.image_url` y registra metadata en `post_assets`.
 
+### Generar ideas automaticamente
+
+```bash
+curl -X POST http://localhost:3000/api/ideas/generate \
+  -H "Content-Type: application/json" \
+  -d "{\"count\":7}"
+```
+
+Usa OpenAI para proponer temas nuevos por categoria (evitando repetir los ya
+usados) y los agrega al `content_calendar` a partir del dia siguiente al ultimo
+item programado. `count` va de 1 a 30.
+
+### Estado de la automatizacion
+
+```bash
+curl http://localhost:3000/api/automation
+```
+
+### Ejecutar la automatizacion ahora
+
+```bash
+curl -X POST http://localhost:3000/api/automation/run
+```
+
+Rellena la cola de ideas y genera/renderiza el post del dia, dejandolo en
+`needs_review`.
+
 ### Generar y renderizar en un paso
 
 ```bash
@@ -176,6 +203,29 @@ Templates disponibles:
 - `insight_01`
 
 Si el template no existe, usa `pain_point_01`.
+
+## Automatizacion diaria (piloto automatico)
+
+El engine incluye un scheduler interno (sin dependencias externas) que corre
+una vez por dia y:
+
+1. Rellena la cola del calendario hasta `AUTOMATION_QUEUE_TARGET` ideas futuras
+   pendientes (generandolas con IA si faltan).
+2. Si `AUTOMATION_AUTO_RENDER=true`, genera y renderiza el post de hoy y lo deja
+   en `needs_review` para aprobacion manual (no publica en redes).
+
+Configuracion por `.env`:
+
+```bash
+AUTOMATION_ENABLED=true        # activa/desactiva el scheduler
+AUTOMATION_TIME=08:00          # hora local (CONTENT_TIME_ZONE) de la corrida
+AUTOMATION_QUEUE_TARGET=7      # ideas futuras a mantener en cola
+AUTOMATION_AUTO_RENDER=true    # generar+renderizar el post del dia
+AUTOMATION_RUN_ON_START=false  # correr una vez al arrancar el server
+```
+
+Tambien se puede disparar a mano desde el dashboard (tab Sistema, boton
+"Ejecutar ahora") o via `POST /api/automation/run`.
 
 ## Flujo recomendado para n8n
 
