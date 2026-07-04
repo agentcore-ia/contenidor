@@ -4,6 +4,7 @@ import { requireRequestField } from './src/errors.js';
 import { generateAndRenderPost, generatePostForCalendar, getTodayContent, renderAndStorePost } from './src/contentEngine.js';
 import { getGeneratedPost } from './src/supabase.js';
 import { registerDashboardRoutes } from './src/dashboard.js';
+import { startScheduler } from './src/scheduler.js';
 
 const app = express();
 const port = process.env.PORT || 80;
@@ -113,4 +114,5 @@ console.log('[startup] routes registered, starting listen...');
 
 app.listen(port, () => {
   console.log(`Capta Content Engine listening on port ${port}`);
+  startScheduler();
 });

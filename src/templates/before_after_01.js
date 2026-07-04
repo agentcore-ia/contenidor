@@ -1,7 +1,8 @@
-import { baseDocument, hookSizeClass, postCopy } from './utils.js';
+import { baseDocument, bodySizeClass, hookSizeClass, postCopy, shortText } from './utils.js';
 
 export function beforeAfter01Template(post) {
   const { hook, body, cta } = postCopy(post);
+  const shortHook = shortText(hook, 82);
 
   return baseDocument({
     title: 'Capta before after post',
@@ -12,36 +13,59 @@ export function beforeAfter01Template(post) {
         height: 1350px;
         display: flex;
         flex-direction: column;
-        padding: 78px 76px;
+        padding: 74px 76px 70px;
         background:
-          linear-gradient(90deg, rgba(255, 106, 26, 0.18) 0 2px, transparent 2px 100%),
-          linear-gradient(180deg, #090909 0%, #151515 100%);
-        background-size: 78px 100%;
+          radial-gradient(circle at 86% 18%, rgba(255, 106, 26, 0.22), transparent 28%),
+          linear-gradient(90deg, rgba(255, 106, 26, 0.09) 0 1px, transparent 1px 100%),
+          linear-gradient(180deg, #090909 0%, #141414 100%);
+        background-size: auto, 78px 100%, auto;
         color: #ffffff;
         isolation: isolate;
       }
 
-      .split {
-        flex: 1;
+      .visual {
+        position: relative;
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 28px;
-        align-items: stretch;
-        padding: 70px 0 54px;
+        grid-template-columns: 1fr 110px 1fr;
+        gap: 22px;
+        align-items: center;
+        min-height: 520px;
+        margin: 58px 0 34px;
       }
 
-      .side {
+      .panel {
         position: relative;
-        min-height: 610px;
+        min-height: 470px;
         padding: 34px;
         border: 1px solid rgba(255, 255, 255, 0.12);
         background: rgba(255, 255, 255, 0.035);
         overflow: hidden;
       }
 
-      .side-after {
-        border-color: rgba(255, 106, 26, 0.55);
-        background: linear-gradient(180deg, rgba(255, 106, 26, 0.16), rgba(255, 255, 255, 0.04));
+      .panel::after {
+        content: "";
+        position: absolute;
+        left: 34px;
+        right: 34px;
+        bottom: 30px;
+        height: 108px;
+        border-radius: 24px;
+        background:
+          linear-gradient(90deg, rgba(255, 255, 255, 0.14) 0 26%, transparent 26% 36%, rgba(255, 255, 255, 0.1) 36% 60%, transparent 60% 72%, rgba(255, 255, 255, 0.12) 72%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+        opacity: 0.72;
+      }
+
+      .panel-after {
+        border-color: rgba(255, 106, 26, 0.64);
+        background: linear-gradient(180deg, rgba(255, 106, 26, 0.18), rgba(255, 255, 255, 0.04));
+        box-shadow: 0 28px 90px rgba(255, 106, 26, 0.12);
+      }
+
+      .panel-after::after {
+        background:
+          linear-gradient(90deg, #ff6a1a 0 34%, rgba(255, 255, 255, 0.22) 34% 46%, #ff6a1a 46% 76%, rgba(255, 255, 255, 0.28) 76%),
+          linear-gradient(180deg, rgba(255, 106, 26, 0.22), rgba(255, 255, 255, 0.04));
       }
 
       .label {
@@ -53,27 +77,85 @@ export function beforeAfter01Template(post) {
         text-transform: uppercase;
       }
 
-      .side-text {
+      .panel-title {
         margin: 0;
         color: #f7f2eb;
-        font-size: 42px;
+        font-size: 40px;
         line-height: 1.04;
         font-weight: 820;
         letter-spacing: 0;
         overflow-wrap: anywhere;
       }
 
-      .after-text {
+      .panel-after .panel-title {
+        font-size: 42px;
+        line-height: 1.02;
+      }
+
+      .connector {
+        display: grid;
+        place-items: center;
+        gap: 16px;
+      }
+
+      .dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 999px;
+        background: rgba(255, 106, 26, 0.92);
+        box-shadow: 0 0 0 14px rgba(255, 106, 26, 0.14);
+      }
+
+      .line {
+        width: 2px;
+        height: 300px;
+        background: linear-gradient(180deg, transparent, rgba(255, 106, 26, 0.8), transparent);
+      }
+
+      .copy-panel {
+        position: relative;
+        min-height: 370px;
+        padding: 36px 40px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background:
+          linear-gradient(90deg, rgba(255, 106, 26, 0.14), transparent 3px),
+          rgba(8, 8, 8, 0.72);
+        overflow: hidden;
+      }
+
+      .copy-panel::after {
+        content: "";
+        position: absolute;
+        right: -58px;
+        top: 36px;
+        width: 190px;
+        height: 190px;
+        border: 24px solid rgba(255, 106, 26, 0.23);
+        border-radius: 999px;
+      }
+
+      .copy-panel .hook {
+        max-width: 780px;
+        font-size: 62px;
+        line-height: 0.98;
+      }
+
+      .copy-panel .hook-md {
+        font-size: 58px;
+      }
+
+      .copy-panel .hook-sm {
         font-size: 52px;
       }
 
-      .post .hook {
-        max-width: 880px;
+      .copy-panel .hook-xs {
+        font-size: 46px;
+        line-height: 1.03;
       }
 
-      .post .body {
-        max-width: 840px;
-        margin-top: 32px;
+      .copy-panel .body {
+        max-width: 820px;
+        margin-top: 26px;
       }
     `,
     body: `
@@ -83,18 +165,26 @@ export function beforeAfter01Template(post) {
           <span>capta</span>
         </header>
 
-        <section class="split">
-          <div class="side">
+        <section class="visual">
+          <div class="panel">
             <p class="label">Antes</p>
-            <p class="side-text">Operacion manual, chats sueltos y decisiones a ciegas.</p>
+            <p class="panel-title">Chats sueltos. Notas perdidas. Decisiones a ciegas.</p>
           </div>
-          <div class="side side-after">
+          <div class="connector" aria-hidden="true">
+            <span class="dot"></span>
+            <span class="line"></span>
+            <span class="dot"></span>
+          </div>
+          <div class="panel panel-after">
             <p class="label">Despues</p>
-            <p class="side-text after-text">${hook}</p>
+            <p class="panel-title">${shortHook}</p>
           </div>
         </section>
 
-        <h1 class="${hookSizeClass(body)}">${body}</h1>
+        <section class="copy-panel">
+          <h1 class="${hookSizeClass(hook)}">${hook}</h1>
+          <p class="${bodySizeClass(body)}">${body}</p>
+        </section>
         <footer class="cta">${cta}</footer>
       </main>
     `
