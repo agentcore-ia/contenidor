@@ -3,25 +3,34 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Capta · Dashboard</title>
+  <title>Capta | Dashboard</title>
   <link rel="stylesheet" href="/dashboard/page.css" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
       <span class="brand-mark"></span>
-      <span>capta · content engine</span>
+      <div>
+        <strong>Capta</strong>
+        <span>Content Engine</span>
+      </div>
     </div>
-    <nav class="tabs">
-      <button class="tab active" data-tab="posts">Posts</button>
+    <nav class="tabs" aria-label="Dashboard sections">
+      <button class="tab active" data-tab="overview">Overview</button>
+      <button class="tab" data-tab="posts">Posts</button>
       <button class="tab" data-tab="calendar">Calendario</button>
       <button class="tab" data-tab="brand">Marca</button>
-      <button class="tab" data-tab="categories">Categorías</button>
-      <button class="tab" data-tab="design">Diseño / Preview</button>
+      <button class="tab" data-tab="categories">Categorias</button>
+      <button class="tab" data-tab="design">Diseno</button>
+      <button class="tab" data-tab="system">Sistema</button>
     </nav>
   </header>
-  <main id="content"></main>
-  <div id="toast-root"></div>
+
+  <main id="content">
+    <div class="loading-state">Cargando dashboard...</div>
+  </main>
+
+  <div id="toast-root" aria-live="polite"></div>
   <div id="modal-root"></div>
   <script src="/dashboard/page.js"></script>
 </body>

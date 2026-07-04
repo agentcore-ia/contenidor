@@ -4,8 +4,10 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { supabase, getGeneratedPost } from './supabase.js';
 import { AppError } from './errors.js';
-import { generatePostForCalendar, renderAndStorePost } from './contentEngine.js';
+import { generateCalendarIdeas, generatePostForCalendar, renderAndStorePost } from './contentEngine.js';
+import { getSchedulerState, runAutomationNow } from './scheduler.js';
 import { templates } from './templates/index.js';
+import { todayDateString } from './dates.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DASHBOARD_DIR = resolve(__dirname, 'dashboard');
@@ -49,6 +51,79 @@ export function registerDashboardRoutes(app) {
 
   app.get('/api/templates', wrap(async (_req, res) => {
     res.json({ success: true, templates: Object.keys(templates) });
+  }));
+
+  app.get('/api/overview', wrap(async (_req, res) => {
+    const today = todayDateString();
+    const [posts, calendar, brands, categories, inspirations] = await Promise.all([
+      supabase
+        .from('generated_posts')
+        .select('id, hook, status, image_url, template_id, created_at, calendar_id')
+        .order('created_at', { ascending: false })
+        .limit(200),
+      supabase
+        .from('content_calendar')
+        .select('id, publish_date, topic, angle, status, generated_post_id, category:content_categories(name, slug)')
+        .order('publish_date', { ascending: true })
+        .limit(200),
+      supabase.from('brands').select('id, name, slug, default_template_id'),
+      supabase.from('content_categories').select('id, name, slug, default_template_id, sort_order'),
+      supabase.from('inspirations').select('id, title, category_id')
+    ]);
+
+    const firstError = [posts, calendar, brands, categories, inspirations].find((result) => result.error)?.error;
+    if (firstError) throw new AppError(firstError.message, 500, 'SUPABASE_ERROR');
+
+    const byStatus = (rows) => (rows ?? []).reduce((acc, row) => {
+      acc[row.status] = (acc[row.status] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    const calendarRows = calendar.data ?? [];
+    const todayItem = calendarRows.find((item) => item.publish_date === today) ?? null;
+    const nextItems = calendarRows
+      .filter((item) => item.publish_date >= today)
+      .slice(0, 7);
+
+    res.json({
+      success: true,
+      overview: {
+        today,
+        counts: {
+          posts: posts.data?.length ?? 0,
+          calendar: calendarRows.length,
+          brands: brands.data?.length ?? 0,
+          categories: categories.data?.length ?? 0,
+          inspirations: inspirations.data?.length ?? 0,
+          templates: Object.keys(templates).length
+        },
+        posts_by_status: byStatus(posts.data),
+        calendar_by_status: byStatus(calendarRows),
+        today_item: todayItem,
+        next_items: nextItems,
+        recent_posts: posts.data?.slice(0, 6) ?? []
+      }
+    });
+  }));
+
+  app.get('/api/system', wrap(async (_req, res) => {
+    res.json({
+      success: true,
+      system: {
+        service: 'capta-content-engine',
+        node: process.version,
+        uptime_seconds: Math.round(process.uptime()),
+        content_time_zone: process.env.CONTENT_TIME_ZONE || 'America/Argentina/Buenos_Aires',
+        today: todayDateString(),
+        model: process.env.OPENAI_MODEL || 'gpt-5.4-mini',
+        templates: Object.keys(templates),
+        env: {
+          SUPABASE_URL: Boolean(process.env.SUPABASE_URL),
+          SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+          OPENAI_API_KEY: Boolean(process.env.OPENAI_API_KEY)
+        }
+      }
+    });
   }));
 
   app.get('/api/posts', wrap(async (req, res) => {
@@ -122,6 +197,21 @@ export function registerDashboardRoutes(app) {
     const { data, error } = await supabase.from('content_calendar').update(updates).eq('id', req.params.id).select('*').single();
     if (error) throw new AppError(error.message, 500, 'SUPABASE_ERROR');
     res.json({ success: true, item: data });
+  }));
+
+  app.post('/api/ideas/generate', wrap(async (req, res) => {
+    const count = parseInt(req.body?.count ?? '7', 10) || 7;
+    const result = await generateCalendarIdeas({ count });
+    res.json({ success: true, ...result });
+  }));
+
+  app.get('/api/automation', wrap(async (_req, res) => {
+    res.json({ success: true, automation: getSchedulerState() });
+  }));
+
+  app.post('/api/automation/run', wrap(async (_req, res) => {
+    const result = await runAutomationNow();
+    res.json({ success: true, result, automation: getSchedulerState() });
   }));
 
   app.get('/api/brands', wrap(async (_req, res) => {

@@ -35,6 +35,26 @@ export function hookSizeClass(value) {
   return 'hook';
 }
 
+export function bodySizeClass(value, baseClass = 'body') {
+  const length = String(value ?? '').length;
+
+  if (length > 230) return `${baseClass} ${baseClass}-xxs`;
+  if (length > 175) return `${baseClass} ${baseClass}-xs`;
+  if (length > 125) return `${baseClass} ${baseClass}-sm`;
+
+  return baseClass;
+}
+
+export function shortText(value, maxLength = 96) {
+  const text = String(value ?? '').trim();
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maxLength - 1).trim()}...`;
+}
+
 export function baseDocument({ title = 'Capta post', styles, body }) {
   return `<!doctype html>
 <html lang="es">
@@ -111,6 +131,21 @@ export function baseDocument({ title = 'Capta post', styles, body }) {
         letter-spacing: 0;
         white-space: pre-line;
         overflow-wrap: anywhere;
+      }
+
+      .body-sm {
+        font-size: 34px;
+        line-height: 1.18;
+      }
+
+      .body-xs {
+        font-size: 30px;
+        line-height: 1.2;
+      }
+
+      .body-xxs {
+        font-size: 26px;
+        line-height: 1.22;
       }
 
       .cta {

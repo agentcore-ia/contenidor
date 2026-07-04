@@ -214,6 +214,105 @@ export async function updateGeneratedPostImageUrl(postId, imageUrl) {
   return data;
 }
 
+export async function getDefaultBrand() {
+  const { data, error } = await supabase
+    .from('brands')
+    .select('*')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw wrapSupabaseError('Could not load brand', error);
+  }
+
+  if (!data) {
+    throw new AppError('No brand configured', 404, 'NO_BRAND');
+  }
+
+  return data;
+}
+
+export async function listCategories(brandId) {
+  let query = supabase
+    .from('content_categories')
+    .select('*')
+    .order('sort_order', { ascending: true });
+
+  if (brandId) {
+    query = query.eq('brand_id', brandId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw wrapSupabaseError('Could not load categories', error);
+  }
+
+  return data ?? [];
+}
+
+export async function getExistingCalendarTopics(brandId, limit = 400) {
+  const { data, error } = await supabase
+    .from('content_calendar')
+    .select('topic')
+    .eq('brand_id', brandId)
+    .order('publish_date', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw wrapSupabaseError('Could not load existing topics', error);
+  }
+
+  return (data ?? []).map((row) => row.topic).filter(Boolean);
+}
+
+export async function getLatestCalendarDate(brandId) {
+  const { data, error } = await supabase
+    .from('content_calendar')
+    .select('publish_date')
+    .eq('brand_id', brandId)
+    .order('publish_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw wrapSupabaseError('Could not load latest calendar date', error);
+  }
+
+  return data?.publish_date ?? null;
+}
+
+export async function countFuturePendingCalendar(brandId, fromDate = todayDateString()) {
+  const { count, error } = await supabase
+    .from('content_calendar')
+    .select('id', { count: 'exact', head: true })
+    .eq('brand_id', brandId)
+    .eq('status', 'pending')
+    .gte('publish_date', fromDate);
+
+  if (error) {
+    throw wrapSupabaseError('Could not count pending calendar items', error);
+  }
+
+  return count ?? 0;
+}
+
+export async function insertCalendarIdeas(rows) {
+  if (!rows.length) return [];
+
+  const { data, error } = await supabase
+    .from('content_calendar')
+    .insert(rows)
+    .select('id, publish_date, topic, angle, status, category_id');
+
+  if (error) {
+    throw wrapSupabaseError('Could not insert calendar ideas', error);
+  }
+
+  return data ?? [];
+}
+
 export async function markCalendarGenerated(calendarId, postId) {
   const { error } = await supabase
     .from('content_calendar')
