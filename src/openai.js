@@ -342,11 +342,26 @@ export async function generatePostImageAsset(post, { brand, referenceBuffers = [
   };
 }
 
+const SUPPORTED_REFERENCE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+
+// Fetches an image URL and validates it is actually image bytes (not an HTML
+// page — e.g. a link to an Instagram post page instead of its photo file),
+// since GPT Image 2 rejects mislabeled non-image input with a 400 error.
 export async function fetchRemoteImageBytes(url) {
   const res = await fetch(url);
 
   if (!res.ok) {
     throw new AppError(`Image URL download failed: ${res.status} ${res.statusText}`, 502, 'IMAGE_DOWNLOAD_FAILED');
+  }
+
+  const contentType = (res.headers.get('content-type') || '').split(';')[0].trim();
+
+  if (!SUPPORTED_REFERENCE_TYPES.includes(contentType)) {
+    throw new AppError(
+      `URL does not point to a direct image file (got content-type "${contentType || 'unknown'}"). Use a direct link to a .png/.jpg/.webp file, not a page URL.`,
+      400,
+      'IMAGE_NOT_DIRECT_URL'
+    );
   }
 
   return Buffer.from(await res.arrayBuffer());

@@ -50,9 +50,24 @@ export async function generatePostForCalendar(calendarId) {
 async function renderAiPostImage(post) {
   const brand = await getBrandById(post.brand_id);
   const referenceRows = await getBrandReferenceImages(brand.id);
-  const referenceBuffers = await Promise.all(
+
+  // A single bad reference (e.g. a link to an Instagram post page instead of
+  // its photo file) must not block the whole post's image generation — skip
+  // it with a warning instead of failing the batch.
+  const referenceResults = await Promise.allSettled(
     referenceRows.map((row) => fetchRemoteImageBytes(row.image_url))
   );
+
+  const referenceBuffers = [];
+  referenceResults.forEach((result, index) => {
+    if (result.status === 'fulfilled') {
+      referenceBuffers.push(result.value);
+    } else {
+      console.warn(
+        `[renderAiPostImage] skipping invalid brand reference image "${referenceRows[index]?.title}" (${referenceRows[index]?.image_url}): ${result.reason?.message}`
+      );
+    }
+  });
 
   const asset = await generatePostImageAsset(post, { brand, referenceBuffers });
   return asset.buffer;
