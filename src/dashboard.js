@@ -2,12 +2,25 @@ import 'dotenv/config';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { supabase, getGeneratedPost } from './supabase.js';
+import {
+  supabase,
+  getGeneratedPost,
+  listCustomTemplates,
+  createCustomTemplate,
+  updateCustomTemplate,
+  deleteCustomTemplate
+} from './supabase.js';
 import { AppError } from './errors.js';
 import { generateCalendarIdeas, generatePostForCalendar, renderAndStorePost } from './contentEngine.js';
 import { getSchedulerState, runAutomationNow } from './scheduler.js';
 import { templates } from './templates/index.js';
 import { todayDateString } from './dates.js';
+
+const CUSTOM_PREFIX = 'custom_';
+
+function isValidTemplateId(tid) {
+  return Boolean(tid) && (Boolean(templates[tid]) || tid.startsWith(CUSTOM_PREFIX));
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DASHBOARD_DIR = resolve(__dirname, 'dashboard');
@@ -50,7 +63,35 @@ export function registerDashboardRoutes(app) {
   app.get('/dashboard/page.js', wrap(staticFile('page.js', 'application/javascript; charset=utf-8')));
 
   app.get('/api/templates', wrap(async (_req, res) => {
-    res.json({ success: true, templates: Object.keys(templates) });
+    const brand = await getDefaultBrand();
+    const custom = await listCustomTemplates(brand.id);
+    const customIds = custom.map((tpl) => `${CUSTOM_PREFIX}${tpl.slug}`);
+    res.json({ success: true, templates: [...Object.keys(templates), ...customIds] });
+  }));
+
+  app.get('/api/custom-templates', wrap(async (_req, res) => {
+    const brand = await getDefaultBrand();
+    const items = await listCustomTemplates(brand.id);
+    res.json({ success: true, custom_templates: items });
+  }));
+
+  app.post('/api/custom-templates', wrap(async (req, res) => {
+    const brand = await getDefaultBrand();
+    const { name, html } = req.body ?? {};
+    if (!name || !html) throw new AppError('name y html son requeridos', 400);
+    const created = await createCustomTemplate({ brandId: brand.id, name, html });
+    res.json({ success: true, custom_template: created });
+  }));
+
+  app.put('/api/custom-templates/:id', wrap(async (req, res) => {
+    const { name, html } = req.body ?? {};
+    const updated = await updateCustomTemplate(req.params.id, { name, html });
+    res.json({ success: true, custom_template: updated });
+  }));
+
+  app.delete('/api/custom-templates/:id', wrap(async (req, res) => {
+    await deleteCustomTemplate(req.params.id);
+    res.json({ success: true });
   }));
 
   app.get('/api/overview', wrap(async (_req, res) => {
@@ -169,7 +210,7 @@ export function registerDashboardRoutes(app) {
 
   app.patch('/api/posts/:id/template', wrap(async (req, res) => {
     const tid = req.body?.template_id;
-    if (!tid || !templates[tid]) throw new AppError(`Template "${tid}" no existe`, 400, 'BAD_REQUEST');
+    if (!isValidTemplateId(tid)) throw new AppError(`Template "${tid}" no existe`, 400, 'BAD_REQUEST');
     const { data: updated } = await supabase.from('generated_posts').update({ template_id: tid }).eq('id', req.params.id).select().single();
     if (!updated) throw new AppError('Post no encontrado', 404, 'NOT_FOUND');
     const rendered = await renderAndStorePost(updated);
@@ -226,7 +267,7 @@ export function registerDashboardRoutes(app) {
     if (typeof req.body?.description === 'string') updates.description = req.body.description;
     if (req.body?.brand_manual && typeof req.body.brand_manual === 'object') updates.brand_manual = req.body.brand_manual;
     if (typeof req.body?.default_template_id === 'string') {
-      if (!templates[req.body.default_template_id]) throw new AppError(`Template ${req.body.default_template_id} no existe`, 400);
+      if (!isValidTemplateId(req.body.default_template_id)) throw new AppError(`Template ${req.body.default_template_id} no existe`, 400);
       updates.default_template_id = req.body.default_template_id;
     }
     const { data, error } = await supabase.from('brands').update(updates).eq('id', req.params.id).select('*').single();
@@ -249,7 +290,7 @@ export function registerDashboardRoutes(app) {
     if (req.body?.hook_examples && Array.isArray(req.body.hook_examples)) updates.hook_examples = req.body.hook_examples;
     if (req.body?.avoid_rules && Array.isArray(req.body.avoid_rules)) updates.avoid_rules = req.body.avoid_rules;
     if (typeof req.body?.default_template_id === 'string') {
-      if (!templates[req.body.default_template_id]) throw new AppError(`Template invalido`, 400);
+      if (!isValidTemplateId(req.body.default_template_id)) throw new AppError(`Template invalido`, 400);
       updates.default_template_id = req.body.default_template_id;
     }
     if (typeof req.body?.sort_order === 'number') updates.sort_order = req.body.sort_order;

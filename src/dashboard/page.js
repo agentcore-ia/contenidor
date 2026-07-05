@@ -6,6 +6,7 @@ const S = {
   categories: [],
   brands: [],
   inspirations: [],
+  customTemplates: [],
   overview: null,
   system: null,
   automation: null,
@@ -649,24 +650,27 @@ window.saveCatArray = function saveCatArray(id, field, textarea) {
 };
 
 async function loadDesign() {
-  const [inspirations, brands, categories] = await Promise.all([
+  const [inspirations, brands, categories, customTemplates] = await Promise.all([
     api('/api/inspirations'),
     api('/api/brands'),
     api('/api/categories'),
+    api('/api/custom-templates'),
   ]);
   S.inspirations = inspirations.inspirations || [];
   S.brands = brands.brands || [];
   S.categories = categories.categories || [];
+  S.customTemplates = customTemplates.custom_templates || [];
   renderDesign();
 }
 
 function renderDesign() {
   const brand = S.brands[0] || {};
   const manual = brand.brand_manual || {};
-  const inspirations = S.inspirations.map(inspirationCard).join('');
+  const brandRefs = S.inspirations.filter((i) => !i.category_id);
+  const categoryRefs = S.inspirations.filter((i) => i.category_id);
 
   byId('content').innerHTML = `
-    ${pageHead('Diseno', 'Reglas visuales e inspiraciones', `<button class="btn btn-primary" onclick="addInspiration()">Nueva inspiracion</button>`)}
+    ${pageHead('Diseno', 'Reglas visuales, referencias de IA y templates', `<button class="btn btn-primary" onclick="addInspiration()">Nueva inspiracion</button>`)}
     <div class="grid two">
       <section class="section">
         <div class="section-head"><h2>Manual visual</h2><span class="meta">${esc(brand.name || '')}</span></div>
@@ -677,10 +681,38 @@ function renderDesign() {
         <div class="tag-row">${Object.entries(manual.colors || {}).map(([key, value]) => `<span class="tag"><span style="width:14px;height:14px;border-radius:4px;background:${esc(value)};display:inline-block;margin-right:6px"></span>${esc(key)} ${esc(value)}</span>`).join('') || '<span class="subtle">Sin colores</span>'}</div>
       </section>
       <section class="section">
-        <div class="section-head"><h2>Inspiraciones</h2><span class="meta">${S.inspirations.length}</span></div>
-        <div class="grid three">${inspirations || empty('Sin inspiraciones')}</div>
+        <div class="section-head"><h2>Referencias de marca para IA</h2><span class="meta">${brandRefs.length}</span></div>
+        <p class="subtle" style="margin-top:0">Sin categoria asignada. Se envian como referencia de estilo a GPT Image 2 en todos los posts generados con IA.</p>
+        <div class="grid three">${brandRefs.map(inspirationCard).join('') || empty('Sin referencias de marca. Agrega una inspiracion sin categoria.')}</div>
+      </section>
+    </div>
+    <div class="grid two" style="margin-top:14px">
+      <section class="section">
+        <div class="section-head"><h2>Inspiraciones por categoria</h2><span class="meta">${categoryRefs.length}</span></div>
+        <div class="grid three">${categoryRefs.map(inspirationCard).join('') || empty('Sin inspiraciones por categoria')}</div>
+      </section>
+      <section class="section">
+        <div class="section-head">
+          <h2>Templates personalizados</h2>
+          <button class="btn btn-sm btn-primary" onclick="openTemplateEditor()">Nuevo template</button>
+        </div>
+        <p class="subtle" style="margin-top:0">HTML/CSS editable, disponible como template (modo sin IA) en Marca, Categorias y Posts. Usa <code>{{hook}}</code>, <code>{{body}}</code>, <code>{{cta}}</code>.</p>
+        <div class="rules-list">${(S.customTemplates || []).map(customTemplateRow).join('') || empty('Sin templates personalizados')}</div>
       </section>
     </div>`;
+}
+
+function customTemplateRow(tpl) {
+  return `<div class="queue-item">
+    <div>
+      <div class="title">${esc(tpl.name)}</div>
+      <div class="subtle">custom_${esc(tpl.slug)}</div>
+    </div>
+    <div class="toolbar" style="justify-content:flex-end">
+      <button class="btn btn-sm" onclick="openTemplateEditor('${tpl.id}')">Editar</button>
+      <button class="btn btn-sm btn-danger" onclick="deleteCustomTemplate('${tpl.id}')">Eliminar</button>
+    </div>
+  </div>`;
 }
 
 function inspirationCard(insp) {
@@ -754,6 +786,124 @@ window.delInspiration = async function delInspiration(id) {
   try {
     await api(`/api/inspirations/${id}`, { method: 'DELETE' });
     toast('Inspiracion eliminada');
+    await loadDesign();
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+};
+
+const CUSTOM_TEMPLATE_BOILERPLATE = `<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * { box-sizing: border-box; }
+      html, body {
+        width: 1080px;
+        height: 1350px;
+        margin: 0;
+        overflow: hidden;
+        background: #080808;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      }
+      .post {
+        width: 1080px;
+        height: 1350px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 80px;
+        color: #fff8ef;
+      }
+      .hook { font-size: 88px; font-weight: 900; line-height: 1; margin: 0; }
+      .body { font-size: 36px; color: #d8d0c5; margin-top: 24px; }
+      .cta {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px 34px;
+        border-radius: 999px;
+        border: 2px solid #ff6a1a;
+        background: rgba(255, 106, 26, 0.12);
+        color: #fff;
+        font-weight: 700;
+        width: fit-content;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="post">
+      <div>
+        <h1 class="hook">{{hook}}</h1>
+        <p class="body">{{body}}</p>
+      </div>
+      <div class="cta">{{cta}}</div>
+    </main>
+  </body>
+</html>`;
+
+const TEMPLATE_PREVIEW_SAMPLE = {
+  hook: 'Ejemplo de hook llamativo para tu post',
+  body: 'Este es un cuerpo de ejemplo para previsualizar como se ve el diseno con texto real.',
+  cta: 'Call to action de ejemplo'
+};
+
+function fillTemplatePreview(html) {
+  return html
+    .replaceAll('{{hook}}', TEMPLATE_PREVIEW_SAMPLE.hook)
+    .replaceAll('{{body}}', TEMPLATE_PREVIEW_SAMPLE.body)
+    .replaceAll('{{cta}}', TEMPLATE_PREVIEW_SAMPLE.cta);
+}
+
+window.openTemplateEditor = function openTemplateEditor(id) {
+  const tpl = id ? S.customTemplates.find((item) => item.id === id) : null;
+  const html = tpl?.html || CUSTOM_TEMPLATE_BOILERPLATE;
+
+  modal(`<h3>${tpl ? 'Editar template' : 'Nuevo template'}</h3>
+    <form onsubmit="${tpl ? `saveTemplateEditor(event,'${tpl.id}')` : 'saveTemplateEditor(event)'}" class="form-grid">
+      <div class="form-group full"><label>Nombre</label><input name="name" required value="${esc(tpl?.name || '')}" /></div>
+      <div class="form-group full">
+        <label>HTML/CSS (usa {{hook}}, {{body}}, {{cta}})</label>
+        <textarea name="html" id="template-editor-html" rows="16" style="font-family:monospace;font-size:13px" oninput="updateTemplatePreview(this.value)">${esc(html)}</textarea>
+      </div>
+      <div class="form-group full">
+        <label>Vista previa</label>
+        <iframe id="template-editor-preview" style="width:100%;height:420px;border:1px solid rgba(255,255,255,0.12);border-radius:8px;background:#000"></iframe>
+      </div>
+      <div class="form-group full"><button class="btn btn-primary">Guardar</button> <button type="button" class="btn btn-plain" onclick="closeModal()">Cancelar</button></div>
+    </form>`);
+
+  updateTemplatePreview(html);
+};
+
+window.updateTemplatePreview = function updateTemplatePreview(html) {
+  const frame = byId('template-editor-preview');
+  if (frame) frame.srcdoc = fillTemplatePreview(html);
+};
+
+window.saveTemplateEditor = async function saveTemplateEditor(event, id) {
+  event.preventDefault();
+  const body = cleanForm(event.target);
+  try {
+    if (id) {
+      await api(`/api/custom-templates/${id}`, { method: 'PUT', body });
+      toast('Template actualizado');
+    } else {
+      await api('/api/custom-templates', { method: 'POST', body });
+      toast('Template creado');
+    }
+    closeModal();
+    await loadDesign();
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+};
+
+window.deleteCustomTemplate = async function deleteCustomTemplate(id) {
+  if (!confirm('Eliminar este template?')) return;
+  try {
+    await api(`/api/custom-templates/${id}`, { method: 'DELETE' });
+    toast('Template eliminado');
     await loadDesign();
   } catch (error) {
     toast(error.message, 'error');

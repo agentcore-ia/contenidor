@@ -214,6 +214,132 @@ export async function updateGeneratedPostImageUrl(postId, imageUrl) {
   return data;
 }
 
+export async function getBrandById(brandId) {
+  const { data, error } = await supabase
+    .from('brands')
+    .select('*')
+    .eq('id', brandId)
+    .maybeSingle();
+
+  if (error) {
+    throw wrapSupabaseError('Could not load brand', error);
+  }
+
+  if (!data) {
+    throw new AppError(`Brand ${brandId} was not found`, 404, 'BRAND_NOT_FOUND');
+  }
+
+  return data;
+}
+
+// Reference images for AI image generation: inspirations with no category_id
+// act as global brand-level style references, used on every AI-rendered post.
+export async function getBrandReferenceImages(brandId, limit = 5) {
+  const { data, error } = await supabase
+    .from('inspirations')
+    .select('id, title, image_url')
+    .eq('brand_id', brandId)
+    .is('category_id', null)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw wrapSupabaseError('Could not load brand reference images', error);
+  }
+
+  return data ?? [];
+}
+
+export async function listCustomTemplates(brandId) {
+  const { data, error } = await supabase
+    .from('custom_templates')
+    .select('id, brand_id, name, slug, html, created_at, updated_at')
+    .eq('brand_id', brandId)
+    .order('name', { ascending: true });
+
+  if (error) {
+    throw wrapSupabaseError('Could not load custom templates', error);
+  }
+
+  return data ?? [];
+}
+
+export async function getCustomTemplateBySlug(brandId, slug) {
+  const { data, error } = await supabase
+    .from('custom_templates')
+    .select('id, brand_id, name, slug, html')
+    .eq('brand_id', brandId)
+    .eq('slug', slug)
+    .maybeSingle();
+
+  if (error) {
+    throw wrapSupabaseError('Could not load custom template', error);
+  }
+
+  return data ?? null;
+}
+
+function slugify(value) {
+  return String(value ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 60) || 'template';
+}
+
+export async function createCustomTemplate({ brandId, name, html }) {
+  const baseSlug = slugify(name);
+  let slug = baseSlug;
+  let attempt = 1;
+
+  // Ensure slug uniqueness per brand without a round trip transaction.
+  while (await getCustomTemplateBySlug(brandId, slug)) {
+    attempt += 1;
+    slug = `${baseSlug}_${attempt}`;
+  }
+
+  const { data, error } = await supabase
+    .from('custom_templates')
+    .insert({ brand_id: brandId, name, slug, html })
+    .select('id, brand_id, name, slug, html, created_at, updated_at')
+    .single();
+
+  if (error) {
+    throw wrapSupabaseError('Could not create custom template', error);
+  }
+
+  return data;
+}
+
+export async function updateCustomTemplate(id, { name, html }) {
+  const updates = {};
+  if (typeof name === 'string') updates.name = name;
+  if (typeof html === 'string') updates.html = html;
+
+  const { data, error } = await supabase
+    .from('custom_templates')
+    .update(updates)
+    .eq('id', id)
+    .select('id, brand_id, name, slug, html, created_at, updated_at')
+    .single();
+
+  if (error) {
+    throw wrapSupabaseError('Could not update custom template', error);
+  }
+
+  return data;
+}
+
+export async function deleteCustomTemplate(id) {
+  const { error } = await supabase.from('custom_templates').delete().eq('id', id);
+
+  if (error) {
+    throw wrapSupabaseError('Could not delete custom template', error);
+  }
+}
+
 export async function getDefaultBrand() {
   const { data, error } = await supabase
     .from('brands')

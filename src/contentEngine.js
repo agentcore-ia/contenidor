@@ -1,6 +1,8 @@
 import {
   countFuturePendingCalendar,
   createGeneratedPost,
+  getBrandById,
+  getBrandReferenceImages,
   getCalendarContent,
   getDefaultBrand,
   getExistingCalendarTopics,
@@ -12,8 +14,9 @@ import {
   updateGeneratedPostImageUrl,
   uploadPostImage
 } from './supabase.js';
-import { generateContentIdeas, generatePostContent } from './openai.js';
+import { fetchRemoteImageBytes, generateContentIdeas, generatePostContent, generatePostImageAsset } from './openai.js';
 import { renderPostImage } from './render.js';
+import { AI_TEMPLATE_ID } from './templates/index.js';
 import { addDays, todayDateString } from './dates.js';
 import { AppError } from './errors.js';
 
@@ -44,8 +47,22 @@ export async function generatePostForCalendar(calendarId) {
   });
 }
 
+async function renderAiPostImage(post) {
+  const brand = await getBrandById(post.brand_id);
+  const referenceRows = await getBrandReferenceImages(brand.id);
+  const referenceBuffers = await Promise.all(
+    referenceRows.map((row) => fetchRemoteImageBytes(row.image_url))
+  );
+
+  const asset = await generatePostImageAsset(post, { brand, referenceBuffers });
+  return asset.buffer;
+}
+
 export async function renderAndStorePost(post) {
-  const imageBuffer = await renderPostImage(post);
+  const imageBuffer = post.template_id === AI_TEMPLATE_ID
+    ? await renderAiPostImage(post)
+    : await renderPostImage(post);
+
   const imageUrl = await uploadPostImage(post.id, imageBuffer);
 
   return updateGeneratedPostImageUrl(post.id, imageUrl);
