@@ -276,24 +276,23 @@ Do NOT render the call-to-action text; it is delivered separately in the caption
 Brand style guide (follow this strictly — it takes priority over any generic aesthetic):
 - Voice/tone: ${manual.voice || 'Premium, sober, direct, operational.'}
 - Audience: ${manual.audience || 'Restaurant and gastronomic business owners.'}
-- Visual style: ${manual.visual_style || 'Dark, sober, high-contrast editorial design. Deep black/graphite background, warm orange accent color (#ff6a1a), off-white text. Sophisticated and practical, not cartoonish, not bright, not generic stock photography.'}${designRules.length ? `\n- Design rules: ${designRules.join('; ')}.` : ''}${colorLine ? `\n- Brand color palette: ${colorLine}. Use these colors and avoid off-brand colors.` : ''}
+- Visual style: ${manual.visual_style || 'Clean, minimal, premium SaaS aesthetic. Lots of white / very light-grey space, big bold typography, warm orange accent color (#ff6a1a) used sparingly only to highlight. Simple, clear and trustworthy — not cartoonish, not saturated, not generic stock photography.'}${designRules.length ? `\n- Design rules: ${designRules.join('; ')}.` : ''}${colorLine ? `\n- Brand color palette: ${colorLine}. Use these colors and avoid off-brand colors.` : ''}
 - Include a small wordmark reading "${brand?.name || 'capta'}" with a round orange accent dot next to it, in the top-left corner.
 
 Composition guidance:
 - Vertical portrait poster format, feels like a premium social media ad.
 - Strong typographic hierarchy: the headline is the dominant visual element and must stay fully legible.
-- An abstract visual metaphor for restaurant operations, orders, customers, menus, or business signals becoming organized (subtle dashboard panels, connected nodes, order tickets) may appear alongside the text, but must never obscure or crowd the text.
+- A clean visual metaphor for restaurant operations (phone mockups, WhatsApp-style chats, comparison cards, line icons, soft rounded shapes, subtle shadows, checkmarks/arrows) may appear alongside the text, but must never obscure or crowd it.
 
 Hard constraints — do NOT violate:
-- NO buttons, NO call-to-action buttons, NO pills, NO rounded rectangles that look like clickable buttons anywhere in the image.
-- NO "request a demo", "pedí una demo", "book now" or any promotional button/label.
-- The ONLY text allowed in the image is the headline, the supporting text, and the "${brand?.name || 'capta'}" wordmark. No other words, no watermarks, no UI button labels, no fake app buttons with text.
-- Keep all rendered text crisp, correctly spelled, and exactly as provided above.`;
+- Do NOT add any call-to-action or promotional button, badge or bar such as "Pedí una demo", "Solicitá una demo", "Reservá", "Comprá", "Book now", "Sign up", "Contact us", a phone number, or a website/contact bar. There must be NO button inviting the viewer to take an action anywhere in the image.
+- Do NOT invent marketing taglines, prices, or extra paragraphs beyond the headline and supporting text given above. Short structural labels that belong to the reference layout style (for example a "before vs after" comparison) are acceptable, but no promotional copy.
+- Keep all rendered text crisp, correctly spelled, and consistent with the exact headline and supporting text above.`;
 
   if (referenceCount > 0) {
     return `${base}
 
-You are given ${referenceCount} reference image(s) that define this brand's established visual style. Match them closely: same overall mood, color palette, background darkness/lightness, typography feel, and composition style. Treat them as the source of truth for how the post should look. Do NOT copy their exact content or reproduce any text visible in them — produce a new, original image that clearly belongs to the same visual system.`;
+You are given ${referenceCount} reference image(s) that define this brand's established visual system. Match them closely: same background (light/white), color palette, typography feel, card/mockup/icon style, spacing and overall mood. Treat them as the source of truth for how the post should look. Adapt the layout to THIS post's single message and exact text — do not copy their content, reproduce their text, or force a comparison layout when it does not fit. The output must clearly look like it belongs to the same brand system as the references.`;
   }
 
   return base;
