@@ -11,6 +11,7 @@ import {
   insertCalendarIdeas,
   listCategories,
   markCalendarGenerated,
+  setPostRenderError,
   updateGeneratedPostImageUrl,
   uploadPostImage
 } from './supabase.js';
@@ -83,13 +84,29 @@ export async function renderAndStorePost(post) {
   return updateGeneratedPostImageUrl(post.id, imageUrl);
 }
 
+// Renders a post's image without blocking the HTTP response. GPT Image 2 can
+// take longer than the reverse proxy's request timeout, so callers return
+// immediately and the image lands (or an error is recorded) a bit later.
+export function renderPostInBackground(post) {
+  Promise.resolve()
+    .then(() => setPostRenderError(post.id, null))
+    .then(() => renderAndStorePost(post))
+    .then((rendered) => {
+      console.log(`[render:bg] post ${post.id} rendered -> ${rendered.image_url}`);
+    })
+    .catch(async (error) => {
+      console.error(`[render:bg:error] post ${post.id}:`, error);
+      await setPostRenderError(post.id, error.message);
+    });
+}
+
 export async function generateAndRenderPost(calendarId) {
   const post = await generatePostForCalendar(calendarId);
-  const renderedPost = await renderAndStorePost(post);
 
-  await markCalendarGenerated(calendarId, renderedPost.id);
+  await markCalendarGenerated(calendarId, post.id);
+  renderPostInBackground(post);
 
-  return renderedPost;
+  return post;
 }
 
 // Uses OpenAI to propose fresh calendar ideas and appends them to the queue,

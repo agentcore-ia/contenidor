@@ -58,6 +58,7 @@ create table if not exists generated_posts (
   background_idea text,
   image_url text,
   status text not null default 'generated' check (status in ('generated', 'needs_review', 'approved', 'posted', 'rejected')),
+  render_error text,
   model text,
   raw_generation jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),

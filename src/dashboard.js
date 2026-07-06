@@ -8,10 +8,11 @@ import {
   listCustomTemplates,
   createCustomTemplate,
   updateCustomTemplate,
-  deleteCustomTemplate
+  deleteCustomTemplate,
+  uploadReferenceImage
 } from './supabase.js';
 import { AppError } from './errors.js';
-import { generateCalendarIdeas, generatePostForCalendar, renderAndStorePost } from './contentEngine.js';
+import { generateCalendarIdeas, generatePostForCalendar, renderPostInBackground } from './contentEngine.js';
 import { getSchedulerState, runAutomationNow } from './scheduler.js';
 import { templates } from './templates/index.js';
 import { todayDateString } from './dates.js';
@@ -171,7 +172,7 @@ export function registerDashboardRoutes(app) {
     const limit = Math.min(parseInt(req.query.limit ?? '50', 10) || 50, 200);
     const { data, error } = await supabase
       .from('generated_posts')
-      .select('id, hook, body, cta, caption_instagram, caption_x, caption_linkedin, image_url, status, template_id, visual_direction, background_idea, model, created_at, calendar_id, category_id')
+      .select('id, hook, body, cta, caption_instagram, caption_x, caption_linkedin, image_url, status, render_error, template_id, visual_direction, background_idea, model, created_at, calendar_id, category_id')
       .order('created_at', { ascending: false })
       .limit(limit);
     if (error) throw new AppError(error.message, 500, 'SUPABASE_ERROR');
@@ -192,8 +193,8 @@ export function registerDashboardRoutes(app) {
 
   app.post('/api/posts/:id/regenerate-render', wrap(async (req, res) => {
     const post = await getGeneratedPost(req.params.id);
-    const rendered = await renderAndStorePost(post);
-    res.json({ success: true, post: rendered });
+    renderPostInBackground(post);
+    res.json({ success: true, post, rendering: true });
   }));
 
   app.post('/api/posts/:id/approve', wrap(async (req, res) => {
@@ -213,8 +214,8 @@ export function registerDashboardRoutes(app) {
     if (!isValidTemplateId(tid)) throw new AppError(`Template "${tid}" no existe`, 400, 'BAD_REQUEST');
     const { data: updated } = await supabase.from('generated_posts').update({ template_id: tid }).eq('id', req.params.id).select().single();
     if (!updated) throw new AppError('Post no encontrado', 404, 'NOT_FOUND');
-    const rendered = await renderAndStorePost(updated);
-    res.json({ success: true, post: rendered });
+    renderPostInBackground(updated);
+    res.json({ success: true, post: updated, rendering: true });
   }));
 
   app.get('/api/calendar', wrap(async (_req, res) => {
@@ -303,6 +304,16 @@ export function registerDashboardRoutes(app) {
     const { data, error } = await supabase.from('inspirations').select('*, category:content_categories(id, name, slug)').order('created_at', { ascending: false });
     if (error) throw new AppError(error.message, 500, 'SUPABASE_ERROR');
     res.json({ success: true, inspirations: data ?? [] });
+  }));
+
+  app.post('/api/uploads/reference', wrap(async (req, res) => {
+    const dataUrl = req.body?.data_url;
+    const match = typeof dataUrl === 'string' && dataUrl.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/);
+    if (!match) throw new AppError('Imagen invalida. Subi un archivo PNG, JPG o WEBP.', 400);
+    const buffer = Buffer.from(match[2], 'base64');
+    if (buffer.length > 20 * 1024 * 1024) throw new AppError('La imagen supera 20MB.', 400);
+    const url = await uploadReferenceImage(buffer, match[1]);
+    res.json({ success: true, image_url: url });
   }));
 
   app.post('/api/inspirations', wrap(async (req, res) => {

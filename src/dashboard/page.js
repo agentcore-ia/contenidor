@@ -270,7 +270,7 @@ function renderPosts() {
 function postCard(post) {
   const image = post.image_url
     ? `<img class="post-image" src="${esc(post.image_url)}" alt="" onclick="showPost('${post.id}')" />`
-    : `<div class="post-image post-empty-image">Sin render</div>`;
+    : `<div class="post-image post-empty-image">${post.render_error ? 'Error de render' : 'Generando...'}</div>`;
 
   return `<article class="card post-card">
     ${image}
@@ -300,6 +300,7 @@ window.showPost = async function showPost(id) {
     const post = data.post;
     modal(`<h3>Post</h3>
       ${post.image_url ? `<img class="modal-image" src="${esc(post.image_url)}" alt="" />` : ''}
+      ${post.render_error ? `<div class="empty" style="border-color:#7a2b2b;color:#ffb4b4">Error al generar imagen: ${esc(post.render_error)}</div>` : (!post.image_url ? `<div class="empty">Imagen aun no generada. Toca "Regenerar render" o espera a que termine.</div>` : '')}
       <div class="form-grid">
         ${readOnlyField('Hook', post.hook, 2)}
         ${readOnlyField('Body', post.body, 3)}
@@ -339,11 +340,19 @@ window.regCopy = async function regCopy(id) {
   }
 };
 
+// Image rendering (GPT Image 2) runs in the background and can take ~1 min, so
+// refresh the current tab a few times to pick up the result automatically.
+function pollTabForRender() {
+  [20000, 45000, 75000].forEach((ms) => setTimeout(() => { if (!byId('modal-root').classList.contains('open')) loadTab(); }, ms));
+}
+
 window.regRender = async function regRender(id) {
   try {
-    await api(`/api/posts/${id}/regenerate-render`, { method: 'POST' });
-    toast('Render regenerado');
+    const res = await api(`/api/posts/${id}/regenerate-render`, { method: 'POST' });
+    toast(res.rendering ? 'Generando imagen en segundo plano (~1 min)...' : 'Render regenerado');
+    closeModal();
     await loadTab();
+    pollTabForRender();
   } catch (error) {
     toast(error.message, 'error');
   }
@@ -372,9 +381,10 @@ window.rejectPost = async function rejectPost(id) {
 window.changeTemplate = async function changeTemplate(id, templateId) {
   if (!templateId) return;
   try {
-    await api(`/api/posts/${id}/template`, { method: 'PATCH', body: { template_id: templateId } });
-    toast('Template actualizado');
+    const res = await api(`/api/posts/${id}/template`, { method: 'PATCH', body: { template_id: templateId } });
+    toast(res.rendering ? 'Template cambiado. Regenerando imagen en segundo plano...' : 'Template actualizado');
     await loadTab();
+    pollTabForRender();
   } catch (error) {
     toast(error.message, 'error');
   }
@@ -446,8 +456,9 @@ window.generateIdeas = async function generateIdeas() {
 window.generateCalendar = async function generateCalendar(id) {
   try {
     await api('/generate-and-render', { method: 'POST', body: { calendar_id: id } });
-    toast('Post generado y renderizado');
+    toast('Copy generado. La imagen se crea en segundo plano (~1 min).');
     await loadTab();
+    pollTabForRender();
   } catch (error) {
     toast(error.message, 'error');
   }
@@ -741,13 +752,43 @@ function inspirationModal(insp = null) {
   modal(`<h3>${editing ? 'Editar inspiracion' : 'Nueva inspiracion'}</h3>
     <form onsubmit="${editing ? `updateInspiration(event,'${insp.id}')` : 'saveInspiration(event)'}" class="form-grid">
       <div class="form-group full"><label>Titulo</label><input name="title" required value="${esc(insp?.title || '')}" /></div>
-      <div class="form-group full"><label>URL de imagen</label><input name="image_url" required value="${esc(insp?.image_url || '')}" /></div>
-      <div class="form-group full"><label>Categoria</label><select name="category_id"><option value="">Sin categoria</option>${S.categories.map((cat) => `<option value="${cat.id}" ${cat.id === insp?.category_id ? 'selected' : ''}>${esc(cat.name)}</option>`).join('')}</select></div>
-      <div class="form-group full"><label>Notas</label><textarea name="notes" rows="4">${esc(insp?.notes || '')}</textarea></div>
-      <div class="form-group full"><label>Por que funciona</label><textarea name="why_it_works" rows="3">${esc(insp?.why_it_works || '')}</textarea></div>
+      <div class="form-group full">
+        <label>Subir imagen (recomendado)</label>
+        <input type="file" accept="image/png,image/jpeg,image/webp" onchange="uploadReferenceFile(this)" />
+        <div class="subtle" id="upload-status" style="margin-top:6px">Subi un archivo PNG/JPG/WEBP, o pega una URL directa de imagen abajo.</div>
+      </div>
+      <div class="form-group full"><label>URL de imagen</label><input name="image_url" id="insp-image-url" required value="${esc(insp?.image_url || '')}" /></div>
+      <div class="form-group full"><img id="insp-image-preview" src="${esc(insp?.image_url || '')}" alt="" style="max-width:100%;border-radius:8px;${insp?.image_url ? '' : 'display:none'}" /></div>
+      <div class="form-group full"><label>Categoria</label><select name="category_id"><option value="">Sin categoria (referencia global de marca)</option>${S.categories.map((cat) => `<option value="${cat.id}" ${cat.id === insp?.category_id ? 'selected' : ''}>${esc(cat.name)}</option>`).join('')}</select></div>
+      <div class="form-group full"><label>Notas</label><textarea name="notes" rows="3">${esc(insp?.notes || '')}</textarea></div>
+      <div class="form-group full"><label>Por que funciona</label><textarea name="why_it_works" rows="2">${esc(insp?.why_it_works || '')}</textarea></div>
       <div class="form-group full"><button class="btn btn-primary">Guardar</button> <button type="button" class="btn btn-plain" onclick="closeModal()">Cancelar</button></div>
     </form>`);
 }
+
+window.uploadReferenceFile = async function uploadReferenceFile(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const statusEl = byId('upload-status');
+  statusEl.textContent = 'Subiendo imagen...';
+  try {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const res = await api('/api/uploads/reference', { method: 'POST', body: { data_url: dataUrl } });
+    byId('insp-image-url').value = res.image_url;
+    const preview = byId('insp-image-preview');
+    preview.src = res.image_url;
+    preview.style.display = '';
+    statusEl.textContent = 'Imagen subida correctamente.';
+  } catch (error) {
+    statusEl.textContent = `Error: ${error.message}`;
+    toast(error.message, 'error');
+  }
+};
 
 function cleanForm(form) {
   const body = {};

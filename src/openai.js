@@ -257,6 +257,11 @@ Reglas:
 
 function aiPosterPrompt(post, brand, referenceCount) {
   const manual = brand?.brand_manual || {};
+  const designRules = Array.isArray(manual.design_rules) ? manual.design_rules : [];
+  const colors = manual.colors && typeof manual.colors === 'object' ? manual.colors : {};
+  const colorLine = Object.entries(colors)
+    .map(([name, value]) => `${name} ${value}`)
+    .join(', ');
 
   const base = `Design a finished, ready-to-publish vertical Instagram post image for ${brand?.name || 'the brand'}.
 
@@ -265,24 +270,30 @@ This must be the COMPLETE final artwork as a poster-style graphic design, with a
 Exact text to render (verbatim — do not paraphrase, add, remove, or misspell a single word):
 - Headline (largest, most prominent element): "${post.hook || ''}"
 - Supporting text (secondary, smaller, below the headline): "${post.body || ''}"
-- Call to action (inside a pill/button-shaped element near the bottom): "${post.cta || ''}"
 
-Brand style guide:
+Do NOT render the call-to-action text; it is delivered separately in the caption.
+
+Brand style guide (follow this strictly — it takes priority over any generic aesthetic):
 - Voice/tone: ${manual.voice || 'Premium, sober, direct, operational.'}
 - Audience: ${manual.audience || 'Restaurant and gastronomic business owners.'}
-- Visual style: ${manual.visual_style || 'Dark, sober, high-contrast editorial design. Black/graphite background, warm orange accent color (#ff6a1a), off-white highlights. Sophisticated and practical, not cartoonish, not generic stock photography.'}
+- Visual style: ${manual.visual_style || 'Dark, sober, high-contrast editorial design. Deep black/graphite background, warm orange accent color (#ff6a1a), off-white text. Sophisticated and practical, not cartoonish, not bright, not generic stock photography.'}${designRules.length ? `\n- Design rules: ${designRules.join('; ')}.` : ''}${colorLine ? `\n- Brand color palette: ${colorLine}. Use these colors and avoid off-brand colors.` : ''}
 - Include a small wordmark reading "${brand?.name || 'capta'}" with a round orange accent dot next to it, in the top-left corner.
 
 Composition guidance:
 - Vertical portrait poster format, feels like a premium social media ad.
 - Strong typographic hierarchy: the headline is the dominant visual element and must stay fully legible.
 - An abstract visual metaphor for restaurant operations, orders, customers, menus, or business signals becoming organized (subtle dashboard panels, connected nodes, order tickets) may appear alongside the text, but must never obscure or crowd the text.
-- All rendered text must be crisp, correctly spelled, and exactly as provided above — no other text, watermarks, or UI labels.`;
+
+Hard constraints — do NOT violate:
+- NO buttons, NO call-to-action buttons, NO pills, NO rounded rectangles that look like clickable buttons anywhere in the image.
+- NO "request a demo", "pedí una demo", "book now" or any promotional button/label.
+- The ONLY text allowed in the image is the headline, the supporting text, and the "${brand?.name || 'capta'}" wordmark. No other words, no watermarks, no UI button labels, no fake app buttons with text.
+- Keep all rendered text crisp, correctly spelled, and exactly as provided above.`;
 
   if (referenceCount > 0) {
     return `${base}
 
-You are given ${referenceCount} reference image(s) showing this brand's established visual style. Use them ONLY as a style/mood/color/composition reference — do not copy their exact content or reproduce any text visible in them. Produce a new, original image consistent with that established look.`;
+You are given ${referenceCount} reference image(s) that define this brand's established visual style. Match them closely: same overall mood, color palette, background darkness/lightness, typography feel, and composition style. Treat them as the source of truth for how the post should look. Do NOT copy their exact content or reproduce any text visible in them — produce a new, original image that clearly belongs to the same visual system.`;
   }
 
   return base;

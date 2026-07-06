@@ -11,7 +11,7 @@ const port = process.env.PORT || 80;
 
 console.log('[startup] booting...', { port, node: process.version, cwd: process.cwd() });
 
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '30mb' }));
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'capta-content-engine' });

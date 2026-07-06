@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { AppError, assertRequiredEnv } from './errors.js';
 import { todayDateString } from './dates.js';
@@ -172,6 +173,36 @@ export async function uploadPostImage(postId, imageBuffer) {
   return data.publicUrl;
 }
 
+const REFERENCE_EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
+
+// Uploads a user-provided reference image (as a Buffer) to storage and returns
+// its public URL, so brand style references are real image files instead of
+// links to pages (e.g. Instagram) that GPT Image 2 can't consume.
+export async function uploadReferenceImage(buffer, contentType) {
+  const ext = REFERENCE_EXT[contentType];
+  if (!ext) {
+    throw new AppError('Formato de imagen no soportado. Usa PNG, JPG o WEBP.', 400, 'UNSUPPORTED_IMAGE_TYPE');
+  }
+
+  const filePath = `references/${crypto.randomUUID()}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from('post-assets')
+    .upload(filePath, buffer, { contentType, cacheControl: '31536000', upsert: true });
+
+  if (error) {
+    throw new AppError(`Could not upload reference image: ${error.message}`, 502, 'STORAGE_UPLOAD_FAILED');
+  }
+
+  const { data } = supabase.storage.from('post-assets').getPublicUrl(filePath);
+
+  if (!data?.publicUrl) {
+    throw new AppError('Supabase Storage did not return a public URL', 502, 'STORAGE_PUBLIC_URL_FAILED');
+  }
+
+  return data.publicUrl;
+}
+
 async function upsertPostAsset({ postId, filePath, imageUrl }) {
   const { error } = await supabase
     .from('post_assets')
@@ -201,7 +232,8 @@ export async function updateGeneratedPostImageUrl(postId, imageUrl) {
     .from('generated_posts')
     .update({
       image_url: imageUrl,
-      status: 'needs_review'
+      status: 'needs_review',
+      render_error: null
     })
     .eq('id', postId)
     .select('*')
@@ -212,6 +244,17 @@ export async function updateGeneratedPostImageUrl(postId, imageUrl) {
   }
 
   return data;
+}
+
+export async function setPostRenderError(postId, message) {
+  const { error } = await supabase
+    .from('generated_posts')
+    .update({ render_error: message ? String(message).slice(0, 500) : null })
+    .eq('id', postId);
+
+  if (error) {
+    console.error('[setPostRenderError] could not persist render error', error.message);
+  }
 }
 
 export async function getBrandById(brandId) {
