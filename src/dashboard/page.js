@@ -533,6 +533,17 @@ function renderBrand() {
           <label>Reglas de diseno</label>
           <textarea name="design_rules" class="tall">${esc((manual.design_rules || []).join('\n'))}</textarea>
         </div>
+        <div class="form-group full" style="border-top:1px solid rgba(255,255,255,0.1);padding-top:14px">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+            <input type="checkbox" name="show_logo" ${manual.show_logo ? 'checked' : ''} style="width:auto" />
+            Incluir el logo/wordmark de la marca en las imagenes
+          </label>
+        </div>
+        <div class="form-group full">
+          <label>Instrucciones de imagen (IA)</label>
+          <textarea name="image_instructions" rows="4" placeholder="Indicaciones libres que se suman a cada imagen. Ej: 'No incluir ningun logo ni texto de marca. Usar siempre un mockup de celular. Titular bien grande. Sin emojis.'">${esc(manual.image_instructions || '')}</textarea>
+          <div class="subtle" style="margin-top:6px">Se agrega al final del prompt de cada imagen generada con IA, con prioridad alta.</div>
+        </div>
         <div class="form-group full">
           <button class="btn btn-primary">Guardar marca</button>
         </div>
@@ -572,6 +583,8 @@ window.saveBrand = async function saveBrand(event) {
     avoid_phrases: lines(fd.get('avoid_phrases')),
     content_rules: lines(fd.get('content_rules')),
     design_rules: lines(fd.get('design_rules')),
+    image_instructions: fd.get('image_instructions') || '',
+    show_logo: fd.get('show_logo') === 'on',
   };
 
   try {

@@ -277,7 +277,9 @@ Brand style guide (follow this strictly — it takes priority over any generic a
 - Voice/tone: ${manual.voice || 'Premium, sober, direct, operational.'}
 - Audience: ${manual.audience || 'Restaurant and gastronomic business owners.'}
 - Visual style: ${manual.visual_style || 'Clean, minimal, premium SaaS aesthetic. Lots of white / very light-grey space, big bold typography, warm orange accent color (#ff6a1a) used sparingly only to highlight. Simple, clear and trustworthy — not cartoonish, not saturated, not generic stock photography.'}${designRules.length ? `\n- Design rules: ${designRules.join('; ')}.` : ''}${colorLine ? `\n- Brand color palette: ${colorLine}. Use these colors and avoid off-brand colors.` : ''}
-- Include a small wordmark reading "${brand?.name || 'capta'}" with a round orange accent dot next to it, in the top-left corner.
+${manual.show_logo
+  ? `- Include a small wordmark reading "${brand?.name || 'capta'}" with a round orange accent dot next to it, in the top-left corner.`
+  : `- Do NOT include any logo, wordmark, brand name text, or app icon of the brand anywhere in the image.`}
 
 Composition guidance:
 - Vertical portrait poster format, feels like a premium social media ad.
@@ -289,13 +291,21 @@ Hard constraints — do NOT violate:
 - Do NOT invent marketing taglines, prices, or extra paragraphs beyond the headline and supporting text given above. Short structural labels that belong to the reference layout style (for example a "before vs after" comparison) are acceptable, but no promotional copy.
 - Keep all rendered text crisp, correctly spelled, and consistent with the exact headline and supporting text above.`;
 
+  const customInstructions = String(manual.image_instructions ?? '').trim();
+  const withCustom = customInstructions
+    ? `${base}
+
+Additional instructions from the brand owner (these have the HIGHEST priority — follow them even if they override guidance above):
+${customInstructions}`
+    : base;
+
   if (referenceCount > 0) {
-    return `${base}
+    return `${withCustom}
 
 You are given ${referenceCount} reference image(s) that define this brand's established visual system. Match them closely: same background (light/white), color palette, typography feel, card/mockup/icon style, spacing and overall mood. Treat them as the source of truth for how the post should look. Adapt the layout to THIS post's single message and exact text — do not copy their content, reproduce their text, or force a comparison layout when it does not fit. The output must clearly look like it belongs to the same brand system as the references.`;
   }
 
-  return base;
+  return withCustom;
 }
 
 export async function generatePostImageAsset(post, { brand, referenceBuffers = [] } = {}) {
