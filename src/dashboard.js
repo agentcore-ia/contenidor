@@ -19,7 +19,7 @@ import { getSchedulerState } from './scheduler.js';
 import { authMiddleware, requireBrand, signUp, signIn, refreshSession } from './auth.js';
 import { startOnboarding } from './onboarding.js';
 import { templates } from './templates/index.js';
-import { todayDateString } from './dates.js';
+import { addDays, todayDateString } from './dates.js';
 
 const CUSTOM_PREFIX = 'custom_';
 
@@ -140,13 +140,26 @@ export function registerDashboardRoutes(app) {
     res.json({ success: true });
   }));
 
+  app.get('/api/me', wrap(async (req, res) => {
+    res.json({ success: true, user: { id: req.user.id, email: req.user.email } });
+  }));
+
+  // Monday..Sunday window containing `dateStr` (YYYY-MM-DD).
+  function weekRange(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0=Sun..6=Sat
+    const mondayOffset = dow === 0 ? -6 : 1 - dow;
+    const start = addDays(dateStr, mondayOffset);
+    return { start, end: addDays(start, 6) };
+  }
+
   app.get('/api/overview', wrap(async (req, res) => {
     const brand = await requireBrand(req);
     const today = todayDateString();
     const [posts, calendar, categories, inspirations] = await Promise.all([
       supabase
         .from('generated_posts')
-        .select('id, hook, status, image_url, template_id, created_at, calendar_id')
+        .select('id, hook, body, cta, image_url, status, render_error, template_id, created_at, calendar_id')
         .eq('brand_id', brand.id)
         .order('created_at', { ascending: false })
         .limit(200),
@@ -155,7 +168,7 @@ export function registerDashboardRoutes(app) {
         .select('id, publish_date, topic, angle, status, generated_post_id, category:content_categories(name, slug)')
         .eq('brand_id', brand.id)
         .order('publish_date', { ascending: true })
-        .limit(200),
+        .limit(300),
       supabase.from('content_categories').select('id, name, slug, default_template_id, sort_order').eq('brand_id', brand.id),
       supabase.from('inspirations').select('id, title, category_id').eq('brand_id', brand.id)
     ]);
@@ -168,28 +181,73 @@ export function registerDashboardRoutes(app) {
       return acc;
     }, {});
 
+    const postRows = posts.data ?? [];
     const calendarRows = calendar.data ?? [];
+    const postsById = new Map(postRows.map((post) => [post.id, post]));
+
     const todayItem = calendarRows.find((item) => item.publish_date === today) ?? null;
-    const nextItems = calendarRows
-      .filter((item) => item.publish_date >= today)
-      .slice(0, 7);
+    const nextItems = calendarRows.filter((item) => item.publish_date >= today).slice(0, 4);
+
+    // This/last week post generation volume, for the "posts generated" metric.
+    const thisWeek = weekRange(today);
+    const lastWeek = weekRange(addDays(thisWeek.start, -1));
+    const dateOf = (iso) => String(iso).slice(0, 10);
+    const inRange = (dateStr, range) => dateStr >= range.start && dateStr <= range.end;
+    const postsThisWeek = postRows.filter((post) => inRange(dateOf(post.created_at), thisWeek)).length;
+    const postsLastWeek = postRows.filter((post) => inRange(dateOf(post.created_at), lastWeek)).length;
+
+    // Approval rate among reviewed posts (approved vs rejected) as a real,
+    // available proxy for "brand consistency" — no invented metric.
+    const postStatus = byStatus(postRows);
+    const reviewed = (postStatus.approved || 0) + (postStatus.rejected || 0);
+    const approvalRate = reviewed > 0 ? Math.round(((postStatus.approved || 0) / reviewed) * 100) : null;
+
+    const monthOf = (dateStr) => dateStr.slice(0, 7);
+    const thisMonth = today.slice(0, 7);
+    const lastMonthDate = addDays(`${thisMonth}-01`, -1);
+    const lastMonth = lastMonthDate.slice(0, 7);
+    const scheduledThisMonth = calendarRows.filter((item) => monthOf(item.publish_date) === thisMonth).length;
+    const scheduledLastMonth = calendarRows.filter((item) => monthOf(item.publish_date) === lastMonth).length;
+
+    // Monday..Sunday strip for the current week, each day paired with its
+    // calendar item (and that item's rendered image, if any) for the
+    // "weekly schedule" widget.
+    const weekDays = Array.from({ length: 7 }, (_, i) => {
+      const date = addDays(thisWeek.start, i);
+      const item = calendarRows.find((row) => row.publish_date === date) ?? null;
+      const post = item?.generated_post_id ? postsById.get(item.generated_post_id) ?? null : null;
+      return { date, item, image_url: post?.image_url ?? null };
+    });
+
+    const todayPost = todayItem?.generated_post_id ? postsById.get(todayItem.generated_post_id) ?? null : null;
 
     res.json({
       success: true,
       overview: {
         today,
         counts: {
-          posts: posts.data?.length ?? 0,
+          posts: postRows.length,
           calendar: calendarRows.length,
           categories: categories.data?.length ?? 0,
           inspirations: inspirations.data?.length ?? 0,
           templates: Object.keys(templates).length
         },
-        posts_by_status: byStatus(posts.data),
+        posts_by_status: postStatus,
         calendar_by_status: byStatus(calendarRows),
         today_item: todayItem,
+        today_post: todayPost,
         next_items: nextItems,
-        recent_posts: posts.data?.slice(0, 6) ?? []
+        recent_posts: postRows.slice(0, 6),
+        needs_review_posts: postRows.filter((post) => post.status === 'needs_review').slice(0, 6),
+        week_days: weekDays,
+        metrics: {
+          posts_this_week: postsThisWeek,
+          posts_last_week: postsLastWeek,
+          approval_rate: approvalRate,
+          approved_count: postStatus.approved || 0,
+          scheduled_this_month: scheduledThisMonth,
+          scheduled_last_month: scheduledLastMonth
+        }
       }
     });
   }));

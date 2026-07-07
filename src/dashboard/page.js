@@ -12,6 +12,9 @@ const S = {
   system: null,
   automation: null,
   postFilter: 'all',
+  searchQuery: '',
+  userEmail: null,
+  needsReviewPosts: [],
 };
 
 const POST_STATUSES = ['generated', 'needs_review', 'approved', 'posted', 'rejected'];
@@ -195,106 +198,278 @@ document.querySelectorAll('.tab').forEach((tab) => {
   });
 });
 
+const ICON = {
+  edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M18.4 2.6a2 2 0 1 1 2.8 2.8L11 15.7 7 17l1.3-4L18.4 2.6Z"/></svg>',
+  star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.4l-5.3 2.7 1-5.8L3.5 9.2l5.9-.9Z"/></svg>',
+  calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10.5h18"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.4 2.4 4.6-5.3"/></svg>',
+  image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-4.5-4.5L7 20"/></svg>',
+  instagram: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="3.6"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></svg>',
+};
+
 async function loadOverview() {
-  const [overview, system, health] = await Promise.all([
-    api('/api/overview'),
-    api('/api/system'),
-    fetch('/health').then((res) => res.json()).catch(() => ({ ok: false })),
-  ]);
+  const overview = await api('/api/overview');
   S.overview = overview.overview;
-  S.system = system.system;
-  renderOverview(health);
+  renderOverview();
 }
 
-function renderOverview(health) {
-  const o = S.overview;
-  const postStatus = o.posts_by_status || {};
-  const calStatus = o.calendar_by_status || {};
-  const today = o.today_item;
+function metricCard({ icon, tone = '', label, value, note, noteTone }) {
+  return `<div class="metric-card">
+    <div class="metric-top">
+      <div class="metric-icon ${tone}">${icon}</div>
+      <div class="metric-label">${esc(label)}</div>
+    </div>
+    <div class="metric-value">${esc(value)}</div>
+    ${note ? `<div class="metric-note ${noteTone ? `metric-delta ${noteTone}` : ''}">${note}</div>` : ''}
+  </div>`;
+}
 
-  const todayBlock = today
-    ? `<div class="section">
-        <div class="section-head">
-          <h2>Contenido de hoy</h2>
-          ${statusBadge(today.status)}
-        </div>
-        <div class="title">${esc(today.topic)}</div>
-        <div class="subtle">${esc(today.angle || '')}</div>
-        <div class="toolbar" style="justify-content:flex-start;margin-top:12px">
-          ${today.status === 'pending' ? `<button class="btn btn-primary" onclick="generateCalendar('${today.id}')">Generar y renderizar</button>` : ''}
-          <button class="btn" onclick="setTab('calendar')">Ver calendario</button>
+function deltaNote(current, previous, suffix) {
+  if (!previous) return { text: `${current} ${suffix}`, tone: '' };
+  const diff = current - previous;
+  const pct = Math.round((diff / previous) * 100);
+  if (diff === 0) return { text: `Igual que antes`, tone: '' };
+  const sign = diff > 0 ? '+' : '';
+  return { text: `${sign}${pct}% vs periodo anterior`, tone: diff > 0 ? 'up' : 'down' };
+}
+
+function renderOverview() {
+  const o = S.overview;
+  const m = o.metrics;
+  const today = o.today_item;
+  const todayPost = o.today_post;
+  const brand = S.brands.find((b) => b.id === S.brandId) || S.brands[0] || null;
+
+  updateBellBadge(o.needs_review_posts || []);
+
+  const postsWeekNote = deltaNote(m.posts_this_week, m.posts_last_week, 'esta semana');
+  const monthNote = deltaNote(m.scheduled_this_month, m.scheduled_last_month, 'este mes');
+  const approvalLabel = m.approval_rate === null ? '—' : `${m.approval_rate}%`;
+  const approvalNote = m.approval_rate === null
+    ? 'Sin revisiones todavia'
+    : m.approval_rate >= 90 ? 'Excelente' : m.approval_rate >= 70 ? 'Buena' : 'A mejorar';
+  const approvalTone = m.approval_rate === null ? '' : m.approval_rate >= 70 ? 'up' : 'down';
+
+  const metrics = `<div class="grid metrics">
+    ${metricCard({ icon: ICON.edit, label: 'Posts generados', value: m.posts_this_week, note: postsWeekNote.text, noteTone: postsWeekNote.tone })}
+    ${metricCard({ icon: ICON.star, tone: 'tone-warn', label: 'Tasa de aprobacion', value: approvalLabel, note: approvalNote, noteTone: approvalTone })}
+    ${metricCard({ icon: ICON.calendar, tone: 'tone-info', label: 'Programados este mes', value: m.scheduled_this_month, note: monthNote.text, noteTone: monthNote.tone })}
+    ${metricCard({ icon: ICON.check, tone: 'tone-good', label: 'Creativos aprobados', value: m.approved_count, note: `${o.counts.posts} generados en total` })}
+  </div>`;
+
+  const creative = todayPost
+    ? `<div class="creative-media">
+        ${todayPost.image_url ? `<img src="${esc(todayPost.image_url)}" alt="" />` : `<div class="empty" style="border:0">${todayPost.render_error ? 'Error al generar la imagen' : 'Generando imagen...'}</div>`}
+        <div class="platform-chip">${ICON.instagram}</div>
+      </div>
+      <div class="creative-info">
+        <div>${statusBadge(todayPost.status)}</div>
+        <h3>${esc(todayPost.hook || '')}</h3>
+        <div class="body-text">${esc(todayPost.body || '')}</div>
+        ${todayPost.cta ? `<div class="cta-line">${esc(todayPost.cta)}</div>` : ''}
+        <div class="toolbar">
+          <button class="btn btn-primary" onclick="showPost('${todayPost.id}')">Editar contenido</button>
+          <button class="btn" onclick="regRender('${todayPost.id}')">Regenerar imagen</button>
         </div>
       </div>`
-    : `<div class="section">${empty(`No hay contenido cargado para ${o.today}`)}</div>`;
+    : today
+      ? `<div class="creative-media empty">
+          ${ICON.image}
+          <span>Todavia no se genero el creativo de hoy</span>
+        </div>
+        <div class="creative-info">
+          <div class="title">${esc(today.topic)}</div>
+          <div class="subtle">${esc(today.angle || '')}</div>
+          <div class="toolbar">
+            <button class="btn btn-primary" onclick="generateCalendar('${today.id}')">Generar ahora</button>
+          </div>
+        </div>`
+      : `<div class="creative-media empty">${ICON.image}<span>Sin contenido cargado para hoy</span></div>
+        <div class="creative-info"><div class="subtle">Agrega ideas al calendario para ver el creativo del dia.</div>
+          <div class="toolbar"><button class="btn" onclick="setTab('calendar')">Ir al calendario</button></div>
+        </div>`;
 
-  const queue = o.next_items.length
-    ? o.next_items.map((item) => `<div class="queue-item">
+  const postLookup = new Map(o.recent_posts.map((post) => [post.id, post]));
+  if (todayPost) postLookup.set(todayPost.id, todayPost);
+
+  const upcoming = o.next_items.length
+    ? o.next_items.map((item) => {
+      const post = item.generated_post_id ? (postLookup.get(item.generated_post_id) || null) : null;
+      const thumb = post?.image_url
+        ? `<img class="thumb" src="${esc(post.image_url)}" alt="" />`
+        : `<div class="thumb-empty">${ICON.image}</div>`;
+      return `<div class="upcoming-row">
         <div class="date-chip">${fmtDate(item.publish_date)}</div>
+        ${thumb}
         <div>
           <div class="title">${esc(item.topic)}</div>
           <div class="subtle">${esc(item.category?.name || '')}</div>
         </div>
-        <div>${statusBadge(item.status)}</div>
-      </div>`).join('')
+        ${statusBadge(item.status)}
+      </div>`;
+    }).join('')
     : empty('No hay proximos items');
 
-  const recent = o.recent_posts.length
-    ? o.recent_posts.map((post) => `<div class="recent-post">
-        <div class="section-head" style="margin-bottom:6px">
-          ${statusBadge(post.status)}
-          <span class="subtle">${esc(post.template_id || '')}</span>
+  const weekStrip = `<div class="week-strip">${o.week_days.map((day) => {
+    const dow = new Date(`${day.date}T00:00:00`).toLocaleDateString('es-AR', { weekday: 'short' });
+    const dom = day.date.slice(-2);
+    const isToday = day.date === o.today;
+    const status = day.item?.status;
+    const content = day.image_url
+      ? `<img src="${esc(day.image_url)}" alt="" />`
+      : day.item
+        ? (day.item.status === 'pending' ? `<span onclick="generateCalendar('${day.item.id}')" title="Generar">${ICON.edit}</span>` : ICON.image)
+        : ICON.calendar;
+    return `<div class="week-col ${isToday ? 'is-today' : ''}">
+      <div class="week-col-head"><div class="dow">${esc(dow)}</div><div class="dom">${esc(dom)}</div></div>
+      <div class="week-thumb" onclick="setTab('calendar')" title="${esc(day.item?.topic || 'Sin item')}">${content}</div>
+      <div class="week-dot ${status ? `status-${status}` : ''}"></div>
+    </div>`;
+  }).join('')}</div>`;
+
+  const manual = brand?.brand_manual || {};
+  const colors = Object.entries(manual.colors || {});
+  const brandSummary = brand
+    ? `<div class="brand-summary-head">
+        <div class="brand-avatar">${esc((brand.name || '?').slice(0, 1).toUpperCase())}</div>
+        <div><strong>${esc(brand.name)}</strong><span>Marca activa</span></div>
+      </div>
+      ${colors.length ? `<div class="swatch-row">${colors.map(([name, value]) => `<span class="swatch" style="background:${esc(value)}" title="${esc(name)} ${esc(value)}"></span>`).join('')}</div>` : `<div class="subtle">Sin paleta configurada</div>`}
+      <div class="font-row">
+        <div class="font-chip"><div class="sample" style="font-family:${esc(manual.typography?.heading_font || 'inherit')}">Ag</div><div class="label">${esc(manual.typography?.heading_font || 'Titulo')}</div></div>
+        <div class="font-chip"><div class="sample" style="font-family:${esc(manual.typography?.body_font || 'inherit')}">Ag</div><div class="label">${esc(manual.typography?.body_font || 'Texto')}</div></div>
+      </div>
+      <div class="toolbar" style="margin-top:16px"><button class="btn btn-sm" onclick="setTab('brand')">Editar marca</button></div>`
+    : empty('Sin marca configurada');
+
+  const recentList = o.recent_posts.length
+    ? o.recent_posts.map((post) => `<div class="recent-row" onclick="showPost('${post.id}')">
+        ${post.image_url ? `<img class="thumb" src="${esc(post.image_url)}" alt="" />` : `<div class="thumb-empty">${ICON.image}</div>`}
+        <div>
+          <div class="title">${esc(post.hook || 'Post sin hook')}</div>
+          <div class="recent-meta">Instagram Post · ${timeAgo(post.created_at)}</div>
         </div>
-        <div class="title">${esc(post.hook || 'Post sin hook')}</div>
-        <div class="toolbar" style="justify-content:flex-start;margin-top:10px">
-          <button class="btn btn-sm" onclick="showPost('${post.id}')">Abrir</button>
-          ${post.image_url ? `<a class="btn btn-sm btn-plain" href="${esc(post.image_url)}" target="_blank" rel="noreferrer">Imagen</a>` : ''}
-        </div>
+        ${statusBadge(post.status)}
       </div>`).join('')
     : empty('Todavia no hay posts generados');
 
   byId('content').innerHTML = `
-    ${pageHead('Overview', `Hoy: ${o.today}`, `<button class="btn" onclick="loadOverview()">Actualizar</button>`)}
-    <div class="grid metrics">
-      ${metric('Posts', o.counts.posts, `${postStatus.needs_review || 0} en revision`)}
-      ${metric('Calendario', o.counts.calendar, `${calStatus.pending || 0} pendientes`)}
-      ${metric('Categorias', o.counts.categories)}
-      ${metric('Templates', o.counts.templates)}
-      ${metric('Inspiraciones', o.counts.inspirations)}
-      ${metric('Engine', health.ok ? 'OK' : 'Falla', S.system.model)}
+    <div class="dash-head">
+      <div><h1>Hola${S.userEmail ? `, ${esc(S.userEmail.split('@')[0])}` : ''}</h1><p>Resumen de ${brand ? esc(brand.name) : 'tu marca'} · ${o.today}</p></div>
     </div>
+    ${metrics}
     <div class="grid two" style="margin-top:14px">
-      ${todayBlock}
       <div class="section">
-        <div class="section-head">
-          <h2>Sistema</h2>
-          <span class="${health.ok ? 'ok' : 'bad'}">${health.ok ? 'online' : 'offline'}</span>
-        </div>
-        <div class="health-grid">
-          ${healthItem('OpenAI', S.system.env.OPENAI_API_KEY ? 'Configurado' : 'Falta key', S.system.env.OPENAI_API_KEY ? 'ok' : 'bad')}
-          ${healthItem('Supabase', S.system.env.SUPABASE_URL && S.system.env.SUPABASE_SERVICE_ROLE_KEY ? 'Configurado' : 'Incompleto', S.system.env.SUPABASE_URL && S.system.env.SUPABASE_SERVICE_ROLE_KEY ? 'ok' : 'bad')}
-          ${healthItem('Timezone', S.system.content_time_zone, 'ok')}
-          ${healthItem('Uptime', `${S.system.uptime_seconds}s`, 'ok')}
-        </div>
+        <div class="card-head"><h2>Vista previa del creativo</h2><button class="btn btn-sm" onclick="loadOverview()" title="Actualizar">&#8635;</button></div>
+        <div class="creative-preview">${creative}</div>
       </div>
+      <div class="section">
+        <div class="card-head"><h2>Proximos posts</h2><button class="btn btn-sm" onclick="setTab('calendar')">Ver calendario</button></div>
+        ${upcoming}
+      </div>
+    </div>
+    <div class="section" style="margin-top:14px">
+      <div class="card-head"><h2>Calendario semanal</h2><span class="meta">Semana actual</span></div>
+      ${weekStrip}
     </div>
     <div class="grid two" style="margin-top:14px">
       <div class="section">
-        <div class="section-head"><h2>Proximos contenidos</h2><span class="meta">7 items</span></div>
-        <div class="list">${queue}</div>
+        <div class="card-head"><h2>Resumen de marca</h2></div>
+        ${brandSummary}
       </div>
       <div class="section">
-        <div class="section-head"><h2>Posts recientes</h2><button class="btn btn-sm" onclick="setTab('posts')">Ver todos</button></div>
-        <div class="list">${recent}</div>
+        <div class="card-head"><h2>Posts recientes</h2><button class="btn btn-sm" onclick="setTab('posts')">Ver todos</button></div>
+        ${recentList}
       </div>
     </div>`;
 }
 
-function healthItem(label, value, tone) {
-  return `<div class="health-item">
-    <strong>${esc(label)}</strong>
-    <span class="${tone}">${esc(value)}</span>
-  </div>`;
+function timeAgo(iso) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return 'ahora';
+  if (mins < 60) return `hace ${mins} min`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `hace ${hours} h`;
+  const days = Math.round(hours / 24);
+  return `hace ${days} d`;
 }
+
+function updateBellBadge(needsReview) {
+  const badge = byId('bell-badge');
+  if (!badge) return;
+  if (needsReview.length) {
+    badge.hidden = false;
+    badge.textContent = needsReview.length > 9 ? '9+' : String(needsReview.length);
+  } else {
+    badge.hidden = true;
+  }
+  S.needsReviewPosts = needsReview;
+}
+
+window.toggleNotifications = function toggleNotifications(event) {
+  event?.stopPropagation();
+  const panel = byId('notif-panel');
+  if (!panel) return;
+  if (!panel.hidden) { panel.hidden = true; return; }
+
+  const items = S.needsReviewPosts || [];
+  panel.innerHTML = `
+    <div class="notif-head">En revision</div>
+    ${items.length ? items.map((post) => `<button class="notif-item" onclick="closeNotifAndOpen('${post.id}')">
+      <span class="title">${esc(post.hook || 'Post sin hook')}</span>
+      <span class="subtle">Esperando tu aprobacion</span>
+    </button>`).join('') : `<div class="notif-item subtle">Sin pendientes por revisar</div>`}
+    ${items.length ? `<button class="notif-item" style="text-align:center;color:var(--accent);font-weight:700" onclick="S.postFilter='needs_review';setTab('posts');toggleNotifications()">Ver todos</button>` : ''}
+  `;
+  panel.hidden = false;
+};
+
+window.closeNotifAndOpen = function closeNotifAndOpen(postId) {
+  toggleNotifications();
+  showPost(postId);
+};
+
+document.addEventListener('click', (event) => {
+  const panel = byId('notif-panel');
+  const wrap = event.target.closest?.('.notif-wrap');
+  if (panel && !panel.hidden && !wrap) panel.hidden = true;
+});
+
+document.addEventListener('keydown', (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault();
+    byId('global-search')?.focus();
+  }
+});
+
+window.runGlobalSearch = function runGlobalSearch(value) {
+  S.searchQuery = value.trim();
+  S.postFilter = 'all';
+  setTab('posts');
+};
+
+window.generateTodayFromTopbar = async function generateTodayFromTopbar() {
+  if (!S.brandId) { toast('Crea o selecciona una marca primero', 'error'); return; }
+  const today = S.overview?.today_item;
+  if (today && today.status === 'pending') {
+    await generateCalendar(today.id);
+    return;
+  }
+  if (today) {
+    toast('El contenido de hoy ya fue generado. Mira Posts o Calendario.');
+    setTab('calendar');
+    return;
+  }
+  toast('No hay contenido cargado para hoy. Generando ideas...');
+  try {
+    const data = await api('/api/ideas/generate', { method: 'POST', body: { count: 7 } });
+    toast(`${data.inserted} ideas agregadas al calendario`);
+    setTab('calendar');
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+};
 
 window.setTab = function setTab(tabName) {
   const tab = document.querySelector(`.tab[data-tab="${tabName}"]`);
@@ -309,12 +484,17 @@ async function loadPosts() {
 
 function renderPosts() {
   const options = ['all', ...POST_STATUSES].map((status) => `<option value="${status}" ${S.postFilter === status ? 'selected' : ''}>${status.replace(/_/g, ' ')}</option>`).join('');
-  const posts = S.postFilter === 'all' ? S.posts : S.posts.filter((post) => post.status === S.postFilter);
-  const body = posts.length ? `<div class="posts-grid">${posts.map(postCard).join('')}</div>` : empty('No hay posts para este filtro');
+  const query = (S.searchQuery || '').toLowerCase();
+  let posts = S.postFilter === 'all' ? S.posts : S.posts.filter((post) => post.status === S.postFilter);
+  if (query) {
+    posts = posts.filter((post) => [post.hook, post.body, post.caption_instagram].filter(Boolean).some((text) => text.toLowerCase().includes(query)));
+  }
+  const body = posts.length ? `<div class="posts-grid">${posts.map(postCard).join('')}</div>` : empty(query ? `Sin resultados para "${S.searchQuery}"` : 'No hay posts para este filtro');
 
   byId('content').innerHTML = `
-    ${pageHead('Posts', `${posts.length} visibles de ${S.posts.length}`, `
+    ${pageHead('Posts', query ? `${posts.length} resultados para "${S.searchQuery}"` : `${posts.length} visibles de ${S.posts.length}`, `
       <select class="select" style="width:180px" onchange="S.postFilter=this.value;renderPosts()">${options}</select>
+      ${query ? `<button class="btn" onclick="S.searchQuery='';renderPosts()">Limpiar busqueda</button>` : ''}
       <button class="btn" onclick="loadPosts()">Actualizar</button>
     `)}
     ${body}`;
@@ -1138,6 +1318,7 @@ GET /dashboard</div>
 
 function renderLogin(mode = 'login') {
   document.querySelector('.sidebar')?.classList.add('hidden-auth');
+  document.querySelector('.topbar-new')?.classList.add('hidden-auth');
   byId('content').innerHTML = `
     <div class="auth-shell">
       <div class="auth-hero">
@@ -1201,13 +1382,19 @@ window.logout = function logout() {
 
 function ensureBrandBar() {
   document.querySelector('.sidebar')?.classList.remove('hidden-auth');
+  document.querySelector('.topbar-new')?.classList.remove('hidden-auth');
   const foot = byId('side-foot');
   if (!foot) return;
+  const initial = (S.userEmail || '?').slice(0, 1).toUpperCase();
   foot.innerHTML = `
     <div class="brand-switch">
       ${S.brands.length ? `<select onchange="switchBrand(this.value)" title="Cambiar de marca">
         ${S.brands.map((brand) => `<option value="${brand.id}" ${brand.id === S.brandId ? 'selected' : ''}>${esc(brand.name)}</option>`).join('')}
       </select>` : ''}
+      <div class="user-row">
+        <div class="user-avatar">${esc(initial)}</div>
+        <div class="user-meta"><strong>${esc(S.userEmail || 'Cuenta')}</strong><span>Admin</span></div>
+      </div>
       <div class="foot-row">
         <button class="btn btn-sm" onclick="openOnboarding()">+ Marca</button>
         <button class="btn btn-sm btn-plain" onclick="logout()">Salir</button>
@@ -1298,7 +1485,10 @@ function renderNoBrand() {
 }
 
 async function bootApp() {
-  const data = await api('/api/brands');
+  const [data] = await Promise.all([
+    api('/api/brands'),
+    api('/api/me').then((res) => { S.userEmail = res.user.email; }).catch(() => {}),
+  ]);
   S.brands = data.brands || [];
 
   if (!S.brands.length) {
