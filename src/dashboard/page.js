@@ -167,6 +167,10 @@ async function loadBootstrap() {
 }
 
 async function loadTab() {
+  if (!S.brandId) {
+    if (typeof renderNoBrand === 'function') renderNoBrand();
+    return;
+  }
   showLoading();
   try {
     if (S.tab === 'overview') await loadOverview();
@@ -1133,20 +1137,38 @@ GET /dashboard</div>
 // --- Auth & multi-brand boot -----------------------------------------------
 
 function renderLogin(mode = 'login') {
-  document.querySelector('.topbar')?.classList.add('hidden-auth');
+  document.querySelector('.sidebar')?.classList.add('hidden-auth');
   byId('content').innerHTML = `
-    <div style="max-width:420px;margin:60px auto">
-      <section class="section">
-        <div class="section-head"><h2>${mode === 'login' ? 'Iniciar sesion' : 'Crear cuenta'}</h2></div>
-        <form onsubmit="submitAuth(event,'${mode}')" class="form-grid">
-          <div class="form-group full"><label>Email</label><input name="email" type="email" required autocomplete="email" /></div>
-          <div class="form-group full"><label>Contrasena</label><input name="password" type="password" required minlength="8" autocomplete="${mode === 'login' ? 'current-password' : 'new-password'}" /></div>
-          <div class="form-group full"><button class="btn btn-primary" style="width:100%">${mode === 'login' ? 'Entrar' : 'Registrarme'}</button></div>
-        </form>
-        <div class="subtle" style="margin-top:12px;text-align:center;cursor:pointer" onclick="renderLoginMode('${mode === 'login' ? 'signup' : 'login'}')">
-          ${mode === 'login' ? 'No tenes cuenta? Registrate' : 'Ya tenes cuenta? Inicia sesion'}
+    <div class="auth-shell">
+      <div class="auth-hero">
+        <div class="side-logo">
+          <span class="logo-mark"></span>
+          <div class="logo-text"><strong>Contenidor</strong><span>Content Studio</span></div>
         </div>
-      </section>
+        <div>
+          <h1>Tu Instagram,<br />en <em>piloto automatico</em>.</h1>
+          <div class="hero-points">
+            <div class="hero-point">Pega el link de tu cuenta y la IA aprende tu rubro, tu estilo y tus colores.</div>
+            <div class="hero-point">Ideas nuevas todos los dias, alineadas a tu marca.</div>
+            <div class="hero-point">Creativos listos para publicar, con tu look exacto. Vos solo aprobas.</div>
+          </div>
+        </div>
+        <div class="hero-foot">Contenidor Studio — motor de contenido con IA</div>
+      </div>
+      <div class="auth-panel">
+        <div class="auth-card">
+          <h2>${mode === 'login' ? 'Hola de nuevo' : 'Crea tu cuenta'}</h2>
+          <span class="subtle">${mode === 'login' ? 'Entra para ver tus marcas y tu contenido.' : 'Empeza gratis: solo email y contrasena.'}</span>
+          <form onsubmit="submitAuth(event,'${mode}')">
+            <div class="form-group"><label>Email</label><input name="email" type="email" required autocomplete="email" placeholder="tu@email.com" /></div>
+            <div class="form-group"><label>Contrasena</label><input name="password" type="password" required minlength="8" autocomplete="${mode === 'login' ? 'current-password' : 'new-password'}" placeholder="Minimo 8 caracteres" /></div>
+            <button class="btn btn-primary">${mode === 'login' ? 'Entrar' : 'Crear cuenta'}</button>
+          </form>
+          <div class="auth-switch" onclick="renderLoginMode('${mode === 'login' ? 'signup' : 'login'}')">
+            ${mode === 'login' ? 'No tenes cuenta? <b>Registrate</b>' : 'Ya tenes cuenta? <b>Inicia sesion</b>'}
+          </div>
+        </div>
+      </div>
     </div>`;
 }
 
@@ -1178,21 +1200,19 @@ window.logout = function logout() {
 };
 
 function ensureBrandBar() {
-  const topbar = document.querySelector('.topbar');
-  topbar?.classList.remove('hidden-auth');
-  let bar = byId('brand-bar');
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.id = 'brand-bar';
-    bar.style.cssText = 'display:flex;align-items:center;gap:8px;margin-left:auto';
-    topbar?.appendChild(bar);
-  }
-  bar.innerHTML = `
-    <select onchange="switchBrand(this.value)" style="max-width:180px">
-      ${S.brands.map((brand) => `<option value="${brand.id}" ${brand.id === S.brandId ? 'selected' : ''}>${esc(brand.name)}</option>`).join('')}
-    </select>
-    <button class="btn btn-sm" onclick="openOnboarding()">+ Marca</button>
-    <button class="btn btn-sm btn-plain" onclick="logout()">Salir</button>`;
+  document.querySelector('.sidebar')?.classList.remove('hidden-auth');
+  const foot = byId('side-foot');
+  if (!foot) return;
+  foot.innerHTML = `
+    <div class="brand-switch">
+      ${S.brands.length ? `<select onchange="switchBrand(this.value)" title="Cambiar de marca">
+        ${S.brands.map((brand) => `<option value="${brand.id}" ${brand.id === S.brandId ? 'selected' : ''}>${esc(brand.name)}</option>`).join('')}
+      </select>` : ''}
+      <div class="foot-row">
+        <button class="btn btn-sm" onclick="openOnboarding()">+ Marca</button>
+        <button class="btn btn-sm btn-plain" onclick="logout()">Salir</button>
+      </div>
+    </div>`;
 }
 
 window.switchBrand = async function switchBrand(brandId) {
@@ -1267,20 +1287,22 @@ async function pollOnboarding(brandId) {
   }, 5000);
 }
 
+function renderNoBrand() {
+  byId('content').innerHTML = `
+    <section class="section hero-empty">
+      <span class="logo-mark"></span>
+      <h2>Crea tu primera marca</h2>
+      <p>Pega el link de tu Instagram y la IA arma todo sola: tu estilo visual, las categorias de contenido y la primera semana de ideas.</p>
+      <button class="btn btn-primary" onclick="openOnboarding()">Nueva marca desde Instagram</button>
+    </section>`;
+}
+
 async function bootApp() {
   const data = await api('/api/brands');
   S.brands = data.brands || [];
 
   if (!S.brands.length) {
-    document.querySelector('.topbar')?.classList.remove('hidden-auth');
-    byId('content').innerHTML = `
-      <div style="max-width:520px;margin:60px auto;text-align:center">
-        <section class="section">
-          <h2>Crea tu primera marca</h2>
-          <p class="subtle">Pega el link de tu Instagram y el sistema arma todo: estilo, categorias e ideas.</p>
-          <button class="btn btn-primary" onclick="openOnboarding()">Nueva marca desde Instagram</button>
-        </section>
-      </div>`;
+    renderNoBrand();
     ensureBrandBar();
     return;
   }
