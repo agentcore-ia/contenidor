@@ -70,12 +70,18 @@ export async function getGeneratedPost(postId) {
   return data;
 }
 
-export async function getPendingContentForToday(date = todayDateString()) {
-  const { data, error } = await supabase
+export async function getPendingContentForToday(date = todayDateString(), brandId = null) {
+  let query = supabase
     .from('content_calendar')
     .select(calendarSelect())
     .eq('publish_date', date)
-    .eq('status', 'pending')
+    .eq('status', 'pending');
+
+  if (brandId) {
+    query = query.eq('brand_id', brandId);
+  }
+
+  const { data, error } = await query
     .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle();
@@ -380,6 +386,142 @@ export async function deleteCustomTemplate(id) {
 
   if (error) {
     throw wrapSupabaseError('Could not delete custom template', error);
+  }
+}
+
+// --- Multi-tenant helpers -------------------------------------------------
+
+// Brands whose owner_email matches the user's email get claimed on first
+// login, so pre-existing brands (Capta) attach to their operator's account.
+export async function listBrandsForUser(user) {
+  await supabase
+    .from('brands')
+    .update({ owner_id: user.id })
+    .eq('owner_email', user.email)
+    .is('owner_id', null);
+
+  const { data, error } = await supabase
+    .from('brands')
+    .select('id, name, slug, description, default_template_id, instagram_handle, onboarding_status, onboarding_error, automation_enabled, analysis, brand_manual, created_at')
+    .eq('owner_id', user.id)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    throw wrapSupabaseError('Could not list brands', error);
+  }
+
+  return data ?? [];
+}
+
+export async function getBrandForUser(brandId, userId) {
+  const { data, error } = await supabase
+    .from('brands')
+    .select('*')
+    .eq('id', brandId)
+    .eq('owner_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    throw wrapSupabaseError('Could not load brand', error);
+  }
+
+  if (!data) {
+    throw new AppError('Marca no encontrada o sin acceso', 403, 'BRAND_FORBIDDEN');
+  }
+
+  return data;
+}
+
+export async function listAutomationBrands() {
+  const { data, error } = await supabase
+    .from('brands')
+    .select('id, name, slug')
+    .eq('automation_enabled', true)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    throw wrapSupabaseError('Could not list automation brands', error);
+  }
+
+  return data ?? [];
+}
+
+async function brandSlugExists(slug) {
+  const { data } = await supabase.from('brands').select('id').eq('slug', slug).maybeSingle();
+  return Boolean(data);
+}
+
+export async function createBrandShell({ ownerId, ownerEmail, name, instagramHandle }) {
+  const baseSlug = String(name || 'marca')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40) || 'marca';
+
+  let slug = baseSlug;
+  let attempt = 1;
+  while (await brandSlugExists(slug)) {
+    attempt += 1;
+    slug = `${baseSlug}-${attempt}`;
+  }
+
+  const { data, error } = await supabase
+    .from('brands')
+    .insert({
+      slug,
+      name,
+      owner_id: ownerId,
+      owner_email: ownerEmail,
+      instagram_handle: instagramHandle,
+      onboarding_status: 'analyzing',
+      default_template_id: 'ai_gpt_image_2',
+      brand_manual: {}
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw wrapSupabaseError('Could not create brand', error);
+  }
+
+  return data;
+}
+
+export async function updateBrandFields(brandId, fields) {
+  const { data, error } = await supabase
+    .from('brands')
+    .update(fields)
+    .eq('id', brandId)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw wrapSupabaseError('Could not update brand', error);
+  }
+
+  return data;
+}
+
+export async function insertCategories(rows) {
+  if (!rows.length) return [];
+  const { data, error } = await supabase
+    .from('content_categories')
+    .insert(rows)
+    .select('id, name, slug');
+
+  if (error) {
+    throw wrapSupabaseError('Could not insert categories', error);
+  }
+
+  return data ?? [];
+}
+
+export async function insertInspiration(row) {
+  const { error } = await supabase.from('inspirations').insert(row);
+  if (error) {
+    console.warn('[insertInspiration] failed:', error.message);
   }
 }
 

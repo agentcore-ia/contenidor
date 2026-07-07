@@ -1,4 +1,4 @@
-import { runDailyAutomation } from './contentEngine.js';
+import { runAllDailyAutomation } from './contentEngine.js';
 import { msUntilNext, timeZone } from './dates.js';
 
 // Lightweight in-process daily scheduler. No external cron dependency:
@@ -58,7 +58,7 @@ export async function runAutomationNow() {
 
   state.running = true;
   try {
-    const result = await runDailyAutomation({
+    const result = await runAllDailyAutomation({
       queueTarget: state.config.queueTarget,
       autoRender: state.config.autoRender
     });

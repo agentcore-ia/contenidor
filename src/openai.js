@@ -255,6 +255,113 @@ Reglas:
   return { model, ideas: cleaned, raw: response };
 }
 
+const brandAnalysisSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['brand_name', 'rubro', 'description', 'audience', 'voice', 'visual_style', 'colors', 'design_rules', 'content_rules', 'avoid_phrases', 'categories'],
+  properties: {
+    brand_name: { type: 'string' },
+    rubro: { type: 'string' },
+    description: { type: 'string' },
+    audience: { type: 'string' },
+    voice: { type: 'string' },
+    visual_style: { type: 'string' },
+    colors: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['background', 'accent', 'text'],
+      properties: {
+        background: { type: 'string' },
+        accent: { type: 'string' },
+        text: { type: 'string' }
+      }
+    },
+    design_rules: { type: 'array', items: { type: 'string' } },
+    content_rules: { type: 'array', items: { type: 'string' } },
+    avoid_phrases: { type: 'array', items: { type: 'string' } },
+    categories: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['name', 'slug', 'description', 'objective', 'prompt_guidance'],
+        properties: {
+          name: { type: 'string' },
+          slug: { type: 'string' },
+          description: { type: 'string' },
+          objective: { type: 'string' },
+          prompt_guidance: { type: 'string' }
+        }
+      }
+    }
+  }
+};
+
+// Analyzes a brand from its Instagram profile (bio + captions + post images)
+// and the onboarding answers, producing a full brand manual + categories.
+export async function analyzeInstagramBrand({ handle, profile, answers = {}, imageDataUrls = [] }) {
+  const client = createOpenAIClient();
+  const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
+
+  const textPrompt = `Analiza esta marca para configurar su motor de contenido de Instagram.
+
+Cuenta: @${handle}
+${profile ? `Datos del perfil:
+${compactJson({
+  nombre: profile.full_name,
+  bio: profile.biography,
+  seguidores: profile.followers,
+  captions_recientes: (profile.posts || []).slice(0, 8).map((post) => post.caption).filter(Boolean)
+})}` : 'No hay datos del perfil disponibles: basate en las respuestas del usuario y el nombre de la cuenta.'}
+
+Respuestas del usuario en el onboarding:
+${compactJson(answers)}
+
+${imageDataUrls.length ? `Te adjunto ${imageDataUrls.length} imagenes de sus posts recientes: analiza su estilo visual real (paleta, tipografia, composicion, recursos graficos) y describilo con precision para poder replicarlo.` : ''}
+
+Instrucciones:
+- "brand_name": nombre limpio de la marca (no el handle).
+- "rubro": rubro/industria en pocas palabras.
+- "description": que hace la marca y que vende (3-4 frases, concreto).
+- "audience": a quien le habla.
+- "voice": tono de voz para los copies (idioma incluido, ej. espanol rioplatense con voseo si aplica).
+- "visual_style": descripcion detallada del estilo visual para generar imagenes consistentes (fondo, paleta, tipografia, recursos, mood).
+- "colors": colores hex principales (background, accent, text) deducidos de las imagenes o propuestos si no hay.
+- "design_rules": 6-10 reglas de diseno accionables.
+- "content_rules": 5-8 reglas de contenido (estructura, temas, formato).
+- "avoid_phrases": 4-8 frases/cliches a evitar.
+- "categories": 4-5 categorias de contenido para su calendario (slug en kebab-case, con description, objective y prompt_guidance especificos del rubro).
+- Responde solo con el JSON solicitado.`;
+
+  const userContent = [{ type: 'input_text', text: textPrompt }];
+  for (const dataUrl of imageDataUrls.slice(0, 4)) {
+    userContent.push({ type: 'input_image', image_url: dataUrl });
+  }
+
+  let response;
+  try {
+    response = await client.responses.create({
+      model,
+      input: [
+        { role: 'system', content: 'Sos un estratega de marca y contenido. Analizas cuentas de Instagram y produces manuales de marca precisos y accionables.' },
+        { role: 'user', content: userContent }
+      ],
+      text: {
+        format: {
+          type: 'json_schema',
+          name: 'brand_analysis',
+          strict: true,
+          schema: brandAnalysisSchema
+        }
+      }
+    });
+  } catch (error) {
+    throw new AppError(`OpenAI brand analysis failed: ${error.message}`, 502, 'OPENAI_ANALYSIS_FAILED');
+  }
+
+  return { model, analysis: parseGenerationOutput(response) };
+}
+
 function aiPosterPrompt(post, brand, referenceCount) {
   const manual = brand?.brand_manual || {};
   const designRules = Array.isArray(manual.design_rules) ? manual.design_rules : [];

@@ -1,5 +1,6 @@
 const S = {
   tab: 'overview',
+  brandId: null,
   templates: [],
   posts: [],
   calendar: [],
@@ -34,18 +35,66 @@ function toast(message, type = 'success') {
   setTimeout(() => el.remove(), 3600);
 }
 
-async function api(path, opts = {}) {
+const SESSION_KEY = 'contenidor_session';
+const BRAND_KEY = 'contenidor_brand';
+
+function getStoredSession() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch { return null; }
+}
+
+function storeSession(session) {
+  if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  else localStorage.removeItem(SESSION_KEY);
+}
+
+async function rawApi(path, opts = {}) {
+  const session = getStoredSession();
+  const headers = { 'content-type': 'application/json', ...(opts.headers || {}) };
+  if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+  if (S.brandId) headers['x-brand-id'] = S.brandId;
+
   const res = await fetch(path, {
     method: opts.method || 'GET',
-    headers: { 'content-type': 'application/json', ...(opts.headers || {}) },
+    headers,
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   const text = await res.text();
   const data = text ? JSON.parse(text) : {};
   if (!res.ok || data.success === false) {
-    throw new Error(data.error || `${res.status} ${res.statusText}`);
+    const error = new Error(data.error || `${res.status} ${res.statusText}`);
+    error.status = res.status;
+    throw error;
   }
   return data;
+}
+
+let refreshing = null;
+async function tryRefreshSession() {
+  const session = getStoredSession();
+  if (!session?.refresh_token) return false;
+  refreshing = refreshing || fetch('/auth/refresh', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ refresh_token: session.refresh_token }),
+  }).then(async (res) => {
+    const data = await res.json();
+    if (res.ok && data.session) { storeSession(data.session); return true; }
+    return false;
+  }).catch(() => false).finally(() => { refreshing = null; });
+  return refreshing;
+}
+
+async function api(path, opts = {}) {
+  try {
+    return await rawApi(path, opts);
+  } catch (error) {
+    if (error.status === 401 && getStoredSession()) {
+      if (await tryRefreshSession()) return rawApi(path, opts);
+      storeSession(null);
+      window.location.reload();
+    }
+    throw error;
+  }
 }
 
 function modal(html) {
@@ -455,7 +504,7 @@ window.generateIdeas = async function generateIdeas() {
 
 window.generateCalendar = async function generateCalendar(id) {
   try {
-    await api('/generate-and-render', { method: 'POST', body: { calendar_id: id } });
+    await api('/api/generate-and-render', { method: 'POST', body: { calendar_id: id } });
     toast('Copy generado. La imagen se crea en segundo plano (~1 min).');
     await loadTab();
     pollTabForRender();
@@ -470,7 +519,7 @@ async function loadBrand() {
 }
 
 function renderBrand() {
-  const brand = S.brands[0];
+  const brand = S.brands.find((item) => item.id === S.brandId) || S.brands[0];
   if (!brand) {
     byId('content').innerHTML = `${pageHead('Marca')}${empty('No hay marca configurada')}`;
     return;
@@ -688,7 +737,7 @@ async function loadDesign() {
 }
 
 function renderDesign() {
-  const brand = S.brands[0] || {};
+  const brand = S.brands.find((item) => item.id === S.brandId) || S.brands[0] || {};
   const manual = brand.brand_manual || {};
   const brandRefs = S.inspirations.filter((i) => !i.category_id);
   const categoryRefs = S.inspirations.filter((i) => i.category_id);
@@ -1071,7 +1120,7 @@ function renderSystem(health) {
       <section class="section">
         <div class="section-head"><h2>Endpoints</h2></div>
         <div class="rules">GET /today
-POST /generate-and-render
+POST /api/generate-and-render
 POST /api/ideas/generate
 GET /api/automation
 POST /api/automation/run
@@ -1081,11 +1130,178 @@ GET /dashboard</div>
     </div>`;
 }
 
-(async function init() {
+// --- Auth & multi-brand boot -----------------------------------------------
+
+function renderLogin(mode = 'login') {
+  document.querySelector('.topbar')?.classList.add('hidden-auth');
+  byId('content').innerHTML = `
+    <div style="max-width:420px;margin:60px auto">
+      <section class="section">
+        <div class="section-head"><h2>${mode === 'login' ? 'Iniciar sesion' : 'Crear cuenta'}</h2></div>
+        <form onsubmit="submitAuth(event,'${mode}')" class="form-grid">
+          <div class="form-group full"><label>Email</label><input name="email" type="email" required autocomplete="email" /></div>
+          <div class="form-group full"><label>Contrasena</label><input name="password" type="password" required minlength="8" autocomplete="${mode === 'login' ? 'current-password' : 'new-password'}" /></div>
+          <div class="form-group full"><button class="btn btn-primary" style="width:100%">${mode === 'login' ? 'Entrar' : 'Registrarme'}</button></div>
+        </form>
+        <div class="subtle" style="margin-top:12px;text-align:center;cursor:pointer" onclick="renderLoginMode('${mode === 'login' ? 'signup' : 'login'}')">
+          ${mode === 'login' ? 'No tenes cuenta? Registrate' : 'Ya tenes cuenta? Inicia sesion'}
+        </div>
+      </section>
+    </div>`;
+}
+
+window.renderLoginMode = renderLogin;
+
+window.submitAuth = async function submitAuth(event, mode) {
+  event.preventDefault();
+  const fd = new FormData(event.target);
+  try {
+    const res = await fetch(`/auth/${mode}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: fd.get('email'), password: fd.get('password') }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.session) throw new Error(data.error || 'Error de autenticacion');
+    storeSession(data.session);
+    toast('Bienvenido');
+    await bootApp();
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+};
+
+window.logout = function logout() {
+  storeSession(null);
+  localStorage.removeItem(BRAND_KEY);
+  window.location.reload();
+};
+
+function ensureBrandBar() {
+  const topbar = document.querySelector('.topbar');
+  topbar?.classList.remove('hidden-auth');
+  let bar = byId('brand-bar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'brand-bar';
+    bar.style.cssText = 'display:flex;align-items:center;gap:8px;margin-left:auto';
+    topbar?.appendChild(bar);
+  }
+  bar.innerHTML = `
+    <select onchange="switchBrand(this.value)" style="max-width:180px">
+      ${S.brands.map((brand) => `<option value="${brand.id}" ${brand.id === S.brandId ? 'selected' : ''}>${esc(brand.name)}</option>`).join('')}
+    </select>
+    <button class="btn btn-sm" onclick="openOnboarding()">+ Marca</button>
+    <button class="btn btn-sm btn-plain" onclick="logout()">Salir</button>`;
+}
+
+window.switchBrand = async function switchBrand(brandId) {
+  S.brandId = brandId;
+  localStorage.setItem(BRAND_KEY, brandId);
+  S.templates = []; S.categories = []; S.inspirations = []; S.customTemplates = [];
   try {
     await loadBootstrap();
     await loadTab();
+    ensureBrandBar();
   } catch (error) {
+    toast(error.message, 'error');
+  }
+};
+
+// --- Onboarding wizard ------------------------------------------------------
+
+window.openOnboarding = function openOnboarding() {
+  modal(`<h3>Nueva marca desde Instagram</h3>
+    <p class="subtle">Pega el link de la cuenta de Instagram. El sistema analiza sus fotos, detecta el rubro y el estilo visual, y arma el manual de marca, las categorias y las primeras ideas.</p>
+    <form onsubmit="startOnboardingFlow(event)" class="form-grid">
+      <div class="form-group full"><label>Link o usuario de Instagram</label><input name="instagram_url" required placeholder="https://www.instagram.com/tumarca o @tumarca" /></div>
+      <div class="form-group full"><label>Que queres lograr con el contenido? (opcional)</label><textarea name="objetivo" rows="2" placeholder="Ej: atraer mas clientes locales, vender por WhatsApp, posicionar la marca"></textarea></div>
+      <div class="form-group full"><label>Algo que NO quieras en tus posts? (opcional)</label><textarea name="evitar" rows="2" placeholder="Ej: nada de precios, no usar emojis, no hablar de la competencia"></textarea></div>
+      <div class="form-group full"><button class="btn btn-primary">Analizar y crear marca</button> <button type="button" class="btn btn-plain" onclick="closeModal()">Cancelar</button></div>
+    </form>`);
+};
+
+window.startOnboardingFlow = async function startOnboardingFlow(event) {
+  event.preventDefault();
+  const fd = new FormData(event.target);
+  try {
+    const data = await api('/api/onboarding', {
+      method: 'POST',
+      body: {
+        instagram_url: fd.get('instagram_url'),
+        answers: { objetivo: fd.get('objetivo') || '', evitar: fd.get('evitar') || '' },
+      },
+    });
+    modal(`<h3>Analizando @${esc(data.brand.instagram_handle)}...</h3>
+      <div class="empty" id="onboarding-progress">Leyendo el perfil de Instagram, analizando las imagenes y armando el manual de marca. Esto tarda 1-3 minutos.</div>`);
+    pollOnboarding(data.brand.id);
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+};
+
+async function pollOnboarding(brandId) {
+  const started = Date.now();
+  const timer = setInterval(async () => {
+    try {
+      const data = await api('/api/brands');
+      S.brands = data.brands || [];
+      const brand = S.brands.find((item) => item.id === brandId);
+      if (!brand) return;
+      if (brand.onboarding_status === 'ready') {
+        clearInterval(timer);
+        closeModal();
+        toast(`Marca "${brand.name}" lista: manual, categorias e ideas creadas`);
+        await switchBrand(brandId);
+        setTab('brand');
+      } else if (brand.onboarding_status === 'error') {
+        clearInterval(timer);
+        const el = byId('onboarding-progress');
+        if (el) el.textContent = `Error: ${brand.onboarding_error || 'fallo el analisis'}. Cerra y proba de nuevo.`;
+        toast(brand.onboarding_error || 'Fallo el onboarding', 'error');
+      } else if (Date.now() - started > 5 * 60 * 1000) {
+        clearInterval(timer);
+        toast('El analisis sigue en curso; recarga en unos minutos', 'error');
+      }
+    } catch { /* siguiente tick */ }
+  }, 5000);
+}
+
+async function bootApp() {
+  const data = await api('/api/brands');
+  S.brands = data.brands || [];
+
+  if (!S.brands.length) {
+    document.querySelector('.topbar')?.classList.remove('hidden-auth');
+    byId('content').innerHTML = `
+      <div style="max-width:520px;margin:60px auto;text-align:center">
+        <section class="section">
+          <h2>Crea tu primera marca</h2>
+          <p class="subtle">Pega el link de tu Instagram y el sistema arma todo: estilo, categorias e ideas.</p>
+          <button class="btn btn-primary" onclick="openOnboarding()">Nueva marca desde Instagram</button>
+        </section>
+      </div>`;
+    ensureBrandBar();
+    return;
+  }
+
+  const stored = localStorage.getItem(BRAND_KEY);
+  S.brandId = S.brands.some((brand) => brand.id === stored) ? stored : S.brands[0].id;
+  localStorage.setItem(BRAND_KEY, S.brandId);
+  ensureBrandBar();
+  await loadBootstrap();
+  await loadTab();
+}
+
+(async function init() {
+  try {
+    if (!getStoredSession()) {
+      renderLogin();
+      return;
+    }
+    await bootApp();
+  } catch (error) {
+    if (error.status === 401) { renderLogin(); return; }
     byId('content').innerHTML = empty(error.message);
     toast(error.message, 'error');
   }

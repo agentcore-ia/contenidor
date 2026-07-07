@@ -9,6 +9,7 @@ import {
   getLatestCalendarDate,
   getPendingContentForToday,
   insertCalendarIdeas,
+  listAutomationBrands,
   listCategories,
   markCalendarGenerated,
   setPostRenderError,
@@ -29,8 +30,8 @@ function chooseTemplateId(content) {
   );
 }
 
-export async function getTodayContent() {
-  return getPendingContentForToday();
+export async function getTodayContent(brandId = null) {
+  return getPendingContentForToday(undefined, brandId);
 }
 
 export async function generatePostForCalendar(calendarId) {
@@ -111,10 +112,10 @@ export async function generateAndRenderPost(calendarId) {
 
 // Uses OpenAI to propose fresh calendar ideas and appends them to the queue,
 // starting the day after the last scheduled item so publish_date never collides.
-export async function generateCalendarIdeas({ count = 7 } = {}) {
+export async function generateCalendarIdeas({ brandId = null, count = 7 } = {}) {
   const safeCount = Math.max(1, Math.min(Number(count) || 7, 30));
 
-  const brand = await getDefaultBrand();
+  const brand = brandId ? await getBrandById(brandId) : await getDefaultBrand();
   const categories = await listCategories(brand.id);
 
   if (!categories.length) {
@@ -168,8 +169,8 @@ export async function generateCalendarIdeas({ count = 7 } = {}) {
 }
 
 // Keeps the calendar queue filled to `target` future pending items.
-export async function ensureIdeaQueue({ target = 7 } = {}) {
-  const brand = await getDefaultBrand();
+export async function ensureIdeaQueue({ brandId = null, target = 7 } = {}) {
+  const brand = brandId ? await getBrandById(brandId) : await getDefaultBrand();
   const pending = await countFuturePendingCalendar(brand.id);
   const missing = target - pending;
 
@@ -177,25 +178,25 @@ export async function ensureIdeaQueue({ target = 7 } = {}) {
     return { pending, inserted: 0, items: [] };
   }
 
-  const result = await generateCalendarIdeas({ count: missing });
+  const result = await generateCalendarIdeas({ brandId: brand.id, count: missing });
   return { pending, ...result };
 }
 
-// Full daily autopilot step: top up the idea queue, then generate + render
-// today's pending post so it lands in `needs_review` for manual approval.
-export async function runDailyAutomation({ queueTarget = 7, autoRender = true } = {}) {
+// Full daily autopilot step for one brand: top up the idea queue, then
+// generate + render today's pending post so it lands in `needs_review`.
+export async function runDailyAutomation({ brandId = null, queueTarget = 7, autoRender = true } = {}) {
   const startedAt = new Date().toISOString();
-  const summary = { started_at: startedAt, queue: null, post: null, errors: [] };
+  const summary = { brand_id: brandId, started_at: startedAt, queue: null, post: null, errors: [] };
 
   try {
-    summary.queue = await ensureIdeaQueue({ target: queueTarget });
+    summary.queue = await ensureIdeaQueue({ brandId, target: queueTarget });
   } catch (error) {
     summary.errors.push({ step: 'ensure_queue', message: error.message, code: error.code });
   }
 
   if (autoRender) {
     try {
-      const content = await getTodayContent();
+      const content = await getTodayContent(brandId);
       const rendered = await generateAndRenderPost(content.calendar.id);
       summary.post = {
         id: rendered.id,
@@ -214,4 +215,21 @@ export async function runDailyAutomation({ queueTarget = 7, autoRender = true } 
 
   summary.finished_at = new Date().toISOString();
   return summary;
+}
+
+// SaaS autopilot: run the daily automation for every brand that has it on.
+export async function runAllDailyAutomation({ queueTarget = 7, autoRender = true } = {}) {
+  const brands = await listAutomationBrands();
+  const runs = [];
+
+  for (const brand of brands) {
+    try {
+      const summary = await runDailyAutomation({ brandId: brand.id, queueTarget, autoRender });
+      runs.push({ brand: brand.slug, ...summary });
+    } catch (error) {
+      runs.push({ brand: brand.slug, error: error.message });
+    }
+  }
+
+  return { brands: brands.length, runs };
 }
