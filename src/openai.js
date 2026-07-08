@@ -14,6 +14,8 @@ const postGenerationSchema = {
     'hook',
     'body',
     'cta',
+    'image_headline',
+    'image_subline',
     'caption_instagram',
     'caption_x',
     'caption_linkedin',
@@ -24,6 +26,8 @@ const postGenerationSchema = {
     hook: { type: 'string' },
     body: { type: 'string' },
     cta: { type: 'string' },
+    image_headline: { type: 'string' },
+    image_subline: { type: 'string' },
     caption_instagram: { type: 'string' },
     caption_x: { type: 'string' },
     caption_linkedin: { type: 'string' },
@@ -31,6 +35,9 @@ const postGenerationSchema = {
     background_idea: { type: 'string' }
   }
 };
+
+// Fields that may legitimately come back empty from the model.
+const OPTIONAL_EMPTY_FIELDS = new Set(['image_subline']);
 
 function createOpenAIClient() {
   assertRequiredEnv('OPENAI_API_KEY');
@@ -57,14 +64,16 @@ function parseGenerationOutput(response) {
 
 function validateGeneratedPostContent(content) {
   const requiredFields = Object.keys(postGenerationSchema.properties);
-  const missing = requiredFields.filter((field) => !String(content?.[field] ?? '').trim());
+  const missing = requiredFields.filter(
+    (field) => !OPTIONAL_EMPTY_FIELDS.has(field) && !String(content?.[field] ?? '').trim()
+  );
 
   if (missing.length) {
     throw new AppError(`OpenAI response is missing: ${missing.join(', ')}`, 502, 'OPENAI_INVALID_CONTENT');
   }
 
   return Object.fromEntries(
-    requiredFields.map((field) => [field, String(content[field]).trim()])
+    requiredFields.map((field) => [field, String(content[field] ?? '').trim()])
   );
 }
 
@@ -96,11 +105,11 @@ ${compactJson({
 })}
 
 Reglas:
-- Uso interno de Capta, no SaaS.
-- Hablarle a duenos de negocios gastronomicos.
 - Hook maximo 14 palabras.
 - Body maximo 34 palabras.
 - CTA maximo 10 palabras.
+- "image_headline": el texto que va DENTRO de la imagen. Version corta y potente del mensaje, maximo 9 palabras. No es un resumen tibio: es un titular publicitario con garra.
+- "image_subline": bajada opcional para la imagen, maximo 16 palabras (1-2 lineas). Solo si suma de verdad; si el titular se sostiene solo, devolvela vacia. El desarrollo largo va al caption, nunca a la imagen.
 - Caption Instagram: 1 parrafo breve + 3 a 6 hashtags.
 - Caption X: maximo 240 caracteres.
 - Caption LinkedIn: tono mas profesional, maximo 700 caracteres.
@@ -258,7 +267,7 @@ Reglas:
 const brandAnalysisSchema = {
   type: 'object',
   additionalProperties: false,
-  required: ['brand_name', 'rubro', 'description', 'audience', 'voice', 'visual_style', 'colors', 'design_rules', 'content_rules', 'avoid_phrases', 'categories'],
+  required: ['brand_name', 'rubro', 'description', 'audience', 'voice', 'visual_style', 'render_style', 'colors', 'design_rules', 'content_rules', 'avoid_phrases', 'categories'],
   properties: {
     brand_name: { type: 'string' },
     rubro: { type: 'string' },
@@ -266,6 +275,23 @@ const brandAnalysisSchema = {
     audience: { type: 'string' },
     voice: { type: 'string' },
     visual_style: { type: 'string' },
+    render_style: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['photography', 'framing', 'lighting', 'color_mood', 'composition', 'visual_density', 'typography_feel', 'overlay_treatment', 'headline_position', 'text_in_image'],
+      properties: {
+        photography: { type: 'string' },
+        framing: { type: 'string' },
+        lighting: { type: 'string' },
+        color_mood: { type: 'string' },
+        composition: { type: 'string' },
+        visual_density: { type: 'string', enum: ['minimal', 'moderada', 'alta'] },
+        typography_feel: { type: 'string' },
+        overlay_treatment: { type: 'string' },
+        headline_position: { type: 'string' },
+        text_in_image: { type: 'string', enum: ['casi_nunca', 'a_veces', 'frecuente'] }
+      }
+    },
     colors: {
       type: 'object',
       additionalProperties: false,
@@ -326,6 +352,17 @@ Instrucciones:
 - "audience": a quien le habla.
 - "voice": tono de voz para los copies (idioma incluido, ej. espanol rioplatense con voseo si aplica).
 - "visual_style": descripcion detallada del estilo visual para generar imagenes consistentes (fondo, paleta, tipografia, recursos, mood).
+- "render_style": el ADN visual de la cuenta, deducido de las imagenes reales (o propuesto con criterio si no hay). Se precisa para replicar su estetica:
+  - "photography": tipo de fotografia (ej. close-ups de producto, lifestyle, flat lay, retratos, render 3D).
+  - "framing": encuadres tipicos (ej. primer plano cenital, 3/4, macro con fondo desenfocado).
+  - "lighting": iluminacion (ej. calida de horno, natural lateral, neon nocturno, estudio suave).
+  - "color_mood": clima cromatico (ej. calido tostado con rojos profundos; pastel aireado).
+  - "composition": composicion habitual (ej. producto centrado con aire arriba, regla de tercios, simetria).
+  - "visual_density": cuanta carga visual usa la cuenta (minimal / moderada / alta).
+  - "typography_feel": estilo tipografico si usan texto (ej. sans condensada bold en mayusculas; serif elegante) o el que mejor calce.
+  - "overlay_treatment": como resolver la legibilidad del texto segun su estetica (ej. degradado oscuro inferior, panel translucido crema, bloque de color pleno).
+  - "headline_position": donde anclar el titular de forma consistente (ej. tercio inferior alineado a la izquierda).
+  - "text_in_image": con que frecuencia esta cuenta pone texto sobre la imagen (casi_nunca / a_veces / frecuente).
 - "colors": colores hex principales (background, accent, text) deducidos de las imagenes o propuestos si no hay.
 - "design_rules": 6-10 reglas de diseno accionables.
 - "content_rules": 5-8 reglas de contenido (estructura, temas, formato).
@@ -362,6 +399,12 @@ Instrucciones:
   return { model, analysis: parseGenerationOutput(response) };
 }
 
+function clampWords(text, maxWords) {
+  const words = String(text || '').trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return '';
+  return words.slice(0, maxWords).join(' ');
+}
+
 function aiPosterPrompt(post, brand, referenceCount) {
   const manual = brand?.brand_manual || {};
   const designRules = Array.isArray(manual.design_rules) ? manual.design_rules : [];
@@ -369,47 +412,85 @@ function aiPosterPrompt(post, brand, referenceCount) {
   const colorLine = Object.entries(colors)
     .map(([name, value]) => `${name} ${value}`)
     .join(', ');
+  const rs = manual.render_style && typeof manual.render_style === 'object' ? manual.render_style : null;
 
-  const base = `Design a finished, ready-to-publish vertical Instagram post image for ${brand?.name || 'the brand'}.
+  // Hard word caps for on-image copy: headline stays punchy, subline stays
+  // to 1-2 light lines. Long-form copy lives in the caption, never on the art.
+  const headline = clampWords(post.image_headline || post.hook, 12);
+  const subline = clampWords(post.image_subline || '', 20);
 
-This must be the COMPLETE final artwork as a poster-style graphic design, with all text rendered directly in the image — not a blank background or template.
+  const designSystem = rs
+    ? `Design system of THIS account (derived from its real Instagram feed — this is the source of truth, never a generic template):
+- Photography: ${rs.photography}
+- Framing: ${rs.framing}
+- Lighting: ${rs.lighting}
+- Color mood: ${rs.color_mood}
+- Composition habits: ${rs.composition}
+- Usual visual density: ${rs.visual_density} — respect it; do not make the piece busier than the account normally is.
+- Typography feel: ${rs.typography_feel}
+- Legibility device that fits this account: ${rs.overlay_treatment}
+- Headline anchor position (keep consistent across posts): ${rs.headline_position}
+- How often this account places text on images: ${rs.text_in_image}${rs.text_in_image === 'casi_nunca' ? ' — strongly prefer a clean, text-free or near-text-free piece.' : ''}`
+    : `Design system defaults (no account analysis available):
+- Photography-first, appetizing/product-hero, sharp subject with soft depth of field.
+- Warm, premium, editorial mood; intentional negative space.
+- Headline anchored in the lower third, left-aligned to a clean grid.
+- Legibility via a soft dark warm gradient rising from the bottom edge (subtle, never muddy).
+- Typography: modern sans, strong weight for the headline, light weight for the subline.`;
 
-Exact text to render (verbatim — do not paraphrase, add, remove, or misspell a single word):
-- Headline (largest, most prominent element): "${post.hook || ''}"
-- Supporting text (secondary, smaller, below the headline): "${post.body || ''}"
+  const base = `Art-direct and design a finished, ready-to-publish vertical Instagram creative for ${brand?.name || 'the brand'}. You are acting as a senior art director at a top advertising studio: the result must look like a deliberately DESIGNED piece — layered, balanced, editorial — never like a photo with text pasted on top.
 
-Do NOT render the call-to-action text; it is delivered separately in the caption.
+THE PHOTOGRAPH IS THE PROTAGONIST. Build a gorgeous, appetizing, professional hero image first (following the visual direction below), then integrate the copy into the composition as a designed layer.
 
-Brand style guide (follow this strictly — it takes priority over any generic aesthetic):
-- Voice/tone: ${manual.voice || 'Premium, sober, direct, operational.'}
-- Audience: ${manual.audience || 'Restaurant and gastronomic business owners.'}
-- Visual style: ${manual.visual_style || 'Clean, minimal, premium SaaS aesthetic. Lots of white / very light-grey space, big bold typography, warm orange accent color (#ff6a1a) used sparingly only to highlight. Simple, clear and trustworthy — not cartoonish, not saturated, not generic stock photography.'}${designRules.length ? `\n- Design rules: ${designRules.join('; ')}.` : ''}${colorLine ? `\n- Brand color palette: ${colorLine}. Use these colors and avoid off-brand colors.` : ''}
+Visual direction for the photograph:
+- ${post.visual_direction || 'Hero shot of the product/subject, appetizing and professional.'}
+- ${post.background_idea || ''}
+
+${designSystem}
+
+On-image copy (exact text — render it verbatim or omit it, NEVER paraphrase, translate, or respell):
+- Headline: "${headline}"${subline ? `\n- Subline: "${subline}"` : ''}
+- Text is OPTIONAL: if this particular image is stronger as a clean, text-free piece (for example a stunning product hero that speaks for itself), you may omit the subline or omit ALL text. Only include text that earns its place. When in doubt, less text.
+- The full message lives in the caption; the image must never carry paragraphs.
+
+Typographic hierarchy (non-negotiable when text is present):
+- The headline is the single dominant text element: large, confident, expressive.
+- The subline is clearly subordinate: roughly one third of the headline size, lighter weight, comfortable line-height, max 2 lines.
+- Never give two text blocks the same visual weight. Maximum 2 text sizes in the whole piece.
+- Generous letter-spacing discipline and margins: keep all text inside a safe area (~7% from every edge), aligned to a clean grid (left-aligned block or centered — pick ONE).
+- Text must remain effortlessly legible on a phone screen.
+
+Layered, non-flat composition (this is what separates design from "photo + text"):
+- NEVER place plain flat text straight over a busy area of the photo.
+- Create real depth with ONE deliberate legibility device that matches the account's mood: a soft dark/warm gradient scrim, a subtly blurred or darkened zone of the background, a translucent panel, or a clean solid color block bleeding off one edge.
+- Use soft, natural shadows on text or panel edges; keep the device subtle — it should feel like light, not like a sticker.
+- Compose with intentional negative space: let the image breathe. The text block occupies one clear zone; the subject stays sharp and unobstructed.
+- Any darkening/blur must be local and gentle: the food/product itself stays crisp, vivid and appetizing.
+
+Brand style:
+- Voice/tone: ${manual.voice || 'Premium, warm, direct.'}
+- Visual style: ${manual.visual_style || 'Warm, premium, editorial; appetizing and modern; never generic stock.'}${designRules.length ? `\n- Design rules: ${designRules.join('; ')}.` : ''}${colorLine ? `\n- Brand palette: ${colorLine}. Stay inside it.` : ''}
 ${manual.show_logo
-  ? `- Include a small wordmark reading "${brand?.name || 'capta'}" with a round orange accent dot next to it, in the top-left corner.`
-  : `- Do NOT include any logo, wordmark, brand name text, or app icon of the brand anywhere in the image.`}
-
-Composition guidance:
-- Vertical portrait poster format, feels like a premium social media ad.
-- Strong typographic hierarchy: the headline is the dominant visual element and must stay fully legible.
-- A clean visual metaphor for restaurant operations (phone mockups, WhatsApp-style chats, comparison cards, line icons, soft rounded shapes, subtle shadows, checkmarks/arrows) may appear alongside the text, but must never obscure or crowd it.
+  ? `- Include a small, discreet wordmark reading "${brand?.name || ''}" in one corner, never competing with the headline.`
+  : `- Do NOT include any logo, wordmark, brand name text, or app icon anywhere in the image.`}
 
 Hard constraints — do NOT violate:
-- Do NOT add any call-to-action or promotional button, badge or bar such as "Pedí una demo", "Solicitá una demo", "Reservá", "Comprá", "Book now", "Sign up", "Contact us", a phone number, or a website/contact bar. There must be NO button inviting the viewer to take an action anywhere in the image.
-- Do NOT invent marketing taglines, prices, or extra paragraphs beyond the headline and supporting text given above. Short structural labels that belong to the reference layout style (for example a "before vs after" comparison) are acceptable, but no promotional copy.
-- Keep all rendered text crisp, correctly spelled, and consistent with the exact headline and supporting text above.`;
+- NO call-to-action or promotional buttons, badges or bars ("Pedí ya", "Reservá", "Order now", "Book now", "Sign up", phone numbers, website bars). No button-shaped elements inviting action.
+- NO invented taglines, prices, offers, or any words beyond the exact headline/subline above.
+- All rendered text crisp and correctly spelled; if you cannot render the text cleanly, prefer the text-free version.`;
 
   const customInstructions = String(manual.image_instructions ?? '').trim();
   const withCustom = customInstructions
     ? `${base}
 
-Additional instructions from the brand owner (these have the HIGHEST priority — follow them even if they override guidance above):
+Additional instructions from the brand owner (HIGHEST priority — follow them even if they override guidance above):
 ${customInstructions}`
     : base;
 
   if (referenceCount > 0) {
     return `${withCustom}
 
-You are given ${referenceCount} reference image(s) that define this brand's established visual system. Match them closely: same background (light/white), color palette, typography feel, card/mockup/icon style, spacing and overall mood. Treat them as the source of truth for how the post should look. Adapt the layout to THIS post's single message and exact text — do not copy their content, reproduce their text, or force a comparison layout when it does not fit. The output must clearly look like it belongs to the same brand system as the references.`;
+You are given ${referenceCount} reference image(s) taken from this account's real feed. They define its visual identity: photography style, framing, lighting, palette, mood, composition and text density. Match that identity closely — the new piece must look like it was posted by the same account on the same grid. Do NOT copy their literal content or reproduce any text visible in them; create a new, original piece that clearly belongs to the same visual system.`;
   }
 
   return withCustom;

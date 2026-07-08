@@ -72,6 +72,7 @@ async function runOnboarding(brand, handle, answers) {
     voice: analysis.voice,
     audience: analysis.audience,
     visual_style: analysis.visual_style,
+    render_style: analysis.render_style || null,
     colors: analysis.colors || {},
     design_rules: analysis.design_rules || [],
     content_rules: analysis.content_rules || [],

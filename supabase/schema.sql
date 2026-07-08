@@ -54,6 +54,8 @@ create table if not exists generated_posts (
   caption_instagram text not null,
   caption_x text not null,
   caption_linkedin text not null,
+  image_headline text,
+  image_subline text,
   visual_direction text,
   background_idea text,
   image_url text,

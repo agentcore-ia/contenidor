@@ -804,7 +804,11 @@ window.saveBrand = async function saveBrand(event) {
   document.querySelectorAll('[data-color-key]').forEach((input) => {
     colors[input.dataset.colorKey] = input.value;
   });
+  // Merge over the existing manual so analysis-derived fields the form
+  // doesn't expose (e.g. render_style) survive a save.
+  const existingManual = (S.brands.find((b) => b.id === id) || {}).brand_manual || {};
   const manual = {
+    ...existingManual,
     voice: fd.get('voice') || '',
     audience: fd.get('audience') || '',
     visual_style: fd.get('visual_style') || '',
