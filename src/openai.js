@@ -405,7 +405,7 @@ function clampWords(text, maxWords) {
   return words.slice(0, maxWords).join(' ');
 }
 
-function aiPosterPrompt(post, brand, referenceCount) {
+function aiPosterPrompt(post, brand, referenceCount, artDirection = '') {
   const manual = brand?.brand_manual || {};
   const designRules = Array.isArray(manual.design_rules) ? manual.design_rules : [];
   const colors = manual.colors && typeof manual.colors === 'object' ? manual.colors : {};
@@ -466,7 +466,10 @@ Layered, non-flat composition (this is what separates design from "photo + text"
 - Use soft, natural shadows on text or panel edges; keep the device subtle — it should feel like light, not like a sticker.
 - Compose with intentional negative space: let the image breathe. The text block occupies one clear zone; the subject stays sharp and unobstructed.
 - Any darkening/blur must be local and gentle: the food/product itself stays crisp, vivid and appetizing.
-
+${artDirection ? `
+ART DIRECTION FOR THIS SPECIFIC PIECE (this is the concrete creative brief — follow it precisely for the typography treatment, colour, personality detail, layout and how the type integrates with the scene; it overrides the generic guidance above):
+${artDirection}
+` : ''}
 Brand style:
 - Voice/tone: ${manual.voice || 'Premium, warm, direct.'}
 - Visual style: ${manual.visual_style || 'Warm, premium, editorial; appetizing and modern; never generic stock.'}${designRules.length ? `\n- Design rules: ${designRules.join('; ')}.` : ''}${colorLine ? `\n- Brand palette: ${colorLine}. Stay inside it.` : ''}
@@ -496,12 +499,60 @@ You are given ${referenceCount} reference image(s) taken from this account's rea
   return withCustom;
 }
 
-export async function generatePostImageAsset(post, { brand, referenceBuffers = [] } = {}) {
+// Acts like the LLM layer behind ChatGPT's web image tool: instead of a fixed
+// generic prompt, it art-directs THIS specific piece — concrete typographic
+// treatment, colour, layout and integration — so the type looks designed and
+// varied rather than "same white font, flat, pasted on top".
+export async function generateImageArtDirection({ post, brand }) {
+  const client = createOpenAIClient();
+  const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
+  const manual = brand?.brand_manual || {};
+  const headline = clampWords(post.image_headline || post.hook, 12);
+  const subline = clampWords(post.image_subline || '', 20);
+
+  const prompt = `Sos director de arte senior de un estudio de publicidad top. Vas a escribir la direccion de arte para UNA pieza de Instagram que va a generar un modelo de imagen (foto + tipografia en una sola pasada). Tu trabajo es que el texto se vea DISENADO y con personalidad, no una fuente blanca plana pegada encima.
+
+Marca: ${brand?.name || ''}
+Rubro/estilo visual: ${manual.visual_style || 'gastronomico, calido, apetecible'}
+Paleta: ${compactJson(manual.colors || {})}
+${manual.render_style ? `ADN visual de la cuenta: ${compactJson(manual.render_style)}` : ''}
+
+Texto que ira en la imagen (exacto, no lo cambies):
+- Titular: "${headline}"
+${subline ? `- Bajada: "${subline}"` : '- Sin bajada.'}
+
+Foto de fondo (concepto): ${post.visual_direction || ''} ${post.background_idea || ''}
+
+Escribi una direccion de arte concreta y visual (un solo parrafo denso, 90-140 palabras, en ingles para el modelo de imagen). DEBE incluir decisiones especificas de:
+- Tratamiento tipografico del titular: familia sugerida (ej. condensed grotesque, elegant high-contrast serif, rounded sans, script), peso, mayusculas/minusculas, tracking, si va en una o varias lineas y como se rompen.
+- COLOR del texto: NO por defecto blanco. Elegi color(es) que salgan de la paleta/escena (ej. crema calido, un word destacado en color de acento, texto sobre bloque de color). Buen contraste.
+- Un detalle de diseno que le de personalidad: una palabra clave en otro peso/estilo/color, un subrayado, un kicker chico, numeros o simbolo tratados aparte, textura sutil, etc. (elegi UNO, sin recargar).
+- Como se integra el texto con la foto y el dispositivo de legibilidad (gradiente/panel/bloque) para que tenga profundidad.
+- Layout: donde va el bloque y como usa el espacio negativo.
+
+Reglas: coherente con el ADN de la cuenta y su densidad visual; jerarquia clara (titular manda); si la pieza es mas fuerte sin bajada, deci que se omita. No inventes texto nuevo ni CTAs. Devolve SOLO el parrafo de direccion de arte, sin encabezados.`;
+
+  try {
+    const response = await client.responses.create({
+      model,
+      input: [
+        { role: 'system', content: 'Sos director de arte. Devolves direcciones de arte tipograficas concretas y con criterio, en un solo parrafo.' },
+        { role: 'user', content: prompt }
+      ]
+    });
+    return String(response.output_text || '').trim();
+  } catch (error) {
+    console.warn('[generateImageArtDirection] fallo, sigo sin direccion de arte:', error.message);
+    return '';
+  }
+}
+
+export async function generatePostImageAsset(post, { brand, referenceBuffers = [], artDirection = '' } = {}) {
   const client = createOpenAIClient();
   const model = process.env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL;
   const size = process.env.OPENAI_IMAGE_SIZE || DEFAULT_IMAGE_SIZE;
-  const quality = process.env.OPENAI_IMAGE_QUALITY || 'medium';
-  const prompt = aiPosterPrompt(post, brand, referenceBuffers.length);
+  const quality = process.env.OPENAI_IMAGE_QUALITY || 'high';
+  const prompt = aiPosterPrompt(post, brand, referenceBuffers.length, artDirection);
 
   let response;
 

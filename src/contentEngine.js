@@ -16,7 +16,7 @@ import {
   updateGeneratedPostImageUrl,
   uploadPostImage
 } from './supabase.js';
-import { fetchRemoteImageBytes, generateContentIdeas, generatePostContent, generatePostImageAsset } from './openai.js';
+import { fetchRemoteImageBytes, generateContentIdeas, generateImageArtDirection, generatePostContent, generatePostImageAsset } from './openai.js';
 import { renderPostImage } from './render.js';
 import { AI_TEMPLATE_ID } from './templates/index.js';
 import { addDays, todayDateString } from './dates.js';
@@ -71,7 +71,10 @@ async function renderAiPostImage(post) {
     }
   });
 
-  const asset = await generatePostImageAsset(post, { brand, referenceBuffers });
+  // Art-direct this specific piece (typography/colour/layout) before generating.
+  const artDirection = await generateImageArtDirection({ post, brand });
+
+  const asset = await generatePostImageAsset(post, { brand, referenceBuffers, artDirection });
   return asset.buffer;
 }
 
