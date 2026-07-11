@@ -483,21 +483,34 @@ async function loadPosts() {
   renderPosts();
 }
 
+const POST_FILTER_LABELS = {
+  all: 'Todos', generated: 'Generados', needs_review: 'En revision',
+  approved: 'Aprobados', posted: 'Publicados', rejected: 'Rechazados',
+};
+
 function renderPosts() {
-  const options = ['all', ...POST_STATUSES].map((status) => `<option value="${status}" ${S.postFilter === status ? 'selected' : ''}>${status.replace(/_/g, ' ')}</option>`).join('');
   const query = (S.searchQuery || '').toLowerCase();
   let posts = S.postFilter === 'all' ? S.posts : S.posts.filter((post) => post.status === S.postFilter);
   if (query) {
     posts = posts.filter((post) => [post.hook, post.body, post.caption_instagram].filter(Boolean).some((text) => text.toLowerCase().includes(query)));
   }
+
+  const counts = S.posts.reduce((acc, p) => { acc[p.status] = (acc[p.status] || 0) + 1; return acc; }, { all: S.posts.length });
+  counts.all = S.posts.length;
+
+  const segmented = `<div class="segmented">${['all', ...POST_STATUSES].map((status) => `
+    <button class="seg-opt ${S.postFilter === status ? 'active' : ''}" onclick="S.postFilter='${status}';renderPosts()">
+      ${POST_FILTER_LABELS[status] || status}${counts[status] ? `<span class="seg-count">${counts[status]}</span>` : ''}
+    </button>`).join('')}</div>`;
+
   const body = posts.length ? `<div class="posts-grid">${posts.map(postCard).join('')}</div>` : empty(query ? `Sin resultados para "${S.searchQuery}"` : 'No hay posts para este filtro');
 
   byId('content').innerHTML = `
-    ${pageHead('Posts', query ? `${posts.length} resultados para "${S.searchQuery}"` : `${posts.length} visibles de ${S.posts.length}`, `
-      <select class="select" style="width:180px" onchange="S.postFilter=this.value;renderPosts()">${options}</select>
+    ${pageHead('Posts', query ? `${posts.length} resultados para "${S.searchQuery}"` : `Tu contenido generado, listo para revisar y aprobar`, `
       ${query ? `<button class="btn" onclick="S.searchQuery='';renderPosts()">Limpiar busqueda</button>` : ''}
       <button class="btn" onclick="loadPosts()">Actualizar</button>
     `)}
+    <div style="margin-bottom:18px">${segmented}</div>
     ${body}`;
 }
 
@@ -631,26 +644,27 @@ async function loadCalendar() {
 }
 
 function renderCalendar() {
-  const rows = S.calendar.map((item) => `<tr>
-    <td><strong>${fmtDate(item.publish_date)}</strong><div class="subtle">${esc(item.publish_date)}</div></td>
-    <td><input value="${esc(item.topic)}" onchange="updateCal('${item.id}','topic',this.value)" /></td>
-    <td><input value="${esc(item.angle || '')}" onchange="updateCal('${item.id}','angle',this.value)" /></td>
+  const today = S.overview?.today || new Date().toISOString().slice(0, 10);
+  const rows = S.calendar.map((item) => `<tr class="${item.publish_date === today ? 'cal-today' : ''}">
+    <td style="white-space:nowrap"><span class="date-chip">${fmtDate(item.publish_date)}</span></td>
+    <td style="min-width:220px"><input value="${esc(item.topic)}" onchange="updateCal('${item.id}','topic',this.value)" /></td>
+    <td style="min-width:180px"><input value="${esc(item.angle || '')}" onchange="updateCal('${item.id}','angle',this.value)" /></td>
     <td><select onchange="updateCal('${item.id}','status',this.value)">
       ${CAL_STATUSES.map((status) => `<option value="${status}" ${status === item.status ? 'selected' : ''}>${status.replace(/_/g, ' ')}</option>`).join('')}
     </select></td>
-    <td>${esc(item.category?.name || '-')}</td>
+    <td><span class="tag">${esc(item.category?.name || '—')}</span></td>
     <td class="actions">
       ${item.status === 'pending' ? `<button class="btn btn-sm btn-primary" onclick="generateCalendar('${item.id}')">Generar</button>` : ''}
-      ${item.generated_post_id ? `<button class="btn btn-sm" onclick="showPost('${item.generated_post_id}')">Post</button>` : ''}
+      ${item.generated_post_id ? `<button class="btn btn-sm" onclick="showPost('${item.generated_post_id}')">Ver post</button>` : ''}
     </td>
   </tr>`).join('');
 
   const pending = S.calendar.filter((item) => item.status === 'pending').length;
 
   byId('content').innerHTML = `
-    ${pageHead('Calendario', `${S.calendar.length} items · ${pending} pendientes`, `
-      <button class="btn btn-primary" onclick="generateIdeas()">Generar ideas (IA)</button>
+    ${pageHead('Calendario', `${S.calendar.length} ideas programadas · ${pending} por generar`, `
       <button class="btn" onclick="loadCalendar()">Actualizar</button>
+      <button class="btn btn-primary" onclick="generateIdeas()">+ Generar ideas</button>
     `)}
     <div class="table-wrap">
       <table>
@@ -712,77 +726,67 @@ function renderBrand() {
 
   const manual = brand.brand_manual || {};
   byId('content').innerHTML = `
-    ${pageHead('Marca', brand.name, `<button class="btn" onclick="loadBrand()">Actualizar</button>`)}
-    <section class="section">
-      <form onsubmit="saveBrand(event)" class="form-grid">
-        <input type="hidden" name="id" value="${esc(brand.id)}" />
-        <div class="form-group">
-          <label>Nombre</label>
-          <input name="name" value="${esc(brand.name)}" />
+    ${pageHead('Marca', `La identidad que guia todo el contenido de ${esc(brand.name)}`, `<button class="btn" onclick="loadBrand()">Actualizar</button>`)}
+    <form onsubmit="saveBrand(event)">
+      <input type="hidden" name="id" value="${esc(brand.id)}" />
+
+      <section class="settings-card">
+        <div class="settings-card-head"><div><h2>Identidad</h2><p>Quien es la marca y que ofrece.</p></div></div>
+        <div class="settings-card-body form-grid">
+          <div class="form-group"><label>Nombre</label><input name="name" value="${esc(brand.name)}" /></div>
+          <div class="form-group"><label>Template por defecto</label>
+            <select name="default_template_id">
+              <option value="">Sin cambio</option>
+              ${S.templates.map((template) => `<option value="${esc(template)}" ${template === brand.default_template_id ? 'selected' : ''}>${esc(template)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group full"><label>Descripcion</label><textarea name="description" rows="4">${esc(brand.description || '')}</textarea></div>
         </div>
-        <div class="form-group">
-          <label>Template por defecto</label>
-          <select name="default_template_id">
-            <option value="">Sin cambio</option>
-            ${S.templates.map((template) => `<option value="${esc(template)}" ${template === brand.default_template_id ? 'selected' : ''}>${esc(template)}</option>`).join('')}
-          </select>
+      </section>
+
+      <section class="settings-card">
+        <div class="settings-card-head"><div><h2>Voz y audiencia</h2><p>Como habla la marca y a quien le habla. Define el tono de todos los copies.</p></div></div>
+        <div class="settings-card-body form-grid">
+          <div class="form-group full"><label>Voz</label><textarea name="voice" rows="4">${esc(manual.voice || '')}</textarea></div>
+          <div class="form-group full"><label>Audiencia</label><textarea name="audience" rows="3">${esc(manual.audience || '')}</textarea></div>
+          <div class="form-group full"><label>Frases a evitar</label><textarea name="avoid_phrases" rows="4">${esc((manual.avoid_phrases || []).join('\n'))}</textarea></div>
+          <div class="form-group full"><label>Reglas de contenido</label><textarea name="content_rules" class="tall">${esc((manual.content_rules || []).join('\n'))}</textarea></div>
         </div>
-        <div class="form-group full">
-          <label>Descripcion</label>
-          <textarea name="description" rows="4">${esc(brand.description || '')}</textarea>
+      </section>
+
+      <section class="settings-card">
+        <div class="settings-card-head"><div><h2>Estilo visual</h2><p>Paleta, tipografia y reglas que siguen todas las imagenes generadas.</p></div></div>
+        <div class="settings-card-body form-grid">
+          <div class="form-group full"><label>Estilo visual</label><textarea name="visual_style" rows="3">${esc(manual.visual_style || '')}</textarea></div>
+          <div class="form-group full"><label>Colores</label><div class="color-grid">${renderColors(manual.colors || {})}</div></div>
+          <div class="form-group"><label>Font heading</label><input name="font_heading" value="${esc(manual.typography?.heading_font || manual.typography?.primary || '')}" /></div>
+          <div class="form-group"><label>Font body</label><input name="font_body" value="${esc(manual.typography?.body_font || manual.typography?.primary || '')}" /></div>
+          <div class="form-group full"><label>Reglas de diseno</label><textarea name="design_rules" class="tall">${esc((manual.design_rules || []).join('\n'))}</textarea></div>
         </div>
-        <div class="form-group full">
-          <label>Voz</label>
-          <textarea name="voice" rows="4">${esc(manual.voice || '')}</textarea>
+      </section>
+
+      <section class="settings-card">
+        <div class="settings-card-head"><div><h2>Generacion de imagenes</h2><p>Control fino sobre lo que la IA pone (o no) en cada creativo.</p></div></div>
+        <div class="settings-card-body form-grid">
+          <div class="form-group full">
+            <div class="toggle-row">
+              <div><div class="t-label">Logo en las imagenes</div><div class="t-desc">Incluir el wordmark de la marca en cada creativo generado.</div></div>
+              <input type="checkbox" class="toggle" name="show_logo" ${manual.show_logo ? 'checked' : ''} />
+            </div>
+          </div>
+          <div class="form-group full">
+            <label>Instrucciones de imagen (IA)</label>
+            <textarea name="image_instructions" rows="4" placeholder="Indicaciones libres que se suman a cada imagen. Ej: 'Usar siempre un mockup de celular. Titular bien grande. Sin emojis.'">${esc(manual.image_instructions || '')}</textarea>
+            <div class="subtle" style="margin-top:6px">Se agrega al final del prompt de cada imagen generada con IA, con prioridad alta.</div>
+          </div>
         </div>
-        <div class="form-group full">
-          <label>Audiencia</label>
-          <textarea name="audience" rows="3">${esc(manual.audience || '')}</textarea>
-        </div>
-        <div class="form-group full">
-          <label>Estilo visual</label>
-          <textarea name="visual_style" rows="3">${esc(manual.visual_style || '')}</textarea>
-        </div>
-        <div class="form-group full">
-          <label>Colores</label>
-          <div class="color-grid">${renderColors(manual.colors || {})}</div>
-        </div>
-        <div class="form-group">
-          <label>Font heading</label>
-          <input name="font_heading" value="${esc(manual.typography?.heading_font || manual.typography?.primary || '')}" />
-        </div>
-        <div class="form-group">
-          <label>Font body</label>
-          <input name="font_body" value="${esc(manual.typography?.body_font || manual.typography?.primary || '')}" />
-        </div>
-        <div class="form-group full">
-          <label>Frases a evitar</label>
-          <textarea name="avoid_phrases" rows="4">${esc((manual.avoid_phrases || []).join('\n'))}</textarea>
-        </div>
-        <div class="form-group full">
-          <label>Reglas de contenido</label>
-          <textarea name="content_rules" class="tall">${esc((manual.content_rules || []).join('\n'))}</textarea>
-        </div>
-        <div class="form-group full">
-          <label>Reglas de diseno</label>
-          <textarea name="design_rules" class="tall">${esc((manual.design_rules || []).join('\n'))}</textarea>
-        </div>
-        <div class="form-group full" style="border-top:1px solid rgba(255,255,255,0.1);padding-top:14px">
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
-            <input type="checkbox" name="show_logo" ${manual.show_logo ? 'checked' : ''} style="width:auto" />
-            Incluir el logo/wordmark de la marca en las imagenes
-          </label>
-        </div>
-        <div class="form-group full">
-          <label>Instrucciones de imagen (IA)</label>
-          <textarea name="image_instructions" rows="4" placeholder="Indicaciones libres que se suman a cada imagen. Ej: 'No incluir ningun logo ni texto de marca. Usar siempre un mockup de celular. Titular bien grande. Sin emojis.'">${esc(manual.image_instructions || '')}</textarea>
-          <div class="subtle" style="margin-top:6px">Se agrega al final del prompt de cada imagen generada con IA, con prioridad alta.</div>
-        </div>
-        <div class="form-group full">
-          <button class="btn btn-primary">Guardar marca</button>
-        </div>
-      </form>
-    </section>`;
+      </section>
+
+      <div class="save-bar">
+        <span class="subtle">Los cambios aplican a todo el contenido nuevo de ${esc(brand.name)}.</span>
+        <button class="btn btn-primary">Guardar cambios</button>
+      </div>
+    </form>`;
 }
 
 function renderColors(colors) {
@@ -854,22 +858,18 @@ async function loadCategories() {
 }
 
 function renderCategories() {
-  const cards = S.categories.map((cat) => `<article class="category-card">
-    <div class="section-head">
-      <h3>${esc(cat.name)}</h3>
-      <span class="tag">${esc(cat.slug || '')}</span>
+  const cards = S.categories.map((cat) => `<section class="settings-card">
+    <div class="settings-card-head">
+      <div><h2>${esc(cat.name)}</h2><p>${esc(cat.objective || 'Sin objetivo definido')}</p></div>
+      <select style="width:190px" onchange="saveCatField('${cat.id}','default_template_id',this.value)" title="Template para esta categoria">
+        <option value="">Template...</option>
+        ${S.templates.map((template) => `<option value="${esc(template)}" ${template === cat.default_template_id ? 'selected' : ''}>${esc(template)}</option>`).join('')}
+      </select>
     </div>
-    <div class="form-grid">
+    <div class="settings-card-body form-grid">
       ${catInput(cat, 'description', 'Descripcion', 'textarea')}
       ${catInput(cat, 'objective', 'Objetivo')}
-      ${catInput(cat, 'prompt_guidance', 'Prompt guidance', 'textarea')}
-      <div class="form-group">
-        <label>Template</label>
-        <select onchange="saveCatField('${cat.id}','default_template_id',this.value)">
-          <option value="">Sin cambio</option>
-          ${S.templates.map((template) => `<option value="${esc(template)}" ${template === cat.default_template_id ? 'selected' : ''}>${esc(template)}</option>`).join('')}
-        </select>
-      </div>
+      ${catInput(cat, 'prompt_guidance', 'Guia visual para las imagenes', 'textarea')}
       <div class="form-group full">
         <label>Ejemplos de hooks</label>
         <textarea rows="3" onchange="saveCatArray('${cat.id}','hook_examples',this)">${esc((cat.hook_examples || []).join('\n'))}</textarea>
@@ -879,11 +879,11 @@ function renderCategories() {
         <textarea rows="3" onchange="saveCatArray('${cat.id}','avoid_rules',this)">${esc((cat.avoid_rules || []).join('\n'))}</textarea>
       </div>
     </div>
-  </article>`).join('');
+  </section>`).join('');
 
   byId('content').innerHTML = `
-    ${pageHead('Categorias', `${S.categories.length} categorias`, `<button class="btn" onclick="loadCategories()">Actualizar</button>`)}
-    <div class="grid">${cards || empty('Sin categorias')}</div>`;
+    ${pageHead('Categorias', 'Los pilares de contenido de tu marca. Los cambios se guardan solos.', `<button class="btn" onclick="loadCategories()">Actualizar</button>`)}
+    ${cards || empty('Sin categorias')}`;
 }
 
 function catInput(cat, field, label, type = 'input') {
@@ -932,34 +932,40 @@ function renderDesign() {
   const categoryRefs = S.inspirations.filter((i) => i.category_id);
 
   byId('content').innerHTML = `
-    ${pageHead('Diseno', 'Reglas visuales, referencias de IA y templates', `<button class="btn btn-primary" onclick="addInspiration()">Nueva inspiracion</button>`)}
-    <div class="grid two">
-      <section class="section">
-        <div class="section-head"><h2>Manual visual</h2><span class="meta">${esc(brand.name || '')}</span></div>
+    ${pageHead('Diseno', 'El sistema visual que alimenta cada creativo generado', `<button class="btn btn-primary" onclick="addInspiration()">+ Nueva referencia</button>`)}
+    <section class="settings-card">
+      <div class="settings-card-head">
+        <div><h2>Referencias de estilo para la IA</h2><p>Fotos que definen tu estetica. Se envian al modelo en cada imagen que genera para tu marca.</p></div>
+        <span class="meta">${brandRefs.length}</span>
+      </div>
+      <div class="settings-card-body">
+        <div class="grid three">${brandRefs.map(inspirationCard).join('') || empty('Sin referencias todavia. Sube 2-3 fotos que definan tu estilo.')}</div>
+      </div>
+    </section>
+    <section class="settings-card">
+      <div class="settings-card-head">
+        <div><h2>Manual visual</h2><p>Resumen del estilo detectado. Se edita en la seccion Marca.</p></div>
+        <span class="meta">${esc(brand.name || '')}</span>
+      </div>
+      <div class="settings-card-body">
         <div class="rules">${esc(manual.visual_style || 'Sin estilo visual')}</div>
-        <div class="section-head" style="margin-top:14px"><h3>Reglas de diseno</h3></div>
+        <div class="section-head" style="margin-top:16px"><h3>Reglas de diseno</h3></div>
         <div class="rules">${esc((manual.design_rules || []).join('\n') || 'Sin reglas')}</div>
-        <div class="section-head" style="margin-top:14px"><h3>Paleta</h3></div>
+        <div class="section-head" style="margin-top:16px"><h3>Paleta</h3></div>
         <div class="tag-row">${Object.entries(manual.colors || {}).map(([key, value]) => `<span class="tag"><span style="width:14px;height:14px;border-radius:4px;background:${esc(value)};display:inline-block;margin-right:6px"></span>${esc(key)} ${esc(value)}</span>`).join('') || '<span class="subtle">Sin colores</span>'}</div>
+      </div>
+    </section>
+    <div class="grid two" style="margin-top:16px">
+      <section class="settings-card" style="margin:0">
+        <div class="settings-card-head"><div><h2>Inspiraciones por categoria</h2><p>Referencias que aplican solo a una categoria puntual.</p></div><span class="meta">${categoryRefs.length}</span></div>
+        <div class="settings-card-body"><div class="grid three">${categoryRefs.map(inspirationCard).join('') || empty('Sin inspiraciones por categoria')}</div></div>
       </section>
-      <section class="section">
-        <div class="section-head"><h2>Referencias de marca para IA</h2><span class="meta">${brandRefs.length}</span></div>
-        <p class="subtle" style="margin-top:0">Sin categoria asignada. Se envian como referencia de estilo a GPT Image 2 en todos los posts generados con IA.</p>
-        <div class="grid three">${brandRefs.map(inspirationCard).join('') || empty('Sin referencias de marca. Agrega una inspiracion sin categoria.')}</div>
-      </section>
-    </div>
-    <div class="grid two" style="margin-top:14px">
-      <section class="section">
-        <div class="section-head"><h2>Inspiraciones por categoria</h2><span class="meta">${categoryRefs.length}</span></div>
-        <div class="grid three">${categoryRefs.map(inspirationCard).join('') || empty('Sin inspiraciones por categoria')}</div>
-      </section>
-      <section class="section">
-        <div class="section-head">
-          <h2>Templates personalizados</h2>
-          <button class="btn btn-sm btn-primary" onclick="openTemplateEditor()">Nuevo template</button>
+      <section class="settings-card" style="margin:0">
+        <div class="settings-card-head">
+          <div><h2>Templates personalizados</h2><p>HTML/CSS propio como alternativa a la IA. Usa <code>{{hook}}</code>, <code>{{body}}</code>, <code>{{cta}}</code>.</p></div>
+          <button class="btn btn-sm btn-primary" onclick="openTemplateEditor()">Nuevo</button>
         </div>
-        <p class="subtle" style="margin-top:0">HTML/CSS editable, disponible como template (modo sin IA) en Marca, Categorias y Posts. Usa <code>{{hook}}</code>, <code>{{body}}</code>, <code>{{cta}}</code>.</p>
-        <div class="rules-list">${(S.customTemplates || []).map(customTemplateRow).join('') || empty('Sin templates personalizados')}</div>
+        <div class="settings-card-body"><div class="rules-list">${(S.customTemplates || []).map(customTemplateRow).join('') || empty('Sin templates personalizados')}</div></div>
       </section>
     </div>`;
 }
