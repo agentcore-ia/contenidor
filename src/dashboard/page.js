@@ -183,6 +183,7 @@ async function loadTab() {
     if (S.tab === 'overview') await loadOverview();
     if (S.tab === 'posts') await loadPosts();
     if (S.tab === 'calendar') await loadCalendar();
+    if (S.tab === 'analytics') await loadAnalytics();
     if (S.tab === 'brand') await loadBrand();
     if (S.tab === 'categories') await loadCategories();
     if (S.tab === 'design') await loadDesign();
@@ -527,7 +528,7 @@ function postCard(post) {
     <div class="post-body">
       <div class="section-head" style="margin-bottom:8px">
         ${statusBadge(post.status)}
-        <span class="subtle">${esc(post.template_id || '')}</span>
+        <span class="subtle">${esc(fmtDate(String(post.created_at || '').slice(0, 10)))} · ${esc(post.template_id === 'ai_gpt_image_2' ? 'IA' : (post.template_id || ''))}</span>
       </div>
       <div class="title">${esc(post.hook || '')}</div>
       <div class="post-copy">${esc(post.body || '')}</div>
@@ -909,6 +910,7 @@ function renderBrand() {
   const manual = brand.brand_manual || {};
   byId('content').innerHTML = `
     ${pageHead('Marca', `La identidad que guia todo el contenido de ${esc(brand.name)}`, `<button class="btn" onclick="loadBrand()">Actualizar</button>`)}
+    ${brandHero(brand, manual)}
     ${renderInstagramCard(brand)}
     <form onsubmit="saveBrand(event)">
       <input type="hidden" name="id" value="${esc(brand.id)}" />
@@ -981,6 +983,27 @@ function renderBrand() {
         <button class="btn btn-primary">Guardar cambios</button>
       </div>
     </form>`;
+}
+
+function brandHero(brand, manual) {
+  const initial = (brand.name || '?').trim().charAt(0).toUpperCase();
+  const colors = Object.values(manual.colors || {}).slice(0, 6);
+  const chips = [
+    brand.ig_username ? `<span class="chan-chip on">${ICON.instagram} @${esc(brand.ig_username)}</span>` : '<span class="chan-chip">Instagram sin conectar</span>',
+    brand.whatsapp_number ? `<span class="chan-chip on">WhatsApp +${esc(brand.whatsapp_number)}</span>` : '<span class="chan-chip">WhatsApp sin configurar</span>',
+  ].join('');
+  return `<section class="brand-hero">
+    <div class="bh-avatar">${esc(initial)}</div>
+    <div class="bh-main">
+      <div class="bh-name">${esc(brand.name)}</div>
+      <div class="bh-desc">${esc((brand.description || manual.voice || 'Sin descripcion').slice(0, 140))}</div>
+      <div class="bh-chips">${chips}</div>
+    </div>
+    <div class="bh-side">
+      ${colors.length ? `<div class="bh-palette">${colors.map((c) => `<span style="background:${esc(c)}"></span>`).join('')}</div>` : ''}
+      <span class="status ${brand.onboarding_status === 'ready' ? 'status-approved' : 'status-pending'}">${brand.onboarding_status === 'ready' ? 'Activa' : esc(brand.onboarding_status || 'Activa')}</span>
+    </div>
+  </section>`;
 }
 
 function renderInstagramCard(brand) {
@@ -1268,22 +1291,23 @@ function renderDesign() {
           <div><h2>Templates personalizados</h2><p>HTML/CSS propio como alternativa a la IA. Usa <code>{{hook}}</code>, <code>{{body}}</code>, <code>{{cta}}</code>.</p></div>
           <button class="btn btn-sm btn-primary" onclick="openTemplateEditor()">Nuevo</button>
         </div>
-        <div class="settings-card-body"><div class="rules-list">${(S.customTemplates || []).map(customTemplateRow).join('') || empty('Sin templates personalizados')}</div></div>
+        <div class="settings-card-body"><div class="tpl-grid">${(S.customTemplates || []).map(customTemplateRow).join('') || empty('Sin templates personalizados')}</div></div>
       </section>
     </div>`;
 }
 
 function customTemplateRow(tpl) {
-  return `<div class="queue-item">
-    <div>
+  return `<article class="tpl-card">
+    <div class="tpl-preview">${ICON.image}</div>
+    <div class="tpl-body">
       <div class="title">${esc(tpl.name)}</div>
-      <div class="subtle">custom_${esc(tpl.slug)}</div>
+      <span class="tag">custom_${esc(tpl.slug)}</span>
     </div>
-    <div class="toolbar" style="justify-content:flex-end">
+    <div class="toolbar" style="justify-content:flex-start;padding:0 14px 14px">
       <button class="btn btn-sm" onclick="openTemplateEditor('${tpl.id}')">Editar</button>
       <button class="btn btn-sm btn-danger" onclick="deleteCustomTemplate('${tpl.id}')">Eliminar</button>
     </div>
-  </div>`;
+  </article>`;
 }
 
 function inspirationCard(insp) {
@@ -1511,6 +1535,106 @@ window.deleteCustomTemplate = async function deleteCustomTemplate(id) {
   }
 };
 
+// --- Analytics ---------------------------------------------------------------
+
+async function loadAnalytics() {
+  const [posts, categories] = await Promise.all([
+    api('/api/posts?limit=200'),
+    api('/api/categories'),
+  ]);
+  S.posts = posts.posts || [];
+  S.categories = categories.categories || [];
+  if (!S.anRange) S.anRange = 30;
+  renderAnalytics();
+}
+
+window.setAnRange = function setAnRange(days) { S.anRange = days; renderAnalytics(); };
+
+function pct(part, total) { return total > 0 ? Math.round((part / total) * 100) : 0; }
+
+function renderAnalytics() {
+  const since = new Date(Date.now() - S.anRange * 24 * 3600 * 1000).toISOString();
+  const posts = S.posts.filter((p) => p.created_at >= since);
+  const catName = new Map(S.categories.map((c) => [c.id, c.name]));
+
+  const total = posts.length;
+  const approvedish = posts.filter((p) => p.status === 'approved' || p.status === 'posted');
+  const rejected = posts.filter((p) => p.status === 'rejected');
+  const reviewed = approvedish.length + rejected.length;
+  const approvalRate = pct(approvedish.length, reviewed);
+  const rejectRate = pct(rejected.length, reviewed);
+
+  // Best category / template among approved+posted posts.
+  const tally = (rows, key) => {
+    const acc = {};
+    rows.forEach((p) => { const k = key(p); if (k) acc[k] = (acc[k] || 0) + 1; });
+    return Object.entries(acc).sort((a, b) => b[1] - a[1]);
+  };
+  const byCat = tally(approvedish, (p) => catName.get(p.category_id));
+  const byTpl = tally(approvedish, (p) => p.template_id);
+  const bestCat = byCat[0]?.[0] || null;
+  const bestTpl = byTpl[0]?.[0] || null;
+
+  const kpis = `<div class="grid metrics">
+    ${metricCard({ icon: ICON.image, label: 'Posts generados', value: String(total), note: `ultimos ${S.anRange} dias` })}
+    ${metricCard({ icon: ICON.check, tone: 'tone-good', label: 'Tasa de aprobacion', value: reviewed ? `${approvalRate}%` : '—', note: reviewed ? `${approvedish.length} de ${reviewed} revisados` : 'Sin posts revisados aun' })}
+    ${metricCard({ icon: ICON.edit, tone: 'tone-bad', label: 'Tasa de rechazo', value: reviewed ? `${rejectRate}%` : '—', note: reviewed ? `${rejected.length} rechazados` : 'Sin posts revisados aun' })}
+    ${metricCard({ icon: ICON.star, tone: 'tone-info', label: 'Mejor categoria', value: bestCat || '—', note: bestCat ? `${byCat[0][1]} aprobados` : 'Aproba posts para ver esto' })}
+  </div>`;
+
+  // Status distribution bars.
+  const statuses = ['generated', 'needs_review', 'approved', 'posted', 'rejected'];
+  const counts = statuses.map((s) => posts.filter((p) => p.status === s).length);
+  const max = Math.max(...counts, 1);
+  const bars = statuses.map((s, i) => `<div class="an-bar-row">
+    <span class="an-bar-label">${POST_FILTER_LABELS[s] || s}</span>
+    <div class="an-bar-track"><div class="an-bar-fill st-${s}" style="width:${Math.max(pct(counts[i], max), counts[i] ? 4 : 0)}%"></div></div>
+    <span class="an-bar-count">${counts[i]}</span>
+  </div>`).join('');
+
+  // Insights derived from real data only.
+  const insights = [];
+  if (bestCat) insights.push(`Los posts de "${bestCat}" son los que mas aprobas — el motor va a seguir priorizando ese angulo.`);
+  if (bestTpl) insights.push(`El template "${bestTpl}" es el que mejor funciona (${byTpl[0][1]} aprobados).`);
+  if (reviewed >= 5 && approvalRate >= 70) insights.push(`Tu tasa de aprobacion es alta (${approvalRate}%): el estilo detectado esta alineado con tu marca.`);
+  if (reviewed >= 5 && rejectRate >= 40) insights.push(`Estas rechazando ${rejectRate}% de los posts. Ajusta las instrucciones de imagen o las referencias en Diseno para afinar el estilo.`);
+  const pendingReview = posts.filter((p) => p.status === 'needs_review').length;
+  if (pendingReview > 0) insights.push(`Tenes ${pendingReview} post${pendingReview > 1 ? 's' : ''} esperando revision.`);
+
+  const recommendations = [];
+  if (!reviewed) recommendations.push('Aproba o rechaza tus primeros posts para que el sistema aprenda que funciona.');
+  if (byCat.length > 1) recommendations.push(`Proba generar mas contenido de "${byCat[0][0]}" esta semana.`);
+  const failedRenders = posts.filter((p) => p.render_error).length;
+  if (failedRenders > 0) recommendations.push(`${failedRenders} render${failedRenders > 1 ? 'es' : ''} fallaron — regeneralos desde Posts.`);
+  if (!recommendations.length) recommendations.push('Todo en orden. Segui aprobando contenido para mejorar las senales.');
+
+  const list = (items) => `<ul class="insight-list">${items.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`;
+
+  byId('content').innerHTML = `
+    ${pageHead('Analytics', 'Rendimiento y aprendizaje de tu contenido', `
+      <div class="segmented">
+        ${[7, 30, 90].map((d) => `<button class="seg-opt ${S.anRange === d ? 'active' : ''}" onclick="setAnRange(${d})">${d}d</button>`).join('')}
+      </div>
+    `)}
+    ${kpis}
+    <div class="grid two" style="margin-top:16px">
+      <section class="settings-card" style="margin:0">
+        <div class="settings-card-head"><div><h2>Posts por estado</h2><p>Distribucion del contenido generado en el periodo.</p></div></div>
+        <div class="settings-card-body">${total ? bars : empty('Sin posts en este periodo')}</div>
+      </section>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <section class="settings-card" style="margin:0">
+          <div class="settings-card-head"><div><h2>Que funciono</h2><p>Senales reales de tus aprobaciones.</p></div></div>
+          <div class="settings-card-body">${insights.length ? list(insights) : empty('Aproba posts para generar insights')}</div>
+        </section>
+        <section class="settings-card" style="margin:0">
+          <div class="settings-card-head"><div><h2>Recomendaciones</h2><p>Proximos pasos sugeridos.</p></div></div>
+          <div class="settings-card-body">${list(recommendations)}</div>
+        </section>
+      </div>
+    </div>`;
+}
+
 async function loadSystem() {
   const [system, health, automation] = await Promise.all([
     api('/api/system'),
@@ -1529,6 +1653,13 @@ function fmtDateTime(value) {
   } catch {
     return value;
   }
+}
+
+function healthItem(label, value, tone) {
+  return `<div class="health-item">
+    <strong>${esc(label)}</strong>
+    <span class="${tone}">${esc(value)}</span>
+  </div>`;
 }
 
 function automationPanel() {
@@ -1583,49 +1714,142 @@ window.runAutomationNow = async function runAutomationNow() {
   }
 };
 
-function renderSystem(health) {
+const SETTINGS_TABS = [
+  ['integraciones', 'Integraciones'],
+  ['publicacion', 'Publicacion'],
+  ['cuenta', 'Cuenta'],
+  ['sistema', 'Sistema'],
+];
+
+window.setSettingsTab = function setSettingsTab(tab) { S.settingsTab = tab; renderSystem(S.lastHealth || { ok: true }); };
+
+function integrationRow({ icon, name, desc, connected, detail, action }) {
+  return `<div class="integration-row">
+    <div class="ig-connected" style="flex:1;min-width:0">
+      <div class="platform-chip">${icon}</div>
+      <div style="min-width:0">
+        <div class="t-label">${esc(name)}</div>
+        <div class="t-desc">${esc(detail || desc)}</div>
+      </div>
+    </div>
+    ${connected === null
+      ? '<span class="status status-skipped">Proximamente</span>'
+      : (connected ? '<span class="status status-approved">Conectada</span>' : '<span class="status status-pending">Sin conectar</span>')}
+    ${action || ''}
+  </div>`;
+}
+
+function settingsIntegraciones(brand) {
+  const goBrand = `<button class="btn btn-sm" onclick="document.querySelector('[data-tab=brand]').click()">Configurar</button>`;
+  const chat = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8.5 8.5 0 0 1-12.4 7.5L4 21l1.5-4.6A8.5 8.5 0 1 1 21 12Z"/></svg>';
+  const generic = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3.5 9h17M3.5 15h17M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>';
+  return `<section class="settings-card">
+    <div class="settings-card-head"><div><h2>Canales conectados</h2><p>Donde se publica y por donde apruebas el contenido de ${esc(brand?.name || 'tu marca')}.</p></div></div>
+    <div class="settings-card-body">
+      ${integrationRow({ icon: ICON.instagram, name: 'Instagram', desc: 'Publicacion automatica de creativos', connected: Boolean(brand?.ig_username || brand?.ig_connected_at), detail: brand?.ig_username ? `@${brand.ig_username} · publica los posts aprobados` : 'Publicacion automatica de creativos', action: goBrand })}
+      ${integrationRow({ icon: chat, name: 'WhatsApp', desc: 'Aprobacion de posts desde el chat', connected: Boolean(brand?.whatsapp_number), detail: brand?.whatsapp_number ? `+${brand.whatsapp_number} recibe cada creativo` : 'Aprobacion de posts desde el chat', action: goBrand })}
+      ${integrationRow({ icon: generic, name: 'Facebook', desc: 'Publicacion en paginas', connected: null })}
+      ${integrationRow({ icon: generic, name: 'Slack', desc: 'Notificaciones al equipo', connected: null })}
+      ${integrationRow({ icon: generic, name: 'Telegram', desc: 'Aprobaciones por bot', connected: null })}
+    </div>
+  </section>`;
+}
+
+function settingsPublicacion(brand) {
+  return `<section class="settings-card">
+    <div class="settings-card-head"><div><h2>Flujo de publicacion</h2><p>Como pasa un creativo de generado a publicado.</p></div></div>
+    <div class="settings-card-body form-grid">
+      <div class="form-group full">
+        <div class="toggle-row">
+          <div><div class="t-label">Publicacion automatica</div><div class="t-desc">Los posts aprobados se publican solos en la fecha de su calendario.</div></div>
+          <input type="checkbox" class="toggle" ${brand?.auto_publish === false ? '' : 'checked'} ${brand?.ig_username ? '' : 'disabled'} onchange="toggleAutoPublish(this.checked)" />
+        </div>
+      </div>
+      <div class="form-group full">
+        <div class="toggle-row">
+          <div><div class="t-label">Aprobacion por WhatsApp</div><div class="t-desc">${brand?.whatsapp_number ? `Cada creativo nuevo llega a +${esc(brand.whatsapp_number)} con botones Aprobar / Rechazar.` : 'Configura un numero en Marca para aprobar desde el chat.'}</div></div>
+          <span class="status ${brand?.whatsapp_number ? 'status-approved' : 'status-skipped'}">${brand?.whatsapp_number ? 'Activa' : 'Inactiva'}</span>
+        </div>
+      </div>
+      <div class="form-group full">
+        <div class="toggle-row">
+          <div><div class="t-label">Revision manual</div><div class="t-desc">Todo post generado queda en "En revision" hasta que lo apruebes aca o por WhatsApp.</div></div>
+          <span class="status status-approved">Siempre</span>
+        </div>
+      </div>
+    </div>
+  </section>
+  ${automationPanel()}`;
+}
+
+function settingsCuenta(brand) {
+  return `<section class="settings-card">
+    <div class="settings-card-head"><div><h2>Tu cuenta</h2><p>Sesion y marcas asociadas.</p></div></div>
+    <div class="settings-card-body form-grid">
+      <div class="form-group"><label>Email</label><input value="${esc(S.userEmail || '')}" readonly /></div>
+      <div class="form-group"><label>Marca activa</label><input value="${esc(brand?.name || '-')}" readonly /></div>
+      <div class="form-group full"><label>Marcas en tu cuenta</label>
+        <div class="tag-row">${S.brands.map((b) => `<span class="tag">${esc(b.name)}</span>`).join('') || '<span class="subtle">Sin marcas</span>'}</div>
+      </div>
+      <div class="form-group full">
+        <button type="button" class="btn btn-danger" onclick="logout()">Cerrar sesion</button>
+      </div>
+    </div>
+  </section>`;
+}
+
+function settingsSistema(health) {
   const sys = S.system;
+  return `<div class="grid two">
+      <section class="settings-card" style="margin:0">
+        <div class="settings-card-head"><div><h2>Runtime</h2><p>Estado del motor de contenido.</p></div><span class="${health.ok ? 'ok' : 'bad'}">${health.ok ? 'online' : 'offline'}</span></div>
+        <div class="settings-card-body">
+          <div class="health-grid">
+            ${healthItem('Node', sys.node, 'ok')}
+            ${healthItem('Uptime', `${sys.uptime_seconds}s`, 'ok')}
+            ${healthItem('Modelo', sys.model, 'ok')}
+            ${healthItem('Timezone', sys.content_time_zone, 'ok')}
+            ${healthItem('Fecha engine', sys.today, 'ok')}
+          </div>
+        </div>
+      </section>
+      <section class="settings-card" style="margin:0">
+        <div class="settings-card-head"><div><h2>Configuracion</h2><p>Variables criticas del servidor.</p></div></div>
+        <div class="settings-card-body">
+          <div class="health-grid">
+            ${healthItem('SUPABASE_URL', sys.env.SUPABASE_URL ? 'OK' : 'Falta', sys.env.SUPABASE_URL ? 'ok' : 'bad')}
+            ${healthItem('SERVICE_ROLE_KEY', sys.env.SUPABASE_SERVICE_ROLE_KEY ? 'OK' : 'Falta', sys.env.SUPABASE_SERVICE_ROLE_KEY ? 'ok' : 'bad')}
+            ${healthItem('OPENAI_API_KEY', sys.env.OPENAI_API_KEY ? 'OK' : 'Falta', sys.env.OPENAI_API_KEY ? 'ok' : 'bad')}
+          </div>
+        </div>
+      </section>
+    </div>
+    <section class="settings-card" style="margin-top:16px">
+      <div class="settings-card-head"><div><h2>Templates del motor</h2><p>Formatos disponibles para renderizar creativos.</p></div><span class="meta">${sys.templates.length}</span></div>
+      <div class="settings-card-body"><div class="tag-row">${sys.templates.map((template) => `<span class="tag">${esc(template)}</span>`).join('')}</div></div>
+    </section>`;
+}
+
+function renderSystem(health) {
+  S.lastHealth = health;
+  if (!S.settingsTab) S.settingsTab = 'integraciones';
+  const brand = S.brands.find((b) => b.id === S.brandId) || S.brands[0] || null;
+
+  const tabs = `<div class="segmented" style="margin-bottom:18px">
+    ${SETTINGS_TABS.map(([id, label]) => `<button class="seg-opt ${S.settingsTab === id ? 'active' : ''}" onclick="setSettingsTab('${id}')">${label}</button>`).join('')}
+  </div>`;
+
+  const body = {
+    integraciones: () => settingsIntegraciones(brand),
+    publicacion: () => settingsPublicacion(brand),
+    cuenta: () => settingsCuenta(brand),
+    sistema: () => settingsSistema(health),
+  }[S.settingsTab]();
+
   byId('content').innerHTML = `
-    ${pageHead('Sistema', sys.service, `<button class="btn" onclick="loadSystem()">Actualizar</button>`)}
-    <div class="grid two">
-      <section class="section">
-        <div class="section-head"><h2>Runtime</h2><span class="${health.ok ? 'ok' : 'bad'}">${health.ok ? 'online' : 'offline'}</span></div>
-        <div class="health-grid">
-          ${healthItem('Node', sys.node, 'ok')}
-          ${healthItem('Uptime', `${sys.uptime_seconds}s`, 'ok')}
-          ${healthItem('Modelo', sys.model, 'ok')}
-          ${healthItem('Timezone', sys.content_time_zone, 'ok')}
-          ${healthItem('Fecha engine', sys.today, 'ok')}
-        </div>
-      </section>
-      <section class="section">
-        <div class="section-head"><h2>Configuracion</h2></div>
-        <div class="health-grid">
-          ${healthItem('SUPABASE_URL', sys.env.SUPABASE_URL ? 'OK' : 'Falta', sys.env.SUPABASE_URL ? 'ok' : 'bad')}
-          ${healthItem('SERVICE_ROLE_KEY', sys.env.SUPABASE_SERVICE_ROLE_KEY ? 'OK' : 'Falta', sys.env.SUPABASE_SERVICE_ROLE_KEY ? 'ok' : 'bad')}
-          ${healthItem('OPENAI_API_KEY', sys.env.OPENAI_API_KEY ? 'OK' : 'Falta', sys.env.OPENAI_API_KEY ? 'ok' : 'bad')}
-        </div>
-      </section>
-    </div>
-    <div class="grid two" style="margin-top:14px">
-      ${automationPanel()}
-      <section class="section">
-        <div class="section-head"><h2>Templates</h2><span class="meta">${sys.templates.length}</span></div>
-        <div class="tag-row">${sys.templates.map((template) => `<span class="tag">${esc(template)}</span>`).join('')}</div>
-      </section>
-    </div>
-    <div class="grid two" style="margin-top:14px">
-      <section class="section">
-        <div class="section-head"><h2>Endpoints</h2></div>
-        <div class="rules">GET /today
-POST /api/generate-and-render
-POST /api/ideas/generate
-GET /api/automation
-POST /api/automation/run
-GET /api/overview
-GET /dashboard</div>
-      </section>
-    </div>`;
+    ${pageHead('Ajustes', 'Integraciones, publicacion y configuracion de tu cuenta', `<button class="btn" onclick="loadSystem()">Actualizar</button>`)}
+    ${tabs}
+    ${body}`;
 }
 
 // --- Auth & multi-brand boot -----------------------------------------------
