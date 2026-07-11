@@ -404,7 +404,7 @@ export async function listBrandsForUser(user) {
 
   const { data, error } = await supabase
     .from('brands')
-    .select('id, name, slug, description, default_template_id, instagram_handle, onboarding_status, onboarding_error, automation_enabled, auto_publish, ig_username, ig_connected_at, ig_token_expires_at, analysis, brand_manual, created_at')
+    .select('id, name, slug, description, default_template_id, instagram_handle, onboarding_status, onboarding_error, automation_enabled, auto_publish, ig_username, ig_connected_at, ig_token_expires_at, whatsapp_number, analysis, brand_manual, created_at')
     .eq('owner_id', user.id)
     .order('created_at', { ascending: true });
 
@@ -540,6 +540,32 @@ export async function markPostPublished(postId, mediaId) {
   }
 
   return data;
+}
+
+export async function setGeneratedPostStatus(postId, status) {
+  const { data, error } = await supabase
+    .from('generated_posts')
+    .update({ status })
+    .eq('id', postId)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw wrapSupabaseError('Could not update post status', error);
+  }
+
+  return data;
+}
+
+export async function markPostWaNotified(postId) {
+  const { error } = await supabase
+    .from('generated_posts')
+    .update({ wa_notified_at: new Date().toISOString() })
+    .eq('id', postId);
+
+  if (error) {
+    console.warn('[markPostWaNotified] failed:', error.message);
+  }
 }
 
 export async function markPostPublishError(postId, message) {

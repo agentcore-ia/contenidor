@@ -547,6 +547,16 @@ function postCard(post) {
   </article>`;
 }
 
+window.sendWhatsapp = async function sendWhatsapp(id) {
+  toast('Enviando a WhatsApp...');
+  try {
+    const res = await api(`/api/posts/${id}/whatsapp`, { method: 'POST' });
+    toast(`Enviado a WhatsApp (${res.to})`, 'success');
+  } catch (error) {
+    toast(error.message || 'No se pudo enviar a WhatsApp', 'error');
+  }
+};
+
 window.publishPost = async function publishPost(id) {
   if (!confirm('Publicar este post en Instagram ahora?')) return;
   toast('Publicando en Instagram...');
@@ -584,6 +594,7 @@ window.showPost = async function showPost(id) {
           : (post.image_url ? `<button class="btn btn-primary" onclick="publishPost('${post.id}');closeModal()">Publicar en Instagram</button>` : '')}
         <button class="btn" onclick="regCopy('${post.id}');closeModal()">Regenerar copy</button>
         <button class="btn" onclick="regRender('${post.id}');closeModal()">Regenerar render</button>
+        ${post.image_url ? `<button class="btn" onclick="sendWhatsapp('${post.id}')">Enviar a WhatsApp</button>` : ''}
         <button class="btn btn-plain" onclick="closeModal()">Cerrar</button>
       </div>`);
   } catch (error) {
@@ -954,6 +965,17 @@ function renderBrand() {
         </div>
       </section>
 
+      <section class="settings-card">
+        <div class="settings-card-head"><div><h2>Aprobaciones por WhatsApp</h2><p>Recibi cada creativo nuevo por WhatsApp con botones para aprobar o rechazar.</p></div></div>
+        <div class="settings-card-body form-grid">
+          <div class="form-group full">
+            <label>Numero de WhatsApp (con codigo de pais)</label>
+            <input name="whatsapp_number" value="${esc(brand.whatsapp_number || '')}" placeholder="Ej: 5493411234567" />
+            <div class="subtle" style="margin-top:6px">Cuando un post termina de generarse, te llega la imagen + copy a este numero. Toca "Aprobar" o "Rechazar" desde el chat. Deja vacio para desactivar.</div>
+          </div>
+        </div>
+      </section>
+
       <div class="save-bar">
         <span class="subtle">Los cambios aplican a todo el contenido nuevo de ${esc(brand.name)}.</span>
         <button class="btn btn-primary">Guardar cambios</button>
@@ -1116,6 +1138,7 @@ window.saveBrand = async function saveBrand(event) {
         name: fd.get('name'),
         description: fd.get('description'),
         default_template_id: fd.get('default_template_id') || 'pain_point_01',
+        whatsapp_number: fd.get('whatsapp_number') || '',
         brand_manual: manual,
       },
     });

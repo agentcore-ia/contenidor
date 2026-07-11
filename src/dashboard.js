@@ -15,8 +15,9 @@ import {
   uploadReferenceImage
 } from './supabase.js';
 import { AppError } from './errors.js';
-import { generateAndRenderPost, generateCalendarIdeas, generatePostForCalendar, publishPost, renderPostInBackground, runDailyAutomation } from './contentEngine.js';
+import { applyWhatsappDecision, generateAndRenderPost, generateCalendarIdeas, generatePostForCalendar, publishPost, renderPostInBackground, runDailyAutomation, sendApprovalForPost } from './contentEngine.js';
 import { buildAuthUrl, connectFromCode, connectWithToken, instagramConfigured, verifyState } from './instagram.js';
+import { isValidSignature, parseWebhookEvents, verifyWebhook, whatsappConfigured } from './whatsapp.js';
 import { getSchedulerState } from './scheduler.js';
 import { authMiddleware, requireBrand, signUp, signIn, refreshSession } from './auth.js';
 import { startOnboarding } from './onboarding.js';
@@ -97,6 +98,36 @@ export function registerDashboardRoutes(app) {
     } catch (error) {
       console.error('[instagram:callback:error]', error);
       back({ ig: 'error', msg: String(error.message || 'No se pudo conectar').slice(0, 140) });
+    }
+  });
+
+  // --- WhatsApp webhook (public: Meta calls these) ---
+  // Verification handshake.
+  app.get('/webhooks/whatsapp', (req, res) => {
+    try {
+      const challenge = verifyWebhook({
+        mode: req.query['hub.mode'],
+        token: req.query['hub.verify_token'],
+        challenge: req.query['hub.challenge']
+      });
+      res.status(200).send(String(challenge));
+    } catch (error) {
+      res.status(error.statusCode || 403).send('forbidden');
+    }
+  });
+
+  // Inbound events (button taps). Always 200 quickly so Meta doesn't retry;
+  // process decisions after acknowledging.
+  app.post('/webhooks/whatsapp', (req, res) => {
+    const sig = isValidSignature(req.headers['x-hub-signature-256'], req.rawBody);
+    if (sig.reason === 'mismatch') {
+      console.warn('[whatsapp:webhook] signature mismatch, ignoring');
+      return res.sendStatus(403);
+    }
+    res.sendStatus(200);
+    const events = parseWebhookEvents(req.body);
+    for (const event of events) {
+      applyWhatsappDecision(event).catch((error) => console.error('[whatsapp:decision:error]', error));
     }
   });
 
@@ -383,6 +414,12 @@ export function registerDashboardRoutes(app) {
     res.json({ success: true, post: data });
   }));
 
+  app.post('/api/posts/:id/whatsapp', wrap(async (req, res) => {
+    const { post } = await requirePost(req);
+    const result = await sendApprovalForPost(post.id);
+    res.json({ success: true, ...result });
+  }));
+
   app.post('/api/posts/:id/publish', wrap(async (req, res) => {
     const { brand, post } = await requirePost(req);
     if (!brand.ig_access_token) throw new AppError('Conecta Instagram para esta marca antes de publicar.', 400, 'IG_NOT_CONNECTED');
@@ -456,6 +493,10 @@ export function registerDashboardRoutes(app) {
     if (typeof req.body?.name === 'string') updates.name = req.body.name.trim();
     if (typeof req.body?.description === 'string') updates.description = req.body.description;
     if (req.body?.brand_manual && typeof req.body.brand_manual === 'object') updates.brand_manual = req.body.brand_manual;
+    if (typeof req.body?.whatsapp_number === 'string') {
+      const digits = req.body.whatsapp_number.replace(/[^0-9]/g, '');
+      updates.whatsapp_number = digits || null;
+    }
     if (typeof req.body?.default_template_id === 'string') {
       if (!isValidTemplateId(req.body.default_template_id)) throw new AppError(`Template ${req.body.default_template_id} no existe`, 400);
       updates.default_template_id = req.body.default_template_id;

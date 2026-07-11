@@ -6,6 +6,7 @@ import {
   getCalendarContent,
   getDefaultBrand,
   getExistingCalendarTopics,
+  getGeneratedPost,
   getLatestCalendarDate,
   getPendingContentForToday,
   insertCalendarIdeas,
@@ -17,6 +18,8 @@ import {
   markCalendarPosted,
   markPostPublished,
   markPostPublishError,
+  markPostWaNotified,
+  setGeneratedPostStatus,
   setPostRenderError,
   updateBrandFields,
   updateGeneratedPostImageUrl,
@@ -24,6 +27,7 @@ import {
 } from './supabase.js';
 import { fetchRemoteImageBytes, generateContentIdeas, generateImageArtDirection, generatePostContent, generatePostImageAsset } from './openai.js';
 import { publishToInstagram, refreshLongLivedToken } from './instagram.js';
+import { sendApprovalRequest, sendText, whatsappConfigured } from './whatsapp.js';
 import { renderPostImage } from './render.js';
 import { AI_TEMPLATE_ID } from './templates/index.js';
 import { addDays, todayDateString } from './dates.js';
@@ -104,11 +108,94 @@ export function renderPostInBackground(post) {
     .then(() => renderAndStorePost(post))
     .then((rendered) => {
       console.log(`[render:bg] post ${post.id} rendered -> ${rendered.image_url}`);
+      return notifyPostForReview(rendered);
     })
     .catch(async (error) => {
       console.error(`[render:bg:error] post ${post.id}:`, error);
       await setPostRenderError(post.id, error.message);
     });
+}
+
+function approvalBodyText(post, brand) {
+  const parts = [];
+  if (brand?.name) parts.push(`📣 ${brand.name}`);
+  if (post.hook) parts.push(post.hook);
+  const caption = post.caption_instagram || post.body || '';
+  if (caption) parts.push(caption);
+  return parts.join('\n\n');
+}
+
+// Sends the WhatsApp approval message for a freshly rendered post, if the brand
+// has a WhatsApp number and WhatsApp is configured. Fire-and-forget: a failure
+// here never breaks rendering.
+export async function notifyPostForReview(post) {
+  try {
+    if (!whatsappConfigured()) return;
+    if (!post?.image_url || post.wa_notified_at) return;
+    const brand = await getBrandById(post.brand_id);
+    if (!brand.whatsapp_number) return;
+    await sendApprovalRequest({
+      to: brand.whatsapp_number,
+      imageUrl: post.image_url,
+      bodyText: approvalBodyText(post, brand),
+      postId: post.id
+    });
+    await markPostWaNotified(post.id);
+    console.log(`[whatsapp] approval sent for post ${post.id} -> ${brand.whatsapp_number}`);
+  } catch (error) {
+    console.warn(`[whatsapp] could not notify post ${post?.id}: ${error.message}`);
+  }
+}
+
+// Explicit (re)send of the approval message for one post — surfaces errors so
+// the caller (a manual "probar WhatsApp" action) can show them.
+export async function sendApprovalForPost(postId) {
+  if (!whatsappConfigured()) {
+    throw new AppError('WhatsApp no esta configurado en el servidor (faltan variables WHATSAPP_*).', 503, 'WA_NOT_CONFIGURED');
+  }
+  const post = await getGeneratedPost(postId);
+  if (!post.image_url) throw new AppError('El post todavia no tiene imagen.', 400, 'WA_NO_IMAGE');
+  const brand = await getBrandById(post.brand_id);
+  if (!brand.whatsapp_number) throw new AppError('Esta marca no tiene numero de WhatsApp configurado.', 400, 'WA_NO_NUMBER');
+  await sendApprovalRequest({
+    to: brand.whatsapp_number,
+    imageUrl: post.image_url,
+    bodyText: approvalBodyText(post, brand),
+    postId: post.id
+  });
+  await markPostWaNotified(post.id);
+  return { sent: true, to: brand.whatsapp_number };
+}
+
+// Applies an Aprobar/Rechazar button tap coming from WhatsApp: updates the post
+// status and replies with a confirmation. Publishing (for approvals) still
+// follows the normal schedule via the daily autopilot.
+export async function applyWhatsappDecision({ action, postId, from }) {
+  let post;
+  try {
+    post = await getGeneratedPost(postId);
+  } catch {
+    if (from) await sendText(from, 'No encontramos ese post (quiza fue eliminado).');
+    return { ok: false, reason: 'post_not_found' };
+  }
+
+  if (post.status === 'posted') {
+    if (from) await sendText(from, 'Ese post ya fue publicado, no se puede cambiar.');
+    return { ok: false, reason: 'already_posted' };
+  }
+
+  const status = action === 'approve' ? 'approved' : 'rejected';
+  await setGeneratedPostStatus(postId, status);
+
+  if (from) {
+    await sendText(
+      from,
+      action === 'approve'
+        ? '✅ Aprobado. Se publicara en su fecha programada.'
+        : '❌ Rechazado. No se va a publicar.'
+    );
+  }
+  return { ok: true, status };
 }
 
 export async function generateAndRenderPost(calendarId) {

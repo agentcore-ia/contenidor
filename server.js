@@ -8,7 +8,12 @@ const port = process.env.PORT || 80;
 
 console.log('[startup] booting...', { port, node: process.version, cwd: process.cwd() });
 
-app.use(express.json({ limit: '30mb' }));
+// Keep the raw body so WhatsApp webhook signatures (X-Hub-Signature-256) can
+// be verified against the exact bytes Meta signed.
+app.use(express.json({
+  limit: '30mb',
+  verify: (req, _res, buf) => { req.rawBody = buf; }
+}));
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'capta-content-engine' });
