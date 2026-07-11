@@ -11,10 +11,12 @@ import {
   createCustomTemplate,
   updateCustomTemplate,
   deleteCustomTemplate,
+  updateBrandFields,
   uploadReferenceImage
 } from './supabase.js';
 import { AppError } from './errors.js';
-import { generateAndRenderPost, generateCalendarIdeas, generatePostForCalendar, renderPostInBackground, runDailyAutomation } from './contentEngine.js';
+import { generateAndRenderPost, generateCalendarIdeas, generatePostForCalendar, publishPost, renderPostInBackground, runDailyAutomation } from './contentEngine.js';
+import { buildAuthUrl, connectFromCode, instagramConfigured, verifyState } from './instagram.js';
 import { getSchedulerState } from './scheduler.js';
 import { authMiddleware, requireBrand, signUp, signIn, refreshSession } from './auth.js';
 import { startOnboarding } from './onboarding.js';
@@ -76,6 +78,27 @@ export function registerDashboardRoutes(app) {
     const session = await refreshSession(req.body?.refresh_token);
     res.json({ success: true, session });
   }));
+
+  // --- Instagram OAuth callback (public: the browser is redirected here by
+  // Instagram, without our bearer token). The signed `state` carries and
+  // authenticates which brand to attach. ---
+  app.get('/oauth/instagram/callback', async (req, res) => {
+    const back = (params) => res.redirect(`/dashboard?${new URLSearchParams(params).toString()}`);
+    try {
+      if (req.query.error) {
+        return back({ ig: 'error', msg: String(req.query.error_description || req.query.error).slice(0, 140) });
+      }
+      const code = req.query.code;
+      const state = verifyState(req.query.state);
+      if (!code) throw new AppError('Falta el code de autorizacion', 400);
+      const fields = await connectFromCode(code);
+      await updateBrandFields(state.brandId, fields);
+      back({ ig: 'connected', handle: fields.ig_username || '' });
+    } catch (error) {
+      console.error('[instagram:callback:error]', error);
+      back({ ig: 'error', msg: String(error.message || 'No se pudo conectar').slice(0, 140) });
+    }
+  });
 
   // Everything under /api requires a logged-in user.
   app.use('/api', authMiddleware);
@@ -142,6 +165,33 @@ export function registerDashboardRoutes(app) {
 
   app.get('/api/me', wrap(async (req, res) => {
     res.json({ success: true, user: { id: req.user.id, email: req.user.email } });
+  }));
+
+  // --- Instagram connection ---
+  app.get('/api/instagram/connect-url', wrap(async (req, res) => {
+    if (!instagramConfigured()) throw new AppError('Instagram no esta configurado en el servidor (falta INSTAGRAM_APP_ID / INSTAGRAM_APP_SECRET).', 503, 'IG_NOT_CONFIGURED');
+    const brand = await requireBrand(req);
+    const url = buildAuthUrl({ brandId: brand.id, userId: req.user.id });
+    res.json({ success: true, url });
+  }));
+
+  app.post('/api/instagram/disconnect', wrap(async (req, res) => {
+    const brand = await requireBrand(req);
+    await updateBrandFields(brand.id, {
+      ig_user_id: null,
+      ig_username: null,
+      ig_access_token: null,
+      ig_token_expires_at: null,
+      ig_connected_at: null
+    });
+    res.json({ success: true });
+  }));
+
+  app.patch('/api/instagram/settings', wrap(async (req, res) => {
+    const brand = await requireBrand(req);
+    if (typeof req.body?.auto_publish !== 'boolean') throw new AppError('auto_publish (boolean) requerido', 400);
+    const updated = await updateBrandFields(brand.id, { auto_publish: req.body.auto_publish });
+    res.json({ success: true, auto_publish: updated.auto_publish });
   }));
 
   // Monday..Sunday window containing `dateStr` (YYYY-MM-DD).
@@ -322,6 +372,15 @@ export function registerDashboardRoutes(app) {
     const { data, error } = await supabase.from('generated_posts').update({ status: 'rejected' }).eq('id', req.params.id).eq('brand_id', brand.id).select().single();
     if (error) throw new AppError(error.message, 500, 'SUPABASE_ERROR');
     res.json({ success: true, post: data });
+  }));
+
+  app.post('/api/posts/:id/publish', wrap(async (req, res) => {
+    const { brand, post } = await requirePost(req);
+    if (!brand.ig_access_token) throw new AppError('Conecta Instagram para esta marca antes de publicar.', 400, 'IG_NOT_CONNECTED');
+    if (!post.image_url) throw new AppError('El post todavia no tiene imagen renderizada.', 400, 'IG_NO_IMAGE');
+    if (post.posted_at) throw new AppError('Este post ya fue publicado.', 409, 'IG_ALREADY_POSTED');
+    const published = await publishPost(post, brand);
+    res.json({ success: true, post: published });
   }));
 
   app.patch('/api/posts/:id/template', wrap(async (req, res) => {

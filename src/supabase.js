@@ -404,7 +404,7 @@ export async function listBrandsForUser(user) {
 
   const { data, error } = await supabase
     .from('brands')
-    .select('id, name, slug, description, default_template_id, instagram_handle, onboarding_status, onboarding_error, automation_enabled, analysis, brand_manual, created_at')
+    .select('id, name, slug, description, default_template_id, instagram_handle, onboarding_status, onboarding_error, automation_enabled, auto_publish, ig_username, ig_connected_at, ig_token_expires_at, analysis, brand_manual, created_at')
     .eq('owner_id', user.id)
     .order('created_at', { ascending: true });
 
@@ -504,6 +504,68 @@ export async function updateBrandFields(brandId, fields) {
   }
 
   return data;
+}
+
+// Approved posts whose scheduled publish date has arrived and that still have
+// a rendered image but haven't been posted to Instagram yet.
+export async function listApprovedDuePosts(brandId, date = todayDateString()) {
+  const { data, error } = await supabase
+    .from('generated_posts')
+    .select('id, brand_id, caption_instagram, image_url, status, calendar:content_calendar!generated_posts_calendar_id_fkey(id, publish_date)')
+    .eq('brand_id', brandId)
+    .eq('status', 'approved')
+    .not('image_url', 'is', null)
+    .is('posted_at', null);
+
+  if (error) {
+    throw wrapSupabaseError('Could not load due posts', error);
+  }
+
+  return (data ?? []).filter((post) => {
+    const publishDate = normalizeRelation(post.calendar)?.publish_date;
+    return publishDate && publishDate <= date;
+  });
+}
+
+export async function markPostPublished(postId, mediaId) {
+  const { data, error } = await supabase
+    .from('generated_posts')
+    .update({ status: 'posted', ig_media_id: mediaId, posted_at: new Date().toISOString(), publish_error: null })
+    .eq('id', postId)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw wrapSupabaseError('Could not mark post as published', error);
+  }
+
+  return data;
+}
+
+export async function markPostPublishError(postId, message) {
+  const { error } = await supabase
+    .from('generated_posts')
+    .update({ publish_error: message ? String(message).slice(0, 500) : null })
+    .eq('id', postId);
+
+  if (error) {
+    console.error('[markPostPublishError] could not persist publish error', error.message);
+  }
+}
+
+// Brands with a connected Instagram account (for scheduled publishing and
+// token refresh).
+export async function listBrandsWithInstagram() {
+  const { data, error } = await supabase
+    .from('brands')
+    .select('*')
+    .not('ig_access_token', 'is', null);
+
+  if (error) {
+    throw wrapSupabaseError('Could not list Instagram brands', error);
+  }
+
+  return data ?? [];
 }
 
 export async function insertCategories(rows) {
@@ -624,6 +686,18 @@ export async function insertCalendarIdeas(rows) {
   }
 
   return data ?? [];
+}
+
+export async function markCalendarPosted(calendarId) {
+  if (!calendarId) return;
+  const { error } = await supabase
+    .from('content_calendar')
+    .update({ status: 'posted' })
+    .eq('id', calendarId);
+
+  if (error) {
+    console.warn('[markCalendarPosted] failed:', error.message);
+  }
 }
 
 export async function markCalendarGenerated(calendarId, postId) {

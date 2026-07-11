@@ -22,6 +22,7 @@ function readConfig() {
     minute,
     queueTarget: Math.max(1, Math.min(Number(process.env.AUTOMATION_QUEUE_TARGET) || 7, 30)),
     autoRender: String(process.env.AUTOMATION_AUTO_RENDER ?? 'true').toLowerCase() === 'true',
+    autoPublish: String(process.env.AUTOMATION_AUTO_PUBLISH ?? 'true').toLowerCase() === 'true',
     runOnStart: String(process.env.AUTOMATION_RUN_ON_START ?? 'false').toLowerCase() === 'true'
   };
 }
@@ -36,13 +37,14 @@ const state = {
 };
 
 export function getSchedulerState() {
-  const { enabled, hour, minute, queueTarget, autoRender, runOnStart } = state.config;
+  const { enabled, hour, minute, queueTarget, autoRender, autoPublish, runOnStart } = state.config;
   return {
     enabled,
     time: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`,
     time_zone: timeZone(),
     queue_target: queueTarget,
     auto_render: autoRender,
+    auto_publish: autoPublish,
     run_on_start: runOnStart,
     running: state.running,
     next_run_at: state.nextRunAt,
@@ -60,7 +62,8 @@ export async function runAutomationNow() {
   try {
     const result = await runAllDailyAutomation({
       queueTarget: state.config.queueTarget,
-      autoRender: state.config.autoRender
+      autoRender: state.config.autoRender,
+      autoPublish: state.config.autoPublish
     });
     state.lastRunAt = new Date().toISOString();
     state.lastResult = result;

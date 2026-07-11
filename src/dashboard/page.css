@@ -446,6 +446,15 @@ label {
 .status-rejected { color: var(--bad); background: var(--bad-bg); border-color: rgba(220, 38, 38, 0.18); }
 .status-skipped, .status-unknown { color: var(--muted); background: var(--surface-3); border-color: var(--border-strong); }
 
+.ig-connected { display: flex; align-items: center; gap: 12px; }
+.ig-connected .platform-chip {
+  width: 40px; height: 40px; flex: 0 0 40px;
+  border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent-wash); color: var(--accent);
+}
+.ig-connected .platform-chip svg { width: 20px; height: 20px; }
+
 /* ============================================================
    Overview pieces
    ============================================================ */

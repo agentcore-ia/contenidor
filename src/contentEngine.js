@@ -9,14 +9,21 @@ import {
   getLatestCalendarDate,
   getPendingContentForToday,
   insertCalendarIdeas,
+  listApprovedDuePosts,
   listAutomationBrands,
+  listBrandsWithInstagram,
   listCategories,
   markCalendarGenerated,
+  markCalendarPosted,
+  markPostPublished,
+  markPostPublishError,
   setPostRenderError,
+  updateBrandFields,
   updateGeneratedPostImageUrl,
   uploadPostImage
 } from './supabase.js';
 import { fetchRemoteImageBytes, generateContentIdeas, generateImageArtDirection, generatePostContent, generatePostImageAsset } from './openai.js';
+import { instagramConfigured, publishToInstagram, refreshLongLivedToken } from './instagram.js';
 import { renderPostImage } from './render.js';
 import { AI_TEMPLATE_ID } from './templates/index.js';
 import { addDays, todayDateString } from './dates.js';
@@ -185,11 +192,75 @@ export async function ensureIdeaQueue({ brandId = null, target = 7 } = {}) {
   return { pending, ...result };
 }
 
-// Full daily autopilot step for one brand: top up the idea queue, then
-// generate + render today's pending post so it lands in `needs_review`.
-export async function runDailyAutomation({ brandId = null, queueTarget = 7, autoRender = true } = {}) {
+// Publishes one approved post to the brand's connected Instagram account,
+// updating both the post and its calendar item on success.
+export async function publishPost(post, brand) {
+  const mediaId = await publishToInstagram({
+    brand,
+    imageUrl: post.image_url,
+    caption: post.caption_instagram || ''
+  });
+  await markCalendarPosted(post.calendar?.id || post.calendar_id);
+  const updated = await markPostPublished(post.id, mediaId);
+  return { ...updated, ig_media_id: mediaId };
+}
+
+// Publishes every approved, due, not-yet-posted post for a connected brand.
+export async function publishDuePosts(brand) {
+  if (!brand?.ig_access_token) {
+    return { skipped: true, reason: 'Instagram not connected' };
+  }
+
+  const due = await listApprovedDuePosts(brand.id);
+  const published = [];
+  const failed = [];
+
+  for (const post of due) {
+    try {
+      const result = await publishPost(post, brand);
+      published.push({ id: post.id, ig_media_id: result.ig_media_id });
+    } catch (error) {
+      await markPostPublishError(post.id, error.message);
+      failed.push({ id: post.id, message: error.message, code: error.code });
+    }
+  }
+
+  return { due: due.length, published, failed };
+}
+
+// Refreshes long-lived Instagram tokens that are within `withinDays` of
+// expiring. Long-lived tokens last 60 days and can be refreshed once they're
+// at least 24h old.
+export async function refreshInstagramTokens({ withinDays = 10 } = {}) {
+  if (!instagramConfigured()) return { skipped: true, reason: 'Instagram not configured' };
+
+  const brands = await listBrandsWithInstagram();
+  const threshold = Date.now() + withinDays * 24 * 3600 * 1000;
+  const refreshed = [];
+
+  for (const brand of brands) {
+    const expiresAt = brand.ig_token_expires_at ? new Date(brand.ig_token_expires_at).getTime() : 0;
+    if (expiresAt && expiresAt > threshold) continue;
+    try {
+      const { token, expiresInSeconds } = await refreshLongLivedToken(brand.ig_access_token);
+      await updateBrandFields(brand.id, {
+        ig_access_token: token,
+        ig_token_expires_at: new Date(Date.now() + expiresInSeconds * 1000).toISOString()
+      });
+      refreshed.push(brand.slug);
+    } catch (error) {
+      console.warn(`[refreshInstagramTokens] ${brand.slug}: ${error.message}`);
+    }
+  }
+
+  return { checked: brands.length, refreshed };
+}
+
+// Full daily autopilot step for one brand: top up the idea queue, generate +
+// render today's pending post, then publish any approved due posts.
+export async function runDailyAutomation({ brandId = null, queueTarget = 7, autoRender = true, autoPublish = true } = {}) {
   const startedAt = new Date().toISOString();
-  const summary = { brand_id: brandId, started_at: startedAt, queue: null, post: null, errors: [] };
+  const summary = { brand_id: brandId, started_at: startedAt, queue: null, post: null, publish: null, errors: [] };
 
   try {
     summary.queue = await ensureIdeaQueue({ brandId, target: queueTarget });
@@ -216,23 +287,37 @@ export async function runDailyAutomation({ brandId = null, queueTarget = 7, auto
     }
   }
 
+  if (autoPublish && brandId) {
+    try {
+      const brand = await getBrandById(brandId);
+      if (brand.ig_access_token && brand.auto_publish !== false) {
+        summary.publish = await publishDuePosts(brand);
+      } else {
+        summary.publish = { skipped: true, reason: brand.ig_access_token ? 'auto_publish off' : 'Instagram not connected' };
+      }
+    } catch (error) {
+      summary.errors.push({ step: 'publish_due', message: error.message, code: error.code });
+    }
+  }
+
   summary.finished_at = new Date().toISOString();
   return summary;
 }
 
 // SaaS autopilot: run the daily automation for every brand that has it on.
-export async function runAllDailyAutomation({ queueTarget = 7, autoRender = true } = {}) {
+export async function runAllDailyAutomation({ queueTarget = 7, autoRender = true, autoPublish = true } = {}) {
+  const tokens = autoPublish ? await refreshInstagramTokens().catch((error) => ({ error: error.message })) : null;
   const brands = await listAutomationBrands();
   const runs = [];
 
   for (const brand of brands) {
     try {
-      const summary = await runDailyAutomation({ brandId: brand.id, queueTarget, autoRender });
+      const summary = await runDailyAutomation({ brandId: brand.id, queueTarget, autoRender, autoPublish });
       runs.push({ brand: brand.slug, ...summary });
     } catch (error) {
       runs.push({ brand: brand.slug, error: error.message });
     }
   }
 
-  return { brands: brands.length, runs };
+  return { brands: brands.length, tokens, runs };
 }

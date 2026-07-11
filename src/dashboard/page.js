@@ -539,10 +539,25 @@ function postCard(post) {
       <button class="btn btn-sm" onclick="regRender('${post.id}')">Render</button>
       <button class="btn btn-sm btn-good" onclick="approvePost('${post.id}')">Aprobar</button>
       <button class="btn btn-sm btn-danger" onclick="rejectPost('${post.id}')">Rechazar</button>
+      ${post.status === 'posted'
+        ? '<span class="status status-posted">Publicado</span>'
+        : (post.image_url ? `<button class="btn btn-sm btn-primary" onclick="publishPost('${post.id}')">Publicar</button>` : '')}
       <div style="width:170px">${templateSelect(post.template_id, `changeTemplate('${post.id}',this.value)`)}</div>
     </div>
   </article>`;
 }
+
+window.publishPost = async function publishPost(id) {
+  if (!confirm('Publicar este post en Instagram ahora?')) return;
+  toast('Publicando en Instagram...');
+  try {
+    await api(`/api/posts/${id}/publish`, { method: 'POST' });
+    toast('Publicado en Instagram', 'success');
+    await loadPosts();
+  } catch (error) {
+    toast(error.message || 'No se pudo publicar', 'error');
+  }
+};
 
 window.showPost = async function showPost(id) {
   try {
@@ -564,6 +579,9 @@ window.showPost = async function showPost(id) {
       <div class="toolbar" style="justify-content:flex-start;margin-top:14px">
         <button class="btn btn-good" onclick="approvePost('${post.id}');closeModal()">Aprobar</button>
         <button class="btn btn-danger" onclick="rejectPost('${post.id}');closeModal()">Rechazar</button>
+        ${post.status === 'posted'
+          ? '<span class="status status-posted">Publicado</span>'
+          : (post.image_url ? `<button class="btn btn-primary" onclick="publishPost('${post.id}');closeModal()">Publicar en Instagram</button>` : '')}
         <button class="btn" onclick="regCopy('${post.id}');closeModal()">Regenerar copy</button>
         <button class="btn" onclick="regRender('${post.id}');closeModal()">Regenerar render</button>
         <button class="btn btn-plain" onclick="closeModal()">Cerrar</button>
@@ -876,6 +894,7 @@ function renderBrand() {
   const manual = brand.brand_manual || {};
   byId('content').innerHTML = `
     ${pageHead('Marca', `La identidad que guia todo el contenido de ${esc(brand.name)}`, `<button class="btn" onclick="loadBrand()">Actualizar</button>`)}
+    ${renderInstagramCard(brand)}
     <form onsubmit="saveBrand(event)">
       <input type="hidden" name="id" value="${esc(brand.id)}" />
 
@@ -937,6 +956,80 @@ function renderBrand() {
       </div>
     </form>`;
 }
+
+function renderInstagramCard(brand) {
+  const connected = Boolean(brand.ig_username || brand.ig_connected_at);
+  if (connected) {
+    const expires = brand.ig_token_expires_at ? new Date(brand.ig_token_expires_at).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
+    return `
+      <section class="settings-card">
+        <div class="settings-card-head">
+          <div><h2>Instagram</h2><p>La cuenta donde se publican los creativos automaticamente.</p></div>
+          <span class="status status-approved">Conectada</span>
+        </div>
+        <div class="settings-card-body form-grid">
+          <div class="form-group full">
+            <div class="ig-connected">
+              <div class="platform-chip">${ICON.instagram}</div>
+              <div><div class="t-label">@${esc(brand.ig_username || 'cuenta')}</div><div class="t-desc">${expires ? `Conexion valida hasta ${expires} (se renueva sola).` : 'Cuenta conectada.'}</div></div>
+            </div>
+          </div>
+          <div class="form-group full">
+            <div class="toggle-row">
+              <div><div class="t-label">Publicacion automatica</div><div class="t-desc">Publicar los posts aprobados en la fecha programada, sin intervencion.</div></div>
+              <input type="checkbox" class="toggle" ${brand.auto_publish === false ? '' : 'checked'} onchange="toggleAutoPublish(this.checked)" />
+            </div>
+          </div>
+          <div class="form-group full">
+            <button type="button" class="btn" onclick="disconnectInstagram()">Desconectar cuenta</button>
+          </div>
+        </div>
+      </section>`;
+  }
+  return `
+    <section class="settings-card">
+      <div class="settings-card-head">
+        <div><h2>Instagram</h2><p>Conecta una cuenta profesional (Business o Creator) para publicar automaticamente.</p></div>
+        <span class="status status-pending">Sin conectar</span>
+      </div>
+      <div class="settings-card-body">
+        <p class="subtle" style="margin:0 0 14px">Al conectar, los posts aprobados se publican solos en la fecha de su calendario. Podes desactivar la publicacion automatica cuando quieras.</p>
+        <button type="button" class="btn btn-primary" onclick="connectInstagram()">${ICON.instagram} Conectar Instagram</button>
+      </div>
+    </section>`;
+}
+
+window.connectInstagram = async function connectInstagram() {
+  try {
+    const { url } = await api('/api/instagram/connect-url');
+    window.location.href = url;
+  } catch (error) {
+    toast(error.message || 'No se pudo iniciar la conexion', 'error');
+  }
+};
+
+window.disconnectInstagram = async function disconnectInstagram() {
+  if (!confirm('Desconectar la cuenta de Instagram? Se dejaran de publicar posts automaticamente.')) return;
+  try {
+    await api('/api/instagram/disconnect', { method: 'POST' });
+    toast('Instagram desconectado', 'success');
+    await loadBrand();
+  } catch (error) {
+    toast(error.message || 'No se pudo desconectar', 'error');
+  }
+};
+
+window.toggleAutoPublish = async function toggleAutoPublish(value) {
+  try {
+    await api('/api/instagram/settings', { method: 'PATCH', body: { auto_publish: value } });
+    const brand = S.brands.find((item) => item.id === S.brandId);
+    if (brand) brand.auto_publish = value;
+    toast(value ? 'Publicacion automatica activada' : 'Publicacion automatica desactivada', 'success');
+  } catch (error) {
+    toast(error.message || 'No se pudo actualizar', 'error');
+    await loadBrand();
+  }
+};
 
 function renderColors(colors) {
   const entries = Object.entries(colors);
@@ -1816,8 +1909,26 @@ async function bootApp() {
   S.brandId = S.brands.some((brand) => brand.id === stored) ? stored : S.brands[0].id;
   localStorage.setItem(BRAND_KEY, S.brandId);
   ensureBrandBar();
+  handleInstagramRedirect();
   await loadBootstrap();
   await loadTab();
+}
+
+// After the Instagram OAuth callback, the browser lands back on /dashboard with
+// an ?ig= status param. Surface it and jump to the Marca tab.
+function handleInstagramRedirect() {
+  const params = new URLSearchParams(window.location.search);
+  const ig = params.get('ig');
+  if (!ig) return;
+  if (ig === 'connected') {
+    const handle = params.get('handle');
+    toast(`Instagram conectado${handle ? ` (@${handle})` : ''}`, 'success');
+    S.tab = 'brand';
+    document.querySelectorAll('.tab').forEach((item) => item.classList.toggle('active', item.dataset.tab === 'brand'));
+  } else if (ig === 'error') {
+    toast(`No se pudo conectar Instagram: ${params.get('msg') || 'error desconocido'}`, 'error');
+  }
+  history.replaceState(null, '', window.location.pathname);
 }
 
 (async function init() {
