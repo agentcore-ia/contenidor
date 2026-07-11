@@ -16,6 +16,9 @@ const S = {
   userEmail: null,
   needsReviewPosts: [],
   onb: { step: 0, data: {} },
+  calMonth: null,
+  calView: 'month',
+  calPosts: null,
 };
 
 const POST_STATUSES = ['generated', 'needs_review', 'approved', 'posted', 'rejected'];
@@ -638,13 +641,128 @@ window.changeTemplate = async function changeTemplate(id, templateId) {
 };
 
 async function loadCalendar() {
-  const data = await api('/api/calendar');
-  S.calendar = data.calendar || [];
+  const [cal, posts] = await Promise.all([
+    api('/api/calendar'),
+    api('/api/posts?limit=200').catch(() => ({ posts: [] })),
+  ]);
+  S.calendar = cal.calendar || [];
+  S.calPosts = new Map((posts.posts || []).map((p) => [p.id, p]));
+  if (!S.calMonth) S.calMonth = todayStr().slice(0, 7);
+  if (!S.calView) S.calView = 'month';
   renderCalendar();
 }
 
-function renderCalendar() {
-  const today = S.overview?.today || new Date().toISOString().slice(0, 10);
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const CAL_STATUS_LABEL = {
+  pending: 'Idea', generated: 'Generado', needs_review: 'En revision',
+  approved: 'Aprobado', posted: 'Publicado', rejected: 'Rechazado', skipped: 'Omitido',
+};
+
+window.navCalMonth = function navCalMonth(delta) {
+  const [y, m] = S.calMonth.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  S.calMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  renderCalendar();
+};
+window.calGoToday = function calGoToday() { S.calMonth = todayStr().slice(0, 7); renderCalendar(); };
+window.setCalView = function setCalView(view) { S.calView = view; renderCalendar(); };
+
+function calMiniCard(item) {
+  const post = item.generated_post_id ? S.calPosts?.get(item.generated_post_id) : null;
+  const thumb = post?.image_url
+    ? `<img class="cm-thumb" src="${esc(post.image_url)}" alt="" />`
+    : `<span class="cm-thumb">${ICON.image}</span>`;
+  return `<button class="cal-mini st-${esc(item.status)}" onclick="calItemModal('${item.id}')" title="${esc(item.topic)}">
+    ${thumb}
+    <span class="cm-body">
+      <span class="cm-status">${CAL_STATUS_LABEL[item.status] || item.status}</span>
+      <span class="cm-title">${esc(item.topic)}</span>
+    </span>
+  </button>`;
+}
+
+function renderCalMonth() {
+  const today = todayStr();
+  const [y, m] = S.calMonth.split('-').map(Number);
+  const monthLabel = new Date(y, m - 1, 1).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+
+  const byDate = {};
+  for (const item of S.calendar) (byDate[item.publish_date] ??= []).push(item);
+
+  const first = new Date(y, m - 1, 1);
+  const offset = (first.getDay() + 6) % 7; // lunes = 0
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const totalCells = Math.ceil((offset + daysInMonth) / 7) * 7;
+
+  let cells = '';
+  for (let i = 0; i < totalCells; i++) {
+    const d = new Date(y, m - 1, 1 - offset + i);
+    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const inMonth = d.getMonth() === m - 1;
+    const items = (byDate[ds] || []).slice(0, 3);
+    cells += `<div class="cal-cell ${inMonth ? '' : 'other'}">
+      <span class="cal-daynum ${ds === today ? 'today' : ''}">${d.getDate()}</span>
+      ${inMonth ? items.map(calMiniCard).join('') : ''}
+      ${inMonth && (byDate[ds] || []).length > 3 ? `<span class="subtle" style="font-size:10.5px">+${byDate[ds].length - 3} mas</span>` : ''}
+    </div>`;
+  }
+
+  const counts = S.calendar.reduce((acc, i) => { acc[i.status] = (acc[i.status] || 0) + 1; return acc; }, {});
+  const legend = [
+    ['pending', 'var(--warn)'], ['generated', 'var(--info)'],
+    ['needs_review', 'var(--accent)'], ['approved', 'var(--good)'],
+  ].filter(([s]) => counts[s]).map(([s, c]) => `<span class="lg" style="--dot:${c}">${counts[s]} ${(CAL_STATUS_LABEL[s] || s).toLowerCase()}</span>`).join('');
+
+  const upcoming = S.calendar.filter((i) => i.publish_date >= today).slice(0, 5);
+  const sidePosts = upcoming.map((item) => {
+    const post = item.generated_post_id ? S.calPosts?.get(item.generated_post_id) : null;
+    const thumb = post?.image_url ? `<img class="thumb" src="${esc(post.image_url)}" alt="" />` : `<div class="thumb-empty">${ICON.image}</div>`;
+    const dateLabel = new Date(`${item.publish_date}T00:00:00`).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' });
+    return `<div class="side-post" onclick="calItemModal('${item.id}')">
+      ${thumb}
+      <div style="flex:1;min-width:0">
+        <div class="sp-date">${esc(dateLabel)}</div>
+        <div class="sp-title">${esc(item.topic)}</div>
+      </div>
+      ${statusBadge(item.status)}
+    </div>`;
+  }).join('');
+
+  return `<div class="cal-shell">
+    <div class="cal-main">
+      <div class="cal-toolbar">
+        <div class="cal-nav">
+          <button class="icon-btn" onclick="navCalMonth(-1)" title="Mes anterior">‹</button>
+          <button class="icon-btn" onclick="navCalMonth(1)" title="Mes siguiente">›</button>
+          <button class="btn btn-sm" onclick="calGoToday()">Hoy</button>
+        </div>
+        <div class="cal-month-label">${esc(monthLabel)}</div>
+        <div class="segmented">
+          <button class="seg-opt active" onclick="setCalView('month')">Mes</button>
+          <button class="seg-opt" onclick="setCalView('agenda')">Agenda</button>
+        </div>
+      </div>
+      <div class="cal-grid">
+        ${['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'].map((d) => `<div class="cal-dow">${d}</div>`).join('')}
+        ${cells}
+      </div>
+      <div class="cal-legend">${legend || '<span class="subtle">Sin items este mes</span>'}</div>
+    </div>
+    <aside class="cal-side">
+      <h2>Proximos posts</h2>
+      <div class="side-sub">Lo que viene en tu calendario</div>
+      ${sidePosts || empty('Nada programado')}
+      <button class="btn" style="width:100%;margin-top:14px" onclick="setCalView('agenda')">Ver agenda completa</button>
+    </aside>
+  </div>`;
+}
+
+function renderCalAgenda() {
+  const today = todayStr();
   const rows = S.calendar.map((item) => `<tr class="${item.publish_date === today ? 'cal-today' : ''}">
     <td style="white-space:nowrap"><span class="date-chip">${fmtDate(item.publish_date)}</span></td>
     <td style="min-width:220px"><input value="${esc(item.topic)}" onchange="updateCal('${item.id}','topic',this.value)" /></td>
@@ -659,13 +777,12 @@ function renderCalendar() {
     </td>
   </tr>`).join('');
 
-  const pending = S.calendar.filter((item) => item.status === 'pending').length;
-
-  byId('content').innerHTML = `
-    ${pageHead('Calendario', `${S.calendar.length} ideas programadas · ${pending} por generar`, `
-      <button class="btn" onclick="loadCalendar()">Actualizar</button>
-      <button class="btn btn-primary" onclick="generateIdeas()">+ Generar ideas</button>
-    `)}
+  return `<div style="margin-bottom:14px" class="toolbar">
+      <div class="segmented">
+        <button class="seg-opt" onclick="setCalView('month')">Mes</button>
+        <button class="seg-opt active" onclick="setCalView('agenda')">Agenda</button>
+      </div>
+    </div>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Fecha</th><th>Tema</th><th>Angulo</th><th>Estado</th><th>Categoria</th><th></th></tr></thead>
@@ -673,6 +790,38 @@ function renderCalendar() {
       </table>
     </div>`;
 }
+
+function renderCalendar() {
+  const pending = S.calendar.filter((item) => item.status === 'pending').length;
+  byId('content').innerHTML = `
+    ${pageHead('Calendario', 'Planifica, programa y gestiona tu contenido', `
+      <button class="btn" onclick="loadCalendar()">Actualizar</button>
+      <button class="btn btn-primary" onclick="generateIdeas()">+ Generar ideas</button>
+    `)}
+    ${S.calView === 'agenda' ? renderCalAgenda() : renderCalMonth()}`;
+}
+
+window.calItemModal = function calItemModal(id) {
+  const item = S.calendar.find((i) => i.id === id);
+  if (!item) return;
+  const post = item.generated_post_id ? S.calPosts?.get(item.generated_post_id) : null;
+  modal(`<h3>${esc(fmtDate(item.publish_date))} · ${esc(item.category?.name || 'Sin categoria')}</h3>
+    ${post?.image_url ? `<img class="modal-image" src="${esc(post.image_url)}" alt="" style="max-width:260px" />` : ''}
+    <div class="form-grid">
+      <div class="form-group full"><label>Tema</label><input value="${esc(item.topic)}" onchange="updateCal('${item.id}','topic',this.value)" /></div>
+      <div class="form-group full"><label>Angulo</label><input value="${esc(item.angle || '')}" onchange="updateCal('${item.id}','angle',this.value)" /></div>
+      <div class="form-group full"><label>Estado</label>
+        <select onchange="updateCal('${item.id}','status',this.value)">
+          ${CAL_STATUSES.map((s) => `<option value="${s}" ${s === item.status ? 'selected' : ''}>${s.replace(/_/g, ' ')}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="toolbar" style="justify-content:flex-start;margin-top:16px">
+      ${item.status === 'pending' ? `<button class="btn btn-primary" onclick="closeModal();generateCalendar('${item.id}')">Generar contenido</button>` : ''}
+      ${item.generated_post_id ? `<button class="btn" onclick="closeModal();showPost('${item.generated_post_id}')">Ver post</button>` : ''}
+      <button class="btn btn-plain" onclick="closeModal();loadCalendar()">Cerrar</button>
+    </div>`);
+};
 
 const calTimers = {};
 window.updateCal = function updateCal(id, field, value) {
