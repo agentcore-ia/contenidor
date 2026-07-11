@@ -16,7 +16,7 @@ import {
 } from './supabase.js';
 import { AppError } from './errors.js';
 import { generateAndRenderPost, generateCalendarIdeas, generatePostForCalendar, publishPost, renderPostInBackground, runDailyAutomation } from './contentEngine.js';
-import { buildAuthUrl, connectFromCode, instagramConfigured, verifyState } from './instagram.js';
+import { buildAuthUrl, connectFromCode, connectWithToken, instagramConfigured, verifyState } from './instagram.js';
 import { getSchedulerState } from './scheduler.js';
 import { authMiddleware, requireBrand, signUp, signIn, refreshSession } from './auth.js';
 import { startOnboarding } from './onboarding.js';
@@ -173,6 +173,15 @@ export function registerDashboardRoutes(app) {
     const brand = await requireBrand(req);
     const url = buildAuthUrl({ brandId: brand.id, userId: req.user.id });
     res.json({ success: true, url });
+  }));
+
+  // Connect using a long-lived token pasted from the Meta dashboard
+  // ("Generar identificador") — works without OAuth config or App Review.
+  app.post('/api/instagram/connect-token', wrap(async (req, res) => {
+    const brand = await requireBrand(req);
+    const fields = await connectWithToken(req.body?.token);
+    const updated = await updateBrandFields(brand.id, fields);
+    res.json({ success: true, username: updated.ig_username, ig_user_id: updated.ig_user_id });
   }));
 
   app.post('/api/instagram/disconnect', wrap(async (req, res) => {

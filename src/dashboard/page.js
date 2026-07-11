@@ -880,7 +880,11 @@ window.generateCalendar = async function generateCalendar(id) {
 };
 
 async function loadBrand() {
-  if (!S.brands.length) await loadBootstrap();
+  // Always refresh brands so connection state (Instagram) reflects the server.
+  try {
+    const data = await api('/api/brands');
+    S.brands = data.brands || [];
+  } catch { if (!S.brands.length) await loadBootstrap(); }
   renderBrand();
 }
 
@@ -994,10 +998,44 @@ function renderInstagramCard(brand) {
       </div>
       <div class="settings-card-body">
         <p class="subtle" style="margin:0 0 14px">Al conectar, los posts aprobados se publican solos en la fecha de su calendario. Podes desactivar la publicacion automatica cuando quieras.</p>
-        <button type="button" class="btn btn-primary" onclick="connectInstagram()">${ICON.instagram} Conectar Instagram</button>
+        <div class="toolbar" style="justify-content:flex-start;gap:10px">
+          <button type="button" class="btn btn-primary" onclick="connectInstagram()">${ICON.instagram} Conectar Instagram</button>
+          <button type="button" class="btn" onclick="connectInstagramToken()">Conectar con token</button>
+        </div>
       </div>
     </section>`;
 }
+
+window.connectInstagramToken = function connectInstagramToken() {
+  modal(`<h3>Conectar con token de acceso</h3>
+    <p class="subtle" style="margin:0 0 12px">Para probar con tu propia cuenta sin configurar el login completo:</p>
+    <ol class="subtle" style="margin:0 0 14px 18px;line-height:1.7">
+      <li>En el panel de Meta, seccion <b>"Genera identificadores de acceso"</b>, toca <b>"Generar identificador"</b> en tu cuenta.</li>
+      <li>Copia el token que aparece y pegalo aca abajo.</li>
+    </ol>
+    <div class="form-group full">
+      <label>Token de acceso</label>
+      <textarea id="ig-token" rows="4" placeholder="IGAA...​ (token largo generado en Meta)"></textarea>
+    </div>
+    <div class="toolbar" style="justify-content:flex-start;margin-top:12px">
+      <button class="btn btn-primary" onclick="submitTokenConnect()">Conectar</button>
+      <button class="btn btn-plain" onclick="closeModal()">Cancelar</button>
+    </div>`);
+};
+
+window.submitTokenConnect = async function submitTokenConnect() {
+  const token = (byId('ig-token')?.value || '').trim();
+  if (!token) { toast('Pega el token de acceso', 'error'); return; }
+  toast('Validando token...');
+  try {
+    const res = await api('/api/instagram/connect-token', { method: 'POST', body: { token } });
+    closeModal();
+    toast(`Instagram conectado${res.username ? ` (@${res.username})` : ''}`, 'success');
+    await loadBrand();
+  } catch (error) {
+    toast(error.message || 'No se pudo conectar', 'error');
+  }
+};
 
 window.connectInstagram = async function connectInstagram() {
   try {

@@ -23,7 +23,7 @@ import {
   uploadPostImage
 } from './supabase.js';
 import { fetchRemoteImageBytes, generateContentIdeas, generateImageArtDirection, generatePostContent, generatePostImageAsset } from './openai.js';
-import { instagramConfigured, publishToInstagram, refreshLongLivedToken } from './instagram.js';
+import { publishToInstagram, refreshLongLivedToken } from './instagram.js';
 import { renderPostImage } from './render.js';
 import { AI_TEMPLATE_ID } from './templates/index.js';
 import { addDays, todayDateString } from './dates.js';
@@ -232,8 +232,6 @@ export async function publishDuePosts(brand) {
 // expiring. Long-lived tokens last 60 days and can be refreshed once they're
 // at least 24h old.
 export async function refreshInstagramTokens({ withinDays = 10 } = {}) {
-  if (!instagramConfigured()) return { skipped: true, reason: 'Instagram not configured' };
-
   const brands = await listBrandsWithInstagram();
   const threshold = Date.now() + withinDays * 24 * 3600 * 1000;
   const refreshed = [];

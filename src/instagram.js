@@ -117,7 +117,7 @@ async function exchangeForLongLivedToken(shortToken) {
 }
 
 export async function refreshLongLivedToken(longToken) {
-  assertConfigured();
+  // ig_refresh_token only needs the token itself, not the app secret.
   const params = new URLSearchParams({ grant_type: 'ig_refresh_token', access_token: longToken });
   const res = await fetch(`${GRAPH}/refresh_access_token?${params.toString()}`);
   const json = await res.json().catch(() => ({}));
@@ -135,6 +135,34 @@ async function fetchProfile(igUserId, token) {
     throw new AppError(`No se pudo leer el perfil de Instagram: ${json.error?.message || res.status}`, 502, 'IG_PROFILE_FAILED');
   }
   return { igUserId: String(json.user_id || igUserId), username: json.username || null };
+}
+
+// Resolves the connected account straight from a token (via /me), so a token
+// generated manually in the Meta dashboard can be used without the OAuth flow.
+async function fetchMe(token) {
+  const params = new URLSearchParams({ fields: 'user_id,username', access_token: token });
+  const res = await fetch(`${GRAPH}/me?${params.toString()}`);
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || !json.user_id) {
+    throw new AppError(`El token no es valido: ${json.error?.message || res.status}`, 400, 'IG_BAD_TOKEN');
+  }
+  return { igUserId: String(json.user_id), username: json.username || null };
+}
+
+// Connects a brand using a long-lived token pasted by the user (from the Meta
+// dashboard "Generar identificador"). Validates it against /me and assumes the
+// standard 60-day lifetime; the scheduler refreshes it before it expires.
+export async function connectWithToken(token) {
+  const clean = String(token || '').trim();
+  if (!clean) throw new AppError('Pega el token de acceso', 400, 'IG_NO_TOKEN');
+  const me = await fetchMe(clean);
+  return {
+    ig_user_id: me.igUserId,
+    ig_username: me.username,
+    ig_access_token: clean,
+    ig_token_expires_at: new Date(Date.now() + 60 * 24 * 3600 * 1000).toISOString(),
+    ig_connected_at: new Date().toISOString()
+  };
 }
 
 // Full connect handshake: code -> long-lived token + profile. Returns the
@@ -197,7 +225,6 @@ async function publishMediaContainer({ igUserId, token, creationId }) {
 // Publishes a single image + caption to the brand's connected account.
 // Returns the published Instagram media id.
 export async function publishToInstagram({ brand, imageUrl, caption }) {
-  assertConfigured();
   if (!brand?.ig_user_id || !brand?.ig_access_token) {
     throw new AppError('Esta marca no tiene Instagram conectado', 400, 'IG_NOT_CONNECTED');
   }
