@@ -155,13 +155,6 @@ function empty(label) {
   return `<div class="empty">${esc(label)}</div>`;
 }
 
-function templateSelect(selected, onchange) {
-  return `<select class="select" onchange="${onchange}">
-    <option value="">Template</option>
-    ${S.templates.map((template) => `<option value="${esc(template)}" ${template === selected ? 'selected' : ''}>${esc(template)}</option>`).join('')}
-  </select>`;
-}
-
 async function loadBootstrap() {
   const [templates, categories, brands] = await Promise.all([
     api('/api/templates'),
@@ -544,7 +537,6 @@ function postCard(post) {
       ${post.status === 'posted'
         ? '<span class="status status-posted">Publicado</span>'
         : (post.image_url ? `<button class="btn btn-sm btn-primary" onclick="publishPost('${post.id}')">Publicar</button>` : '')}
-      <div style="width:170px">${templateSelect(post.template_id, `changeTemplate('${post.id}',this.value)`)}</div>
     </div>
   </article>`;
 }
@@ -654,18 +646,6 @@ window.rejectPost = async function rejectPost(id) {
     await api(`/api/posts/${id}/reject`, { method: 'POST' });
     toast('Post rechazado');
     await loadTab();
-  } catch (error) {
-    toast(error.message, 'error');
-  }
-};
-
-window.changeTemplate = async function changeTemplate(id, templateId) {
-  if (!templateId) return;
-  try {
-    const res = await api(`/api/posts/${id}/template`, { method: 'PATCH', body: { template_id: templateId } });
-    toast(res.rendering ? 'Template cambiado. Regenerando imagen en segundo plano...' : 'Template actualizado');
-    await loadTab();
-    pollTabForRender();
   } catch (error) {
     toast(error.message, 'error');
   }
@@ -920,12 +900,6 @@ function renderBrand() {
         <div class="settings-card-head"><div><h2>Identidad</h2><p>Quien es la marca y que ofrece.</p></div></div>
         <div class="settings-card-body form-grid">
           <div class="form-group"><label>Nombre</label><input name="name" value="${esc(brand.name)}" /></div>
-          <div class="form-group"><label>Template por defecto</label>
-            <select name="default_template_id">
-              <option value="">Sin cambio</option>
-              ${S.templates.map((template) => `<option value="${esc(template)}" ${template === brand.default_template_id ? 'selected' : ''}>${esc(template)}</option>`).join('')}
-            </select>
-          </div>
           <div class="form-group full"><label>Descripcion</label><textarea name="description" rows="4">${esc(brand.description || '')}</textarea></div>
         </div>
       </section>
@@ -1207,7 +1181,6 @@ window.saveBrand = async function saveBrand(event) {
       body: {
         name: fd.get('name'),
         description: fd.get('description'),
-        default_template_id: fd.get('default_template_id') || 'pain_point_01',
         whatsapp_number: fd.get('whatsapp_number') || '',
         logo_url: fd.get('logo_url') || '',
         brand_manual: manual,
@@ -1415,10 +1388,6 @@ function renderCategories() {
   const cards = S.categories.map((cat) => `<section class="settings-card">
     <div class="settings-card-head">
       <div><h2>${esc(cat.name)}</h2><p>${esc(cat.objective || 'Sin objetivo definido')}</p></div>
-      <select style="width:190px" onchange="saveCatField('${cat.id}','default_template_id',this.value)" title="Template para esta categoria">
-        <option value="">Template...</option>
-        ${S.templates.map((template) => `<option value="${esc(template)}" ${template === cat.default_template_id ? 'selected' : ''}>${esc(template)}</option>`).join('')}
-      </select>
     </div>
     <div class="settings-card-body form-grid">
       ${catInput(cat, 'description', 'Descripcion', 'textarea')}
@@ -2053,8 +2022,8 @@ function settingsSistema(health) {
       </section>
     </div>
     <section class="settings-card" style="margin-top:16px">
-      <div class="settings-card-head"><div><h2>Templates del motor</h2><p>Formatos disponibles para renderizar creativos.</p></div><span class="meta">${sys.templates.length}</span></div>
-      <div class="settings-card-body"><div class="tag-row">${sys.templates.map((template) => `<span class="tag">${esc(template)}</span>`).join('')}</div></div>
+      <div class="settings-card-head"><div><h2>Motor de imagenes</h2><p>Todas las imagenes se generan con IA (GPT Image 2) con la identidad visual de cada marca.</p></div></div>
+      <div class="settings-card-body"><div class="tag-row"><span class="tag">ai_gpt_image_2</span><span class="tag">direccion de arte por pieza</span><span class="tag">referencias del feed</span><span class="tag">logo integrado</span></div></div>
     </section>`;
 }
 

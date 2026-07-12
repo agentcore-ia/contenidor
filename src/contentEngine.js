@@ -38,7 +38,7 @@ function chooseTemplateId(content) {
   return (
     content.category?.default_template_id ||
     content.brand?.default_template_id ||
-    'pain_point_01'
+    AI_TEMPLATE_ID
   );
 }
 
