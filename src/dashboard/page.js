@@ -955,8 +955,20 @@ function renderBrand() {
         <div class="settings-card-head"><div><h2>Generacion de imagenes</h2><p>Control fino sobre lo que la IA pone (o no) en cada creativo.</p></div></div>
         <div class="settings-card-body form-grid">
           <div class="form-group full">
+            <label>Logo de la marca</label>
+            <div class="logo-upload">
+              <img id="brand-logo-preview" src="${esc(brand.logo_url || '')}" alt="" style="${brand.logo_url ? '' : 'display:none'}" />
+              <div style="flex:1">
+                <input type="file" accept="image/png,image/jpeg,image/webp" onchange="uploadBrandLogo(this)" />
+                <div class="subtle" id="logo-upload-status" style="margin-top:6px">${brand.logo_url ? 'La IA integra este logo en la escena: potes, vasos, vestimenta, carteles.' : 'Subi tu logo (ideal PNG con fondo transparente) y la IA lo integra en la escena: potes, vasos, vestimenta, carteles.'}</div>
+                ${brand.logo_url ? `<button type="button" class="btn btn-sm" style="margin-top:8px" onclick="removeBrandLogo()">Quitar logo</button>` : ''}
+              </div>
+            </div>
+            <input type="hidden" name="logo_url" id="brand-logo-url" value="${esc(brand.logo_url || '')}" />
+          </div>
+          <div class="form-group full">
             <div class="toggle-row">
-              <div><div class="t-label">Logo en las imagenes</div><div class="t-desc">Incluir el wordmark de la marca en cada creativo generado.</div></div>
+              <div><div class="t-label">Wordmark en las imagenes</div><div class="t-desc">Si no hay logo subido, incluir el nombre de la marca escrito discreto en una esquina.</div></div>
               <input type="checkbox" class="toggle" name="show_logo" ${manual.show_logo ? 'checked' : ''} />
             </div>
           </div>
@@ -988,13 +1000,16 @@ function renderBrand() {
 
 function brandHero(brand, manual) {
   const initial = (brand.name || '?').trim().charAt(0).toUpperCase();
+  const avatar = brand.logo_url
+    ? `<div class="bh-avatar bh-logo"><img src="${esc(brand.logo_url)}" alt="" /></div>`
+    : `<div class="bh-avatar">${esc(initial)}</div>`;
   const colors = Object.values(manual.colors || {}).slice(0, 6);
   const chips = [
     brand.ig_username ? `<span class="chan-chip on">${ICON.instagram} @${esc(brand.ig_username)}</span>` : '<span class="chan-chip">Instagram sin conectar</span>',
     brand.whatsapp_number ? `<span class="chan-chip on">WhatsApp +${esc(brand.whatsapp_number)}</span>` : '<span class="chan-chip">WhatsApp sin configurar</span>',
   ].join('');
   return `<section class="brand-hero">
-    <div class="bh-avatar">${esc(initial)}</div>
+    ${avatar}
     <div class="bh-main">
       <div class="bh-name">${esc(brand.name)}</div>
       <div class="bh-desc">${esc((brand.description || manual.voice || 'Sin descripcion').slice(0, 140))}</div>
@@ -1127,6 +1142,37 @@ function renderColors(colors) {
   </div>`).join('');
 }
 
+window.uploadBrandLogo = async function uploadBrandLogo(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const status = byId('logo-upload-status');
+  status.textContent = 'Subiendo logo...';
+  try {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const res = await api('/api/uploads/reference', { method: 'POST', body: { data_url: dataUrl } });
+    byId('brand-logo-url').value = res.image_url;
+    const preview = byId('brand-logo-preview');
+    preview.src = res.image_url;
+    preview.style.display = '';
+    status.textContent = 'Logo subido. Toca "Guardar cambios" para aplicarlo.';
+  } catch (error) {
+    status.textContent = error.message || 'No se pudo subir el logo';
+  }
+};
+
+window.removeBrandLogo = function removeBrandLogo() {
+  byId('brand-logo-url').value = '';
+  const preview = byId('brand-logo-preview');
+  preview.src = '';
+  preview.style.display = 'none';
+  byId('logo-upload-status').textContent = 'Logo quitado. Toca "Guardar cambios" para confirmar.';
+};
+
 window.saveBrand = async function saveBrand(event) {
   event.preventDefault();
   const fd = new FormData(event.target);
@@ -1163,6 +1209,7 @@ window.saveBrand = async function saveBrand(event) {
         description: fd.get('description'),
         default_template_id: fd.get('default_template_id') || 'pain_point_01',
         whatsapp_number: fd.get('whatsapp_number') || '',
+        logo_url: fd.get('logo_url') || '',
         brand_manual: manual,
       },
     });

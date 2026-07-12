@@ -85,10 +85,20 @@ async function renderAiPostImage(post) {
     }
   });
 
+  // Official brand logo, integrated physically into the scene when uploaded.
+  let logoBuffer = null;
+  if (brand.logo_url) {
+    try {
+      logoBuffer = await fetchRemoteImageBytes(brand.logo_url);
+    } catch (error) {
+      console.warn(`[renderAiPostImage] skipping brand logo (${brand.logo_url}): ${error.message}`);
+    }
+  }
+
   // Art-direct this specific piece (typography/colour/layout) before generating.
   const artDirection = await generateImageArtDirection({ post, brand });
 
-  const asset = await generatePostImageAsset(post, { brand, referenceBuffers, artDirection });
+  const asset = await generatePostImageAsset(post, { brand, referenceBuffers, artDirection, logoBuffer });
   return asset.buffer;
 }
 

@@ -502,7 +502,7 @@ function clampWords(text, maxWords) {
   return words.slice(0, maxWords).join(' ');
 }
 
-function aiPosterPrompt(post, brand, referenceCount, artDirection = '') {
+function aiPosterPrompt(post, brand, referenceCount, artDirection = '', hasLogo = false) {
   const manual = brand?.brand_manual || {};
   const designRules = Array.isArray(manual.design_rules) ? manual.design_rules : [];
   const colors = manual.colors && typeof manual.colors === 'object' ? manual.colors : {};
@@ -570,9 +570,11 @@ ${artDirection}
 Brand style:
 - Voice/tone: ${manual.voice || 'Premium, warm, direct.'}
 - Visual style: ${manual.visual_style || 'Warm, premium, editorial; appetizing and modern; never generic stock.'}${designRules.length ? `\n- Design rules: ${designRules.join('; ')}.` : ''}${colorLine ? `\n- Brand palette: ${colorLine}. Stay inside it.` : ''}
-${manual.show_logo
-  ? `- Include a small, discreet wordmark reading "${brand?.name || ''}" in one corner, never competing with the headline.`
-  : `- Do NOT include any logo, wordmark, brand name text, or app icon anywhere in the image.`}
+${hasLogo
+  ? `- BRAND LOGO: the LAST reference image provided is the brand's official logo. Integrate it PHYSICALLY and naturally into the scene as real-world branding — printed on the product packaging (ice-cream tubs, cups, boxes, bags, labels), on apparel (aprons, t-shirts, caps), on signage or glassware — matching the surface's perspective, curvature, lighting and material. Reproduce the logo faithfully: never redraw, distort, recolor, translate or typeset it. Keep it crisp and believable, sized like real product branding. It must never compete with the headline.`
+  : (manual.show_logo
+    ? `- Include a small, discreet wordmark reading "${brand?.name || ''}" in one corner, never competing with the headline.`
+    : `- Do NOT include any logo, wordmark, brand name text, or app icon anywhere in the image.`)}
 
 Hard constraints — do NOT violate:
 - NO call-to-action or promotional buttons, badges or bars ("Pedí ya", "Reservá", "Order now", "Book now", "Sign up", phone numbers, website bars). No button-shaped elements inviting action.
@@ -590,7 +592,13 @@ ${customInstructions}`
   if (referenceCount > 0) {
     return `${withCustom}
 
-You are given ${referenceCount} reference image(s) taken from this account's real feed. They define its visual identity: photography style, framing, lighting, palette, mood, composition and text density. Match that identity closely — the new piece must look like it was posted by the same account on the same grid. Do NOT copy their literal content or reproduce any text visible in them; create a new, original piece that clearly belongs to the same visual system.`;
+You are given ${referenceCount} style reference image(s) taken from this account's real feed${hasLogo ? ' (plus the brand logo as the FINAL image — that one is a branding asset, NOT a style reference)' : ''}. They define its visual identity: photography style, framing, lighting, palette, mood, composition and text density. Match that identity closely — the new piece must look like it was posted by the same account on the same grid. Do NOT copy their literal content or reproduce any text visible in them; create a new, original piece that clearly belongs to the same visual system.`;
+  }
+
+  if (hasLogo) {
+    return `${withCustom}
+
+The single reference image provided is the brand's official logo — a branding asset to integrate into the scene as described above, NOT a style reference for the overall composition.`;
   }
 
   return withCustom;
@@ -644,19 +652,26 @@ Reglas: coherente con el ADN de la cuenta y su densidad visual; jerarquia clara 
   }
 }
 
-export async function generatePostImageAsset(post, { brand, referenceBuffers = [], artDirection = '' } = {}) {
+export async function generatePostImageAsset(post, { brand, referenceBuffers = [], artDirection = '', logoBuffer = null } = {}) {
   const client = createOpenAIClient();
   const model = process.env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL;
   const size = process.env.OPENAI_IMAGE_SIZE || DEFAULT_IMAGE_SIZE;
   const quality = process.env.OPENAI_IMAGE_QUALITY || 'high';
-  const prompt = aiPosterPrompt(post, brand, referenceBuffers.length, artDirection);
+  const prompt = aiPosterPrompt(post, brand, referenceBuffers.length, artDirection, Boolean(logoBuffer));
+
+  // The logo always goes LAST so the prompt can point at "the last image".
+  const allBuffers = logoBuffer ? [...referenceBuffers, logoBuffer] : referenceBuffers;
 
   let response;
 
   try {
-    if (referenceBuffers.length > 0) {
+    if (allBuffers.length > 0) {
       const referenceFiles = await Promise.all(
-        referenceBuffers.map((buffer, index) => toFile(buffer, `reference-${index}.png`, { type: 'image/png' }))
+        allBuffers.map((buffer, index) => toFile(
+          buffer,
+          logoBuffer && index === allBuffers.length - 1 ? 'brand-logo.png' : `reference-${index}.png`,
+          { type: 'image/png' }
+        ))
       );
 
       response = await client.images.edit({

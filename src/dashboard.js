@@ -499,6 +499,7 @@ export function registerDashboardRoutes(app) {
       const digits = req.body.whatsapp_number.replace(/[^0-9]/g, '');
       updates.whatsapp_number = digits || null;
     }
+    if (typeof req.body?.logo_url === 'string') updates.logo_url = req.body.logo_url.trim() || null;
     if (typeof req.body?.default_template_id === 'string') {
       if (!isValidTemplateId(req.body.default_template_id)) throw new AppError(`Template ${req.body.default_template_id} no existe`, 400);
       updates.default_template_id = req.body.default_template_id;

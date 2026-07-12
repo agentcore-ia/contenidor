@@ -404,7 +404,7 @@ export async function listBrandsForUser(user) {
 
   const { data, error } = await supabase
     .from('brands')
-    .select('id, name, slug, description, default_template_id, instagram_handle, onboarding_status, onboarding_error, automation_enabled, auto_publish, ig_username, ig_connected_at, ig_token_expires_at, whatsapp_number, analysis, brand_manual, created_at')
+    .select('id, name, slug, description, default_template_id, instagram_handle, onboarding_status, onboarding_error, automation_enabled, auto_publish, ig_username, ig_connected_at, ig_token_expires_at, whatsapp_number, logo_url, analysis, brand_manual, created_at')
     .eq('owner_id', user.id)
     .order('created_at', { ascending: true });
 
