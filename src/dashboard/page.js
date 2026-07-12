@@ -527,21 +527,29 @@ function renderPosts() {
     ${body}`;
 }
 
+const IG_ICONS = {
+  heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 12.6 12 20l-7.5-7.4A5 5 0 1 1 12 6.3a5 5 0 1 1 7.5 6.3Z"/></svg>',
+  comment: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.3c-1.6 0-3-.4-4.3-1L3 20l1.3-4.9a8 8 0 0 1-1.3-4.4A8.4 8.4 0 0 1 11.5 3 8.4 8.4 0 0 1 21 11.5Z"/></svg>',
+  share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3 9.2 12.7M22 3l-7.3 19-3.5-9.3L2 9.5 22 3Z"/></svg>',
+  bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 21 12 16.8 6 21V4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21Z"/></svg>',
+};
+
 function postCard(post) {
+  const brand = S.brands.find((b) => b.id === S.brandId) || {};
   const category = S.categories.find((cat) => cat.id === post.category_id);
+  const username = brand.ig_username || brand.slug || (brand.name || 'tumarca').toLowerCase().replace(/\s+/g, '');
+  const avatar = brand.logo_url
+    ? `<span class="igp-avatar"><img src="${esc(brand.logo_url)}" alt="" /></span>`
+    : `<span class="igp-avatar igp-avatar-initial">${esc((brand.name || '?').trim().charAt(0).toUpperCase())}</span>`;
   const date = fmtDate(String(post.created_at || '').slice(0, 10));
 
   const media = post.image_url
-    ? `<div class="pc-media" onclick="showPost('${post.id}')">
-        <img src="${esc(post.image_url)}" alt="" loading="lazy" />
-        ${statusBadge(post.status)}
-      </div>`
-    : `<div class="pc-media pc-media-empty" onclick="showPost('${post.id}')">
+    ? `<div class="igp-media" onclick="showPost('${post.id}')"><img src="${esc(post.image_url)}" alt="" loading="lazy" /></div>`
+    : `<div class="igp-media igp-media-empty" onclick="showPost('${post.id}')">
         ${post.render_error ? `<span class="pc-render-error">Error al generar la imagen</span>` : `<span class="pc-generating">Generando imagen...</span>`}
-        ${statusBadge(post.status)}
       </div>`;
 
-  // Primary actions depend on where the post is in the flow.
+  // Real workflow actions depend on where the post is in the flow.
   let actions = '';
   if (post.status === 'posted') {
     actions = `<span class="pc-published">${ICON.check} Publicado en Instagram</span>`;
@@ -557,13 +565,24 @@ function postCard(post) {
       <button class="btn btn-sm btn-danger" onclick="rejectPost('${post.id}')">Rechazar</button>`;
   }
 
-  return `<article class="card post-card">
-    ${media}
-    <div class="pc-body">
-      <div class="pc-meta">${esc(date)}${category ? ` · <span class="pc-cat">${esc(category.name)}</span>` : ''}</div>
-      <div class="title" onclick="showPost('${post.id}')" style="cursor:pointer">${esc(post.hook || 'Sin titulo')}</div>
-      <div class="post-copy">${esc(post.caption_instagram || post.body || '')}</div>
+  return `<article class="card post-card igp">
+    <div class="igp-head">
+      ${avatar}
+      <div class="igp-user">
+        <span class="igp-username">${esc(username)}</span>
+        ${category ? `<span class="igp-sub">${esc(category.name)}</span>` : ''}
+      </div>
+      ${statusBadge(post.status)}
     </div>
+    ${media}
+    <div class="igp-iconbar" aria-hidden="true">
+      <span>${IG_ICONS.heart}${IG_ICONS.comment}${IG_ICONS.share}</span>
+      ${IG_ICONS.bookmark}
+    </div>
+    <div class="igp-caption" onclick="showPost('${post.id}')">
+      <span class="igp-username">${esc(username)}</span> ${esc(post.caption_instagram || post.hook || '')}
+    </div>
+    <div class="igp-date">${esc(date)}</div>
     <div class="pc-actions">
       <div class="pc-primary">${actions}</div>
       <button class="btn btn-sm btn-plain" onclick="showPost('${post.id}')">Ver detalle</button>

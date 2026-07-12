@@ -644,41 +644,60 @@ label {
   overflow: hidden;
 }
 
-.pc-media {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 4 / 5;
-  cursor: zoom-in;
+/* --- Post card estilo publicacion de Instagram --- */
+.igp-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; }
+.igp-avatar {
+  width: 34px; height: 34px; flex: 0 0 34px; border-radius: 50%;
+  overflow: hidden; display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.igp-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.igp-avatar-initial { background: var(--accent-grad); color: #fff; font-size: 15px; font-weight: 800; border: 0; }
+.igp-user { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.igp-username { font-size: 13px; font-weight: 700; color: var(--text); }
+.igp-sub { font-size: 11px; color: var(--muted); }
+
+.igp-media {
+  width: 100%; aspect-ratio: 4 / 5; cursor: zoom-in;
   background: var(--surface-2);
-  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
   overflow: hidden;
 }
-.pc-media img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.25s var(--ease); }
-.post-card:hover .pc-media img { transform: scale(1.02); }
-.pc-media .status {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  backdrop-filter: blur(6px);
-}
-.pc-media-empty { display: flex; align-items: center; justify-content: center; cursor: default; }
+.igp-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.igp-media-empty { display: flex; align-items: center; justify-content: center; cursor: default; }
 .pc-generating {
   font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--faint); animation: pulse 1.6s ease-in-out infinite;
 }
 .pc-render-error { font-size: 12.5px; font-weight: 600; color: var(--bad); padding: 0 20px; text-align: center; }
 
-.pc-body { padding: 14px 16px 4px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
-.pc-meta { font-size: 11.5px; font-weight: 600; color: var(--muted); letter-spacing: 0.02em; }
-.pc-cat { color: var(--accent); }
+.igp-iconbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px 2px; color: var(--text);
+}
+.igp-iconbar span { display: flex; align-items: center; gap: 14px; }
+.igp-iconbar svg { width: 22px; height: 22px; }
+
+.igp-caption {
+  padding: 7px 14px 0; font-size: 13px; line-height: 1.5; color: var(--text);
+  cursor: pointer;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.igp-caption .igp-username { margin-right: 2px; }
+.igp-date {
+  padding: 5px 14px 10px; font-size: 10.5px; font-weight: 500;
+  letter-spacing: 0.05em; text-transform: uppercase; color: var(--faint);
+}
 
 .pc-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 10px 16px 14px;
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+  background: var(--surface-2);
 }
 .pc-primary { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .pc-published {
