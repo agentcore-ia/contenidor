@@ -12,6 +12,7 @@ import {
   insertCalendarIdeas,
   listApprovedDuePosts,
   listAutomationBrands,
+  listBrandProducts,
   listBrandsWithInstagram,
   listCategories,
   markCalendarGenerated,
@@ -47,10 +48,12 @@ export async function getTodayContent(brandId = null) {
 
 export async function generatePostForCalendar(calendarId) {
   const content = await getCalendarContent(calendarId);
+  const products = await listBrandProducts(content.brand.id).catch(() => []);
   const generation = await generatePostContent({
     brand: content.brand,
     category: content.category,
-    calendar: content.calendar
+    calendar: content.calendar,
+    products
   });
 
   return createGeneratedPost({
@@ -220,11 +223,13 @@ export async function generateCalendarIdeas({ brandId = null, count = 7 } = {}) 
   }
 
   const existingTopics = await getExistingCalendarTopics(brand.id);
+  const products = await listBrandProducts(brand.id).catch(() => []);
   const generation = await generateContentIdeas({
     brand,
     categories,
     existingTopics,
-    count: safeCount
+    count: safeCount,
+    products
   });
 
   const categoryBySlug = new Map(categories.map((category) => [category.slug, category]));

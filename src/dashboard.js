@@ -7,6 +7,7 @@ import {
   getGeneratedPost,
   getBrandForUser,
   listBrandsForUser,
+  listBrandProducts,
   listCustomTemplates,
   createCustomTemplate,
   updateCustomTemplate,
@@ -14,6 +15,7 @@ import {
   updateBrandFields,
   uploadReferenceImage
 } from './supabase.js';
+import { extractMenuProducts } from './openai.js';
 import { AppError } from './errors.js';
 import { applyWhatsappDecision, generateAndRenderPost, generateCalendarIdeas, generatePostForCalendar, publishPost, renderPostInBackground, runDailyAutomation, sendApprovalForPost } from './contentEngine.js';
 import { buildAuthUrl, connectFromCode, connectWithToken, instagramConfigured, verifyState } from './instagram.js';
@@ -530,6 +532,90 @@ export function registerDashboardRoutes(app) {
     const { data, error } = await supabase.from('content_categories').update(updates).eq('id', req.params.id).eq('brand_id', brand.id).select('*').single();
     if (error) throw new AppError(error.message, 500, 'SUPABASE_ERROR');
     res.json({ success: true, category: data });
+  }));
+
+  // --- Catalogo de productos/servicios ---
+  app.get('/api/products', wrap(async (req, res) => {
+    const brand = await requireBrand(req);
+    const products = await listBrandProducts(brand.id, { activeOnly: false });
+    res.json({ success: true, products });
+  }));
+
+  app.post('/api/products', wrap(async (req, res) => {
+    const brand = await requireBrand(req);
+    const name = String(req.body?.name || '').trim();
+    if (!name) throw new AppError('name es requerido', 400);
+    const { data, error } = await supabase.from('brand_products').insert({
+      brand_id: brand.id,
+      name,
+      description: String(req.body?.description || '').trim() || null,
+      price: String(req.body?.price || '').trim() || null,
+      image_url: String(req.body?.image_url || '').trim() || null,
+      source: 'manual'
+    }).select('*').single();
+    if (error) throw new AppError(error.message, 500, 'SUPABASE_ERROR');
+    res.json({ success: true, product: data });
+  }));
+
+  app.patch('/api/products/:id', wrap(async (req, res) => {
+    const brand = await requireBrand(req);
+    const updates = {};
+    if (typeof req.body?.name === 'string' && req.body.name.trim()) updates.name = req.body.name.trim();
+    if (typeof req.body?.description === 'string') updates.description = req.body.description.trim() || null;
+    if (typeof req.body?.price === 'string') updates.price = req.body.price.trim() || null;
+    if (typeof req.body?.image_url === 'string') updates.image_url = req.body.image_url.trim() || null;
+    if (typeof req.body?.active === 'boolean') updates.active = req.body.active;
+    if (!Object.keys(updates).length) throw new AppError('Nada para actualizar', 400);
+    const { data, error } = await supabase.from('brand_products').update(updates).eq('id', req.params.id).eq('brand_id', brand.id).select('*').single();
+    if (error) throw new AppError(error.message, 500, 'SUPABASE_ERROR');
+    res.json({ success: true, product: data });
+  }));
+
+  app.delete('/api/products/:id', wrap(async (req, res) => {
+    const brand = await requireBrand(req);
+    const { error } = await supabase.from('brand_products').delete().eq('id', req.params.id).eq('brand_id', brand.id);
+    if (error) throw new AppError(error.message, 500, 'SUPABASE_ERROR');
+    res.json({ success: true });
+  }));
+
+  // Sube una foto de la carta / lista de precios, la analiza con vision y
+  // agrega los items detectados al catalogo de la marca.
+  app.post('/api/products/import-menu', wrap(async (req, res) => {
+    const brand = await requireBrand(req);
+    const dataUrl = req.body?.data_url;
+    const match = typeof dataUrl === 'string' && dataUrl.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/);
+    if (!match) throw new AppError('Imagen invalida. Subi una foto PNG, JPG o WEBP de tu carta.', 400);
+    const buffer = Buffer.from(match[2], 'base64');
+    if (buffer.length > 20 * 1024 * 1024) throw new AppError('La imagen supera 20MB.', 400);
+
+    const menuUrl = await uploadReferenceImage(buffer, match[1]);
+    const { products } = await extractMenuProducts({ imageDataUrls: [dataUrl] });
+
+    if (!products.length) {
+      return res.json({ success: true, imported: 0, products: [], menu_url: menuUrl, message: 'No se detectaron productos legibles en la imagen.' });
+    }
+
+    // Skip items already in the catalog (same name, case-insensitive).
+    const existing = await listBrandProducts(brand.id, { activeOnly: false });
+    const seen = new Set(existing.map((p) => p.name.toLowerCase()));
+    const rows = products
+      .filter((p) => !seen.has(p.name.toLowerCase()))
+      .map((p) => ({
+        brand_id: brand.id,
+        name: p.name,
+        description: p.description || null,
+        price: p.price || null,
+        source: 'menu'
+      }));
+
+    let inserted = [];
+    if (rows.length) {
+      const { data, error } = await supabase.from('brand_products').insert(rows).select('*');
+      if (error) throw new AppError(error.message, 500, 'SUPABASE_ERROR');
+      inserted = data ?? [];
+    }
+
+    res.json({ success: true, imported: inserted.length, skipped: products.length - rows.length, products: inserted, menu_url: menuUrl });
   }));
 
   app.get('/api/inspirations', wrap(async (req, res) => {

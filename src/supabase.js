@@ -653,6 +653,26 @@ export async function listCategories(brandId) {
   return data ?? [];
 }
 
+// Active products/services of a brand, used to ground ideas and copy in the
+// real catalog (names and prices must never be invented).
+export async function listBrandProducts(brandId, { activeOnly = true } = {}) {
+  let query = supabase
+    .from('brand_products')
+    .select('id, name, description, price, image_url, source, active, created_at')
+    .eq('brand_id', brandId)
+    .order('created_at', { ascending: false });
+
+  if (activeOnly) query = query.eq('active', true);
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw wrapSupabaseError('Could not load brand products', error);
+  }
+
+  return data ?? [];
+}
+
 export async function getExistingCalendarTopics(brandId, limit = 400) {
   const { data, error } = await supabase
     .from('content_calendar')

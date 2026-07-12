@@ -77,11 +77,26 @@ function validateGeneratedPostContent(content) {
   );
 }
 
-export async function generatePostContent({ brand, category, calendar }) {
+// Renders the brand's product/service catalog as a prompt block. Returns ''
+// when the brand has no catalog so prompts stay clean.
+function catalogBlock(products) {
+  if (!products?.length) return '';
+  const rows = products.map((p) => ({
+    name: p.name,
+    description: p.description || undefined,
+    price: p.price || undefined
+  }));
+  return `
+Catalogo de productos/servicios REALES de la marca (nombres y precios exactos):
+${compactJson(rows)}
+`;
+}
+
+export async function generatePostContent({ brand, category, calendar, products = [] }) {
   const client = createOpenAIClient();
   const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
 
-  const prompt = `Genera una pieza diaria para Instagram de Capta.
+  const prompt = `Genera una pieza diaria para Instagram de ${brand.name}.
 
 Contexto de marca:
 ${compactJson({
@@ -103,8 +118,9 @@ ${compactJson({
   angle: calendar.angle,
   publish_date: calendar.publish_date
 })}
-
-Reglas:
+${catalogBlock(products)}
+Reglas:${products.length ? `
+- Si el tema promociona un producto/servicio del catalogo, usa su nombre EXACTO y su precio EXACTO tal como figura. Jamas inventes ni redondees precios, y no menciones precios de items que no esten en el catalogo.` : ''}
 - Hook maximo 14 palabras.
 - Body maximo 34 palabras.
 - CTA maximo 10 palabras.
@@ -125,7 +141,7 @@ Reglas:
       input: [
         {
           role: 'system',
-          content: 'Sos el content engine interno de Capta. Escribis copy claro, premium y accionable.'
+          content: 'Sos el content engine de la marca. Escribis copy claro, premium y accionable.'
         },
         {
           role: 'user',
@@ -178,7 +194,7 @@ function ideasSchema(categorySlugs) {
   };
 }
 
-export async function generateContentIdeas({ brand, categories, existingTopics = [], count = 7 }) {
+export async function generateContentIdeas({ brand, categories, existingTopics = [], count = 7, products = [] }) {
   const client = createOpenAIClient();
   const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
   const categorySlugs = categories.map((category) => category.slug);
@@ -206,9 +222,10 @@ ${compactJson(categories.map((category) => ({
 
 Temas ya usados o programados (NO los repitas ni generes variantes casi iguales):
 ${compactJson(existingTopics)}
-
+${catalogBlock(products)}
 Reglas:
-- Uso interno de Capta, no SaaS. Le hablamos a duenos de negocios gastronomicos.
+- Le hablamos a la audiencia de esta marca, en su rubro. Ideas concretas para su negocio.${products.length ? `
+- La marca tiene catalogo: al menos la mitad de las ideas deben promocionar productos/servicios concretos del catalogo, nombrandolos igual que en la lista (podes mencionar el precio real en el angle). Jamas inventes productos ni precios.` : ''}
 - Cada idea es un tema concreto y accionable, no un titulo generico.
 - "topic": el tema puntual del post, maximo 16 palabras.
 - "angle": el enfoque o insight con el que se aborda, maximo 20 palabras.
@@ -226,7 +243,7 @@ Reglas:
       input: [
         {
           role: 'system',
-          content: 'Sos el estratega de contenido interno de Capta. Proponés ideas frescas, especificas y no repetitivas.'
+          content: 'Sos el estratega de contenido de la marca. Proponés ideas frescas, especificas y no repetitivas.'
         },
         {
           role: 'user',
@@ -322,6 +339,86 @@ const brandAnalysisSchema = {
     }
   }
 };
+
+const menuExtractionSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['products'],
+  properties: {
+    products: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['name', 'description', 'price'],
+        properties: {
+          name: { type: 'string' },
+          description: { type: 'string' },
+          price: { type: 'string' }
+        }
+      }
+    }
+  }
+};
+
+// Reads a photo of a menu / price list / service catalog and extracts the
+// items with their exact prices, ready to insert as brand products.
+export async function extractMenuProducts({ imageDataUrls = [] }) {
+  if (!imageDataUrls.length) {
+    throw new AppError('No hay imagen de la carta para analizar', 400, 'NO_MENU_IMAGE');
+  }
+  const client = createOpenAIClient();
+  const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
+
+  const textPrompt = `Esta imagen es la carta / lista de precios / catalogo de un negocio.
+Extrae TODOS los productos o servicios que se lean con claridad.
+
+Instrucciones:
+- "name": nombre del producto/servicio tal como figura (limpio, sin numeracion).
+- "description": ingredientes o detalle si figura; si no, cadena vacia.
+- "price": el precio EXACTO tal como esta escrito (con moneda/simbolo si figura, ej. "$12.500"). Si un item no tiene precio legible, cadena vacia. JAMAS inventes ni completes precios.
+- Ignora titulos de secciones, promociones vencidas y texto decorativo.
+- Si la imagen no es una carta/lista de precios, devolve el array vacio.
+- Responde solo con el JSON solicitado.`;
+
+  const userContent = [{ type: 'input_text', text: textPrompt }];
+  for (const dataUrl of imageDataUrls.slice(0, 4)) {
+    userContent.push({ type: 'input_image', image_url: dataUrl });
+  }
+
+  let response;
+  try {
+    response = await client.responses.create({
+      model,
+      input: [
+        { role: 'system', content: 'Extraes datos estructurados de cartas y listas de precios con precision literal. Nunca inventas datos.' },
+        { role: 'user', content: userContent }
+      ],
+      text: {
+        format: {
+          type: 'json_schema',
+          name: 'menu_extraction',
+          strict: true,
+          schema: menuExtractionSchema
+        }
+      }
+    });
+  } catch (error) {
+    throw new AppError(`OpenAI menu extraction failed: ${error.message}`, 502, 'OPENAI_MENU_FAILED');
+  }
+
+  const parsed = parseGenerationOutput(response);
+  const JUNK_NAME = /illegible|ilegible|unknown|desconocido|n\/a|sin nombre|no legible/i;
+  const products = (Array.isArray(parsed?.products) ? parsed.products : [])
+    .map((p) => ({
+      name: String(p?.name ?? '').trim(),
+      description: String(p?.description ?? '').trim(),
+      price: String(p?.price ?? '').trim()
+    }))
+    .filter((p) => p.name && p.name.length >= 3 && !JUNK_NAME.test(p.name));
+
+  return { model, products };
+}
 
 // Analyzes a brand from its Instagram profile (bio + captions + post images)
 // and the onboarding answers, producing a full brand manual + categories.

@@ -185,6 +185,7 @@ async function loadTab() {
     if (S.tab === 'calendar') await loadCalendar();
     if (S.tab === 'analytics') await loadAnalytics();
     if (S.tab === 'brand') await loadBrand();
+    if (S.tab === 'products') await loadProducts();
     if (S.tab === 'categories') await loadCategories();
     if (S.tab === 'design') await loadDesign();
     if (S.tab === 'system') await loadSystem();
@@ -1176,6 +1177,186 @@ window.saveBrand = async function saveBrand(event) {
 function lines(value) {
   return String(value || '').split('\n').map((line) => line.trim()).filter(Boolean);
 }
+
+// --- Productos / catalogo ----------------------------------------------------
+
+async function loadProducts() {
+  const data = await api('/api/products');
+  S.products = data.products || [];
+  renderProducts();
+}
+
+function productCard(p) {
+  const img = p.image_url
+    ? `<img class="prod-img" src="${esc(p.image_url)}" alt="" loading="lazy" />`
+    : `<div class="prod-img prod-img-empty">${ICON.image}</div>`;
+  return `<article class="prod-card ${p.active ? '' : 'inactive'}">
+    ${img}
+    <div class="prod-body">
+      <div class="prod-top">
+        <div class="title">${esc(p.name)}</div>
+        ${p.price ? `<span class="prod-price">${esc(p.price)}</span>` : ''}
+      </div>
+      ${p.description ? `<div class="prod-desc">${esc(p.description)}</div>` : ''}
+      <div class="prod-meta">
+        <span class="tag">${p.source === 'menu' ? 'Desde carta' : 'Manual'}</span>
+        ${p.active ? '' : '<span class="status status-skipped">Pausado</span>'}
+      </div>
+    </div>
+    <div class="prod-actions">
+      <button class="btn btn-sm" onclick="productModal('${p.id}')">Editar</button>
+      <button class="btn btn-sm" onclick="toggleProduct('${p.id}', ${p.active ? 'false' : 'true'})">${p.active ? 'Pausar' : 'Activar'}</button>
+      <button class="btn btn-sm btn-danger" onclick="deleteProduct('${p.id}')">Eliminar</button>
+    </div>
+  </article>`;
+}
+
+function renderProducts() {
+  const products = S.products || [];
+  const active = products.filter((p) => p.active).length;
+  byId('content').innerHTML = `
+    ${pageHead('Productos y servicios', 'Tu catalogo real: las ideas y los posts promocionan estos items con sus precios exactos', `
+      <button class="btn" onclick="importMenuModal()">Importar desde carta</button>
+      <button class="btn btn-primary" onclick="productModal()">+ Agregar producto</button>
+    `)}
+    ${products.length ? `
+      <div class="subtle" style="margin-bottom:14px">${active} activo${active === 1 ? '' : 's'} de ${products.length}. Los items pausados no se usan para generar contenido.</div>
+      <div class="prod-grid">${products.map(productCard).join('')}</div>
+    ` : `
+      <section class="section hero-empty">
+        <h2>Carga tu catalogo</h2>
+        <p>Subi una foto de tu carta o lista de precios y la IA extrae los productos con sus precios. Las proximas ideas de contenido van a promocionar tus productos reales.</p>
+        <div class="toolbar" style="justify-content:center">
+          <button class="btn btn-primary" onclick="importMenuModal()">Importar desde carta</button>
+          <button class="btn" onclick="productModal()">Agregar a mano</button>
+        </div>
+      </section>
+    `}`;
+}
+
+window.productModal = function productModal(id = null) {
+  const p = id ? (S.products || []).find((x) => x.id === id) : null;
+  modal(`<h3>${p ? 'Editar producto' : 'Nuevo producto o servicio'}</h3>
+    <form onsubmit="saveProduct(event, ${p ? `'${p.id}'` : 'null'})" class="form-grid">
+      <div class="form-group full"><label>Nombre</label><input name="name" required value="${esc(p?.name || '')}" placeholder="Ej: Pizza napolitana / Corte + barba" /></div>
+      <div class="form-group"><label>Precio</label><input name="price" value="${esc(p?.price || '')}" placeholder="Ej: $12.500 o desde $8.000" /></div>
+      <div class="form-group full"><label>Descripcion</label><textarea name="description" rows="3" placeholder="Ingredientes, que incluye, detalle...">${esc(p?.description || '')}</textarea></div>
+      <div class="form-group full">
+        <label>Foto del producto (opcional)</label>
+        <input type="file" accept="image/png,image/jpeg,image/webp" onchange="uploadProductImage(this)" />
+        <div class="subtle" id="prod-upload-status" style="margin-top:6px"></div>
+        <input type="hidden" name="image_url" id="prod-image-url" value="${esc(p?.image_url || '')}" />
+        <img id="prod-image-preview" src="${esc(p?.image_url || '')}" alt="" style="max-width:160px;border-radius:10px;margin-top:8px;${p?.image_url ? '' : 'display:none'}" />
+      </div>
+      <div class="form-group full">
+        <button class="btn btn-primary">Guardar</button>
+        <button type="button" class="btn btn-plain" onclick="closeModal()">Cancelar</button>
+      </div>
+    </form>`);
+};
+
+window.uploadProductImage = async function uploadProductImage(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const status = byId('prod-upload-status');
+  status.textContent = 'Subiendo imagen...';
+  try {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const res = await api('/api/uploads/reference', { method: 'POST', body: { data_url: dataUrl } });
+    byId('prod-image-url').value = res.image_url;
+    const preview = byId('prod-image-preview');
+    preview.src = res.image_url;
+    preview.style.display = '';
+    status.textContent = 'Imagen subida.';
+  } catch (error) {
+    status.textContent = error.message || 'No se pudo subir la imagen';
+  }
+};
+
+window.saveProduct = async function saveProduct(event, id) {
+  event.preventDefault();
+  const fd = new FormData(event.target);
+  const body = {
+    name: fd.get('name'),
+    price: fd.get('price') || '',
+    description: fd.get('description') || '',
+    image_url: fd.get('image_url') || ''
+  };
+  try {
+    if (id) await api(`/api/products/${id}`, { method: 'PATCH', body });
+    else await api('/api/products', { method: 'POST', body });
+    closeModal();
+    toast('Producto guardado');
+    await loadProducts();
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+};
+
+window.toggleProduct = async function toggleProduct(id, active) {
+  try {
+    await api(`/api/products/${id}`, { method: 'PATCH', body: { active } });
+    await loadProducts();
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+};
+
+window.deleteProduct = async function deleteProduct(id) {
+  if (!confirm('Eliminar este producto del catalogo?')) return;
+  try {
+    await api(`/api/products/${id}`, { method: 'DELETE' });
+    toast('Producto eliminado');
+    await loadProducts();
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+};
+
+window.importMenuModal = function importMenuModal() {
+  modal(`<h3>Importar desde tu carta</h3>
+    <p class="subtle" style="margin:0 0 14px">Subi una foto clara de tu carta, menu o lista de precios. La IA lee los productos y sus precios exactos y los agrega al catalogo.</p>
+    <div class="form-group full">
+      <input type="file" accept="image/png,image/jpeg,image/webp" onchange="runMenuImport(this)" />
+      <div class="subtle" id="menu-import-status" style="margin-top:10px"></div>
+    </div>
+    <div class="toolbar" style="justify-content:flex-start;margin-top:8px">
+      <button type="button" class="btn btn-plain" onclick="closeModal()">Cerrar</button>
+    </div>`);
+};
+
+window.runMenuImport = async function runMenuImport(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const status = byId('menu-import-status');
+  status.textContent = 'Analizando la carta con IA... (puede tardar ~20s)';
+  input.disabled = true;
+  try {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const res = await api('/api/products/import-menu', { method: 'POST', body: { data_url: dataUrl } });
+    if (!res.imported && !res.skipped) {
+      status.textContent = res.message || 'No se detectaron productos en la imagen. Proba con una foto mas clara.';
+      input.disabled = false;
+      return;
+    }
+    closeModal();
+    toast(`${res.imported} producto${res.imported === 1 ? '' : 's'} importado${res.imported === 1 ? '' : 's'}${res.skipped ? ` (${res.skipped} ya existian)` : ''}`, 'success');
+    await loadProducts();
+  } catch (error) {
+    status.textContent = error.message || 'No se pudo importar la carta';
+    input.disabled = false;
+  }
+};
 
 async function loadCategories() {
   const data = await api('/api/categories');
