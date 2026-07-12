@@ -188,14 +188,29 @@ async function loadTab() {
   }
 }
 
+// Hash routing: each section lives at /dashboard#<tab> so refresh keeps you in
+// place, back/forward navigate sections, and sections are linkable.
+const VALID_TABS = [...document.querySelectorAll('.tab')].map((tab) => tab.dataset.tab);
+
+function activateTab(tabName, { load = true } = {}) {
+  const tab = VALID_TABS.includes(tabName) ? tabName : 'overview';
+  S.tab = tab;
+  document.querySelectorAll('.tab').forEach((item) => item.classList.toggle('active', item.dataset.tab === tab));
+  if (load) loadTab();
+}
+
+function currentHashTab() {
+  return window.location.hash.replace(/^#\/?/, '') || 'overview';
+}
+
 document.querySelectorAll('.tab').forEach((tab) => {
   tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach((item) => item.classList.remove('active'));
-    tab.classList.add('active');
-    S.tab = tab.dataset.tab;
-    loadTab();
+    if (currentHashTab() === tab.dataset.tab) activateTab(tab.dataset.tab);
+    else window.location.hash = tab.dataset.tab;
   });
 });
+
+window.addEventListener('hashchange', () => activateTab(currentHashTab()));
 
 const ICON = {
   edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M18.4 2.6a2 2 0 1 1 2.8 2.8L11 15.7 7 17l1.3-4L18.4 2.6Z"/></svg>',
@@ -2408,6 +2423,8 @@ async function bootApp() {
   ensureBrandBar();
   handleInstagramRedirect();
   await loadBootstrap();
+  // Land on the section named in the URL hash (deep link / refresh in place).
+  activateTab(currentHashTab(), { load: false });
   await loadTab();
 }
 
@@ -2420,12 +2437,14 @@ function handleInstagramRedirect() {
   if (ig === 'connected') {
     const handle = params.get('handle');
     toast(`Instagram conectado${handle ? ` (@${handle})` : ''}`, 'success');
-    S.tab = 'brand';
-    document.querySelectorAll('.tab').forEach((item) => item.classList.toggle('active', item.dataset.tab === 'brand'));
-  } else if (ig === 'error') {
+    // replaceState does not fire hashchange; bootApp reads the hash right after.
+    history.replaceState(null, '', `${window.location.pathname}#brand`);
+    return;
+  }
+  if (ig === 'error') {
     toast(`No se pudo conectar Instagram: ${params.get('msg') || 'error desconocido'}`, 'error');
   }
-  history.replaceState(null, '', window.location.pathname);
+  history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`);
 }
 
 (async function init() {
