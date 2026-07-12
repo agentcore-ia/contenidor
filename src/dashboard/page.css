@@ -639,14 +639,48 @@ label {
   overflow: hidden;
 }
 
-.post-actions {
+.pc-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  cursor: zoom-in;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+.pc-media img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.25s var(--ease); }
+.post-card:hover .pc-media img { transform: scale(1.02); }
+.pc-media .status {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(6px);
+}
+.pc-media-empty { display: flex; align-items: center; justify-content: center; cursor: default; }
+.pc-generating {
+  font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--faint); animation: pulse 1.6s ease-in-out infinite;
+}
+.pc-render-error { font-size: 12.5px; font-weight: 600; color: var(--bad); padding: 0 20px; text-align: center; }
+
+.pc-body { padding: 14px 16px 4px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.pc-meta { font-size: 11.5px; font-weight: 600; color: var(--muted); letter-spacing: 0.02em; }
+.pc-cat { color: var(--accent); }
+
+.pc-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  padding: 12px 18px 16px;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 16px 14px;
 }
-.post-actions .select, .post-actions select { width: auto; flex: 1; min-width: 120px; padding: 6px 28px 6px 10px; font-size: 12px; }
+.pc-primary { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pc-published {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 700; color: var(--good);
+}
+.pc-published svg { width: 15px; height: 15px; }
 
 /* ============================================================
    Tables (calendario)

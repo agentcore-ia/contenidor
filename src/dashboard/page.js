@@ -513,30 +513,45 @@ function renderPosts() {
 }
 
 function postCard(post) {
-  const image = post.image_url
-    ? `<img class="post-image" src="${esc(post.image_url)}" alt="" onclick="showPost('${post.id}')" />`
-    : `<div class="post-image post-empty-image">${post.render_error ? 'Error de render' : 'Generando...'}</div>`;
+  const category = S.categories.find((cat) => cat.id === post.category_id);
+  const date = fmtDate(String(post.created_at || '').slice(0, 10));
+
+  const media = post.image_url
+    ? `<div class="pc-media" onclick="showPost('${post.id}')">
+        <img src="${esc(post.image_url)}" alt="" loading="lazy" />
+        ${statusBadge(post.status)}
+      </div>`
+    : `<div class="pc-media pc-media-empty" onclick="showPost('${post.id}')">
+        ${post.render_error ? `<span class="pc-render-error">Error al generar la imagen</span>` : `<span class="pc-generating">Generando imagen...</span>`}
+        ${statusBadge(post.status)}
+      </div>`;
+
+  // Primary actions depend on where the post is in the flow.
+  let actions = '';
+  if (post.status === 'posted') {
+    actions = `<span class="pc-published">${ICON.check} Publicado en Instagram</span>`;
+  } else if (post.status === 'approved') {
+    actions = `
+      ${post.image_url ? `<button class="btn btn-sm btn-primary" onclick="publishPost('${post.id}')">Publicar ahora</button>` : ''}
+      <button class="btn btn-sm btn-danger" onclick="rejectPost('${post.id}')">Rechazar</button>`;
+  } else if (post.status === 'rejected') {
+    actions = `<button class="btn btn-sm btn-good" onclick="approvePost('${post.id}')">Aprobar igual</button>`;
+  } else {
+    actions = `
+      <button class="btn btn-sm btn-good" onclick="approvePost('${post.id}')">Aprobar</button>
+      <button class="btn btn-sm btn-danger" onclick="rejectPost('${post.id}')">Rechazar</button>`;
+  }
 
   return `<article class="card post-card">
-    ${image}
-    <div class="post-body">
-      <div class="section-head" style="margin-bottom:8px">
-        ${statusBadge(post.status)}
-        <span class="subtle">${esc(fmtDate(String(post.created_at || '').slice(0, 10)))} · ${esc(post.template_id === 'ai_gpt_image_2' ? 'IA' : (post.template_id || ''))}</span>
-      </div>
-      <div class="title">${esc(post.hook || '')}</div>
-      <div class="post-copy">${esc(post.body || '')}</div>
-      <div class="post-copy">${esc(post.cta || '')}</div>
+    ${media}
+    <div class="pc-body">
+      <div class="pc-meta">${esc(date)}${category ? ` · <span class="pc-cat">${esc(category.name)}</span>` : ''}</div>
+      <div class="title" onclick="showPost('${post.id}')" style="cursor:pointer">${esc(post.hook || 'Sin titulo')}</div>
+      <div class="post-copy">${esc(post.caption_instagram || post.body || '')}</div>
     </div>
-    <div class="post-actions">
-      <button class="btn btn-sm" onclick="showPost('${post.id}')">Abrir</button>
-      <button class="btn btn-sm" onclick="regCopy('${post.id}')">Copy</button>
-      <button class="btn btn-sm" onclick="regRender('${post.id}')">Render</button>
-      <button class="btn btn-sm btn-good" onclick="approvePost('${post.id}')">Aprobar</button>
-      <button class="btn btn-sm btn-danger" onclick="rejectPost('${post.id}')">Rechazar</button>
-      ${post.status === 'posted'
-        ? '<span class="status status-posted">Publicado</span>'
-        : (post.image_url ? `<button class="btn btn-sm btn-primary" onclick="publishPost('${post.id}')">Publicar</button>` : '')}
+    <div class="pc-actions">
+      <div class="pc-primary">${actions}</div>
+      <button class="btn btn-sm btn-plain" onclick="showPost('${post.id}')">Ver detalle</button>
     </div>
   </article>`;
 }
@@ -586,8 +601,8 @@ window.showPost = async function showPost(id) {
         ${post.status === 'posted'
           ? '<span class="status status-posted">Publicado</span>'
           : (post.image_url ? `<button class="btn btn-primary" onclick="publishPost('${post.id}');closeModal()">Publicar en Instagram</button>` : '')}
-        <button class="btn" onclick="regCopy('${post.id}');closeModal()">Regenerar copy</button>
-        <button class="btn" onclick="regRender('${post.id}');closeModal()">Regenerar render</button>
+        <button class="btn" onclick="regCopy('${post.id}');closeModal()" title="Vuelve a escribir el texto del post (hook, captions) con IA">Regenerar texto</button>
+        <button class="btn" onclick="regRender('${post.id}');closeModal()" title="Vuelve a generar la imagen del post con IA">Regenerar imagen</button>
         ${post.image_url ? `<button class="btn" onclick="sendWhatsapp('${post.id}')">Enviar a WhatsApp</button>` : ''}
         <button class="btn btn-plain" onclick="closeModal()">Cerrar</button>
       </div>`);
@@ -606,7 +621,7 @@ function readOnlyField(label, value, rows) {
 window.regCopy = async function regCopy(id) {
   try {
     await api(`/api/posts/${id}/regenerate-copy`, { method: 'POST' });
-    toast('Copy regenerado');
+    toast('Texto regenerado');
     await loadTab();
   } catch (error) {
     toast(error.message, 'error');
@@ -622,7 +637,7 @@ function pollTabForRender() {
 window.regRender = async function regRender(id) {
   try {
     const res = await api(`/api/posts/${id}/regenerate-render`, { method: 'POST' });
-    toast(res.rendering ? 'Generando imagen en segundo plano (~1 min)...' : 'Render regenerado');
+    toast(res.rendering ? 'Generando imagen en segundo plano (~1 min)...' : 'Imagen regenerada');
     closeModal();
     await loadTab();
     pollTabForRender();
