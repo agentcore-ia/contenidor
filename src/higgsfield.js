@@ -5,31 +5,45 @@ import { AppError } from './errors.js';
 // Docs: cloud.higgsfield.ai. Todo el contrato es configurable por env para
 // absorber diferencias de version sin tocar codigo.
 //
+// Autenticacion: HTTP Basic con base64(apiKeyId:apiKeySecret), tal como lo hace
+// el SDK oficial de Higgsfield. Se necesitan LAS DOS partes (id + secret).
+//
 // Env:
-//   HIGGSFIELD_API_KEY      (obligatoria) Bearer token de Higgsfield Cloud
+//   HIGGSFIELD_API_KEY      (obligatoria) API key ID de Higgsfield Cloud
+//   HIGGSFIELD_API_SECRET   (obligatoria) API key secret
+//   HIGGSFIELD_KEY          alternativa: "id:secret" en una sola variable
 //   HIGGSFIELD_BASE_URL     default https://api.higgsfield.ai/v1
 //   HIGGSFIELD_VIDEO_MODEL  modelo image-to-video (default 'default-video-model')
 //   HIGGSFIELD_UGC_TASK     task para UGC (default 'text-to-video')
 //   HIGGSFIELD_DURATION     duracion en segundos (default 5)
 
 function baseUrl() { return (process.env.HIGGSFIELD_BASE_URL || 'https://api.higgsfield.ai/v1').replace(/\/+$/, ''); }
-function apiKey() { return process.env.HIGGSFIELD_API_KEY || ''; }
 function videoModel() { return process.env.HIGGSFIELD_VIDEO_MODEL || 'default-video-model'; }
 function ugcTask() { return process.env.HIGGSFIELD_UGC_TASK || 'text-to-video'; }
 function defaultDuration() { return Number(process.env.HIGGSFIELD_DURATION) || 5; }
 
+// Devuelve "id:secret" desde la variable combinada o desde las dos separadas.
+function credentialPair() {
+  const combined = (process.env.HIGGSFIELD_KEY || '').trim();
+  if (combined.includes(':')) return combined;
+  const id = (process.env.HIGGSFIELD_API_KEY || '').trim();
+  const secret = (process.env.HIGGSFIELD_API_SECRET || '').trim();
+  return id && secret ? `${id}:${secret}` : '';
+}
+
 export function higgsfieldConfigured() {
-  return Boolean(apiKey());
+  return Boolean(credentialPair());
 }
 
 function assertConfigured() {
   if (!higgsfieldConfigured()) {
-    throw new AppError('Higgsfield no esta configurado (falta HIGGSFIELD_API_KEY).', 503, 'HF_NOT_CONFIGURED');
+    throw new AppError('Higgsfield no esta configurado (faltan HIGGSFIELD_API_KEY y HIGGSFIELD_API_SECRET).', 503, 'HF_NOT_CONFIGURED');
   }
 }
 
 function authHeaders(extra = {}) {
-  return { Authorization: `Bearer ${apiKey()}`, ...extra };
+  const encoded = Buffer.from(credentialPair()).toString('base64');
+  return { Authorization: `Basic ${encoded}`, ...extra };
 }
 
 async function hfRequest(method, path, body) {
