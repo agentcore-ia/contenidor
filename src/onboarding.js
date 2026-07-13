@@ -8,6 +8,7 @@ import {
   uploadReferenceImage
 } from './supabase.js';
 import { generateCalendarIdeas } from './contentEngine.js';
+import { AppError } from './errors.js';
 
 const MAX_ANALYSIS_IMAGES = 4;
 const MAX_REFERENCE_IMAGES = 3;
@@ -15,18 +16,26 @@ const MAX_REFERENCE_IMAGES = 3;
 // Creates the brand shell immediately (so the client can poll its status)
 // and runs the scraping + analysis pipeline in the background: the whole
 // flow takes 1-3 minutes, far beyond the proxy's request timeout.
-export async function startOnboarding({ user, instagramUrl, answers = {} }) {
-  const handle = parseInstagramHandle(instagramUrl);
+// Two entry modes: with an Instagram URL (scrape + vision analysis) or
+// without one (brandName + the user's own description drive the analysis).
+export async function startOnboarding({ user, instagramUrl, brandName, answers = {} }) {
+  const hasInstagram = Boolean(String(instagramUrl || '').trim());
+  const handle = hasInstagram ? parseInstagramHandle(instagramUrl) : null;
+  const name = handle || String(brandName || '').trim();
+
+  if (!name) {
+    throw new AppError('Contanos el nombre de tu marca o pega tu Instagram', 400, 'ONBOARDING_NO_NAME');
+  }
 
   const brand = await createBrandShell({
     ownerId: user.id,
     ownerEmail: user.email,
-    name: handle,
+    name,
     instagramHandle: handle
   });
 
   runOnboarding(brand, handle, answers).catch(async (error) => {
-    console.error(`[onboarding:error] brand ${brand.id} (@${handle}):`, error);
+    console.error(`[onboarding:error] brand ${brand.id} (${handle ? '@' + handle : name}):`, error);
     await updateBrandFields(brand.id, {
       onboarding_status: 'error',
       onboarding_error: String(error.message || error).slice(0, 400)
@@ -68,12 +77,15 @@ async function importProfileLogo(brand, profile) {
 }
 
 async function runOnboarding(brand, handle, answers) {
-  // 1. Scrape the public profile (null when APIFY_TOKEN is missing).
+  // 1. Scrape the public profile (skipped in manual mode; null when
+  // APIFY_TOKEN is missing).
   let profile = null;
-  try {
-    profile = await scrapeInstagramProfile(handle);
-  } catch (error) {
-    console.warn(`[onboarding] scraping fallo para @${handle}, sigo sin datos de IG: ${error.message}`);
+  if (handle) {
+    try {
+      profile = await scrapeInstagramProfile(handle);
+    } catch (error) {
+      console.warn(`[onboarding] scraping fallo para @${handle}, sigo sin datos de IG: ${error.message}`);
+    }
   }
 
   // 1b. Profile picture -> brand logo (best-effort, never blocks onboarding).
@@ -84,7 +96,7 @@ async function runOnboarding(brand, handle, answers) {
   const imageDataUrls = imageBuffers.map((buffer) => `data:image/jpeg;base64,${buffer.toString('base64')}`);
 
   // 3. AI analysis -> brand manual + categories.
-  const { analysis } = await analyzeInstagramBrand({ handle, profile, answers, imageDataUrls });
+  const { analysis } = await analyzeInstagramBrand({ handle, brandName: brand.name, profile, answers, imageDataUrls });
 
   const manual = {
     voice: analysis.voice,

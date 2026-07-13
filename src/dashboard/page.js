@@ -2241,9 +2241,11 @@ function testimonialCard(t) {
 }
 
 window.openOnboarding = function openOnboarding() {
-  S.onb = { step: 0, data: { instagram_url: '', focus: '', objetivo: '', avoid: [] } };
+  S.onb = { step: 0, data: { mode: 'instagram', instagram_url: '', brand_name: '', brand_desc: '', focus: '', objetivo: '', avoid: [] } };
   renderOnbStep();
 };
+
+window.onbSetMode = function onbSetMode(mode) { S.onb.data.mode = mode; renderOnbStep(); };
 
 function renderOnbStep() {
   const { step, data } = S.onb;
@@ -2256,10 +2258,28 @@ function renderOnbStep() {
   let footer = '';
 
   if (kind === 'instagram') {
-    body = `<div class="wizard-emoji">👋</div>
-      <h3>Empecemos por tu Instagram</h3>
-      <span class="lead">Analizamos tu cuenta y aprendemos tu estilo, tus colores y tu tono. Solo cuentas publicas.</span>
-      <input id="onb-ig" value="${esc(data.instagram_url)}" placeholder="https://www.instagram.com/tumarca o @tumarca" oninput="S.onb.data.instagram_url=this.value" onkeydown="if(event.key==='Enter')onbNext()" />`;
+    const modeTabs = `<div class="segmented" style="margin:0 0 18px">
+      <button class="seg-opt ${data.mode === 'instagram' ? 'active' : ''}" onclick="onbSetMode('instagram')">Tengo Instagram</button>
+      <button class="seg-opt ${data.mode === 'manual' ? 'active' : ''}" onclick="onbSetMode('manual')">Empezar sin Instagram</button>
+    </div>`;
+
+    if (data.mode === 'manual') {
+      body = `<div class="wizard-emoji">✍️</div>
+        <h3>Contanos de tu marca</h3>
+        <span class="lead">Con esto la IA arma tu identidad, tu estilo visual y tus primeras ideas. Despues podes conectar Instagram cuando quieras.</span>
+        ${modeTabs}
+        <div class="form-group full"><label>Nombre de la marca</label>
+          <input value="${esc(data.brand_name)}" placeholder="Ej: Helados Nube" oninput="S.onb.data.brand_name=this.value" /></div>
+        <div class="form-group full" style="margin-top:10px"><label>Que hace y que vende?</label>
+          <textarea rows="4" placeholder="Ej: Heladeria artesanal en Rosario. Vendemos helado por kilo y postres helados. Clientes de barrio, familias. Onda calida y cercana." oninput="S.onb.data.brand_desc=this.value">${esc(data.brand_desc)}</textarea>
+          <div class="subtle" style="margin-top:6px">Cuanto mas detalle (rubro, productos, clientes, tono), mejor sale todo.</div></div>`;
+    } else {
+      body = `<div class="wizard-emoji">👋</div>
+        <h3>Empecemos por tu Instagram</h3>
+        <span class="lead">Analizamos tu cuenta y aprendemos tu estilo, tus colores, tu logo y tu tono. Solo cuentas publicas.</span>
+        ${modeTabs}
+        <input id="onb-ig" value="${esc(data.instagram_url)}" placeholder="https://www.instagram.com/tumarca o @tumarca" oninput="S.onb.data.instagram_url=this.value" onkeydown="if(event.key==='Enter')onbNext()" />`;
+    }
     footer = `<button class="btn btn-primary" onclick="onbNext()">Continuar</button>`;
   } else if (kind === 'focus') {
     body = `<h3>Cual es tu foco para los proximos 30 dias?</h3>
@@ -2309,8 +2329,16 @@ window.onbToggleAvoid = function onbToggleAvoid(c) {
 window.onbBack = function onbBack() { if (S.onb.step > 0) { S.onb.step--; renderOnbStep(); } };
 window.onbNext = function onbNext() {
   const kind = ONB_STEPS[S.onb.step];
-  if (kind === 'instagram' && !S.onb.data.instagram_url.trim()) { toast('Pega el link de tu Instagram', 'error'); return; }
-  if (kind === 'focus' && !S.onb.data.focus) { toast('Elegi un foco', 'error'); return; }
+  const d = S.onb.data;
+  if (kind === 'instagram') {
+    if (d.mode === 'manual') {
+      if (!d.brand_name.trim()) { toast('Pone el nombre de tu marca', 'error'); return; }
+      if (!d.brand_desc.trim()) { toast('Contanos que hace tu marca', 'error'); return; }
+    } else if (!d.instagram_url.trim()) {
+      toast('Pega el link de tu Instagram (o proba "Empezar sin Instagram")', 'error'); return;
+    }
+  }
+  if (kind === 'focus' && !d.focus) { toast('Elegi un foco', 'error'); return; }
   if (S.onb.step < ONB_STEPS.length - 1) { S.onb.step++; renderOnbStep(); }
 };
 
@@ -2364,22 +2392,27 @@ async function showContentPlan(brand) {
 
 window.onbStart = async function onbStart() {
   const d = S.onb.data;
+  const manual = d.mode === 'manual';
   const focusLabel = (ONB_FOCUS.find((f) => f.id === d.focus) || {}).title || '';
   try {
     const data = await api('/api/onboarding', {
       method: 'POST',
       body: {
-        instagram_url: d.instagram_url,
+        instagram_url: manual ? '' : d.instagram_url,
+        brand_name: manual ? d.brand_name.trim() : '',
         answers: {
+          ...(manual ? { descripcion: d.brand_desc.trim() } : {}),
           objetivo: [focusLabel, d.objetivo].filter(Boolean).join('. '),
           evitar: d.avoid.join(', '),
         },
       },
     });
     modal(`<div class="wizard">
-      <div class="wizard-emoji">🔎</div>
-      <h3>Analizando @${esc(data.brand.instagram_handle)}...</h3>
-      <span class="lead" id="onboarding-progress">Leemos tu perfil, analizamos tus fotos y armamos tu manual de marca, tus categorias y tus primeras ideas. Tarda 1-3 minutos.</span>
+      <div class="wizard-emoji">${manual ? '🎨' : '🔎'}</div>
+      <h3>${manual ? `Creando ${esc(data.brand.name)}...` : `Analizando @${esc(data.brand.instagram_handle)}...`}</h3>
+      <span class="lead" id="onboarding-progress">${manual
+        ? 'Armamos tu manual de marca, tu estilo visual, tus categorias y tus primeras ideas a partir de lo que nos contaste. Tarda 1-2 minutos.'
+        : 'Leemos tu perfil, analizamos tus fotos y armamos tu manual de marca, tus categorias y tus primeras ideas. Tarda 1-3 minutos.'}</span>
       <div class="wizard-progress"><div class="wizard-bar" style="width:100%;animation:pulse 1.4s ease-in-out infinite"></div></div>
     </div>`);
     pollOnboarding(data.brand.id);
@@ -2418,8 +2451,8 @@ function renderNoBrand() {
     <section class="section hero-empty">
       <span class="logo-mark"></span>
       <h2>Crea tu primera marca</h2>
-      <p>Pega el link de tu Instagram y la IA arma todo sola: tu estilo visual, las categorias de contenido y la primera semana de ideas.</p>
-      <button class="btn btn-primary" onclick="openOnboarding()">Nueva marca desde Instagram</button>
+      <p>Pega el link de tu Instagram o describi tu negocio, y la IA arma todo sola: tu estilo visual, las categorias de contenido y la primera semana de ideas.</p>
+      <button class="btn btn-primary" onclick="openOnboarding()">Crear mi marca</button>
     </section>`;
 }
 

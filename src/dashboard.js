@@ -141,6 +141,7 @@ export function registerDashboardRoutes(app) {
     const brand = await startOnboarding({
       user: req.user,
       instagramUrl: req.body?.instagram_url,
+      brandName: req.body?.brand_name,
       answers: req.body?.answers || {}
     });
     res.json({ success: true, brand });

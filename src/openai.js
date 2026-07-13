@@ -421,21 +421,22 @@ Instrucciones:
 }
 
 // Analyzes a brand from its Instagram profile (bio + captions + post images)
-// and the onboarding answers, producing a full brand manual + categories.
-export async function analyzeInstagramBrand({ handle, profile, answers = {}, imageDataUrls = [] }) {
+// and the onboarding answers — or, without Instagram, from the user's own
+// description — producing a full brand manual + categories.
+export async function analyzeInstagramBrand({ handle, brandName, profile, answers = {}, imageDataUrls = [] }) {
   const client = createOpenAIClient();
   const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
 
   const textPrompt = `Analiza esta marca para configurar su motor de contenido de Instagram.
 
-Cuenta: @${handle}
+${handle ? `Cuenta: @${handle}` : `Marca: ${brandName || 'sin nombre'} (todavia no tiene Instagram o prefirio no conectarlo)`}
 ${profile ? `Datos del perfil:
 ${compactJson({
   nombre: profile.full_name,
   bio: profile.biography,
   seguidores: profile.followers,
   captions_recientes: (profile.posts || []).slice(0, 8).map((post) => post.caption).filter(Boolean)
-})}` : 'No hay datos del perfil disponibles: basate en las respuestas del usuario y el nombre de la cuenta.'}
+})}` : 'No hay datos de Instagram disponibles: basate en la descripcion y las respuestas del usuario. Tomalas como fuente de verdad y desarrollalas con criterio profesional para su rubro.'}
 
 Respuestas del usuario en el onboarding:
 ${compactJson(answers)}
