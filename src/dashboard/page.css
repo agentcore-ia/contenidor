@@ -1798,6 +1798,8 @@ input[type="checkbox"].toggle {
   .app { flex-direction: column; }
 
   /* Top app bar: logo + marca/usuario. La navegacion vive abajo. */
+  /* Sin backdrop-filter: un filter en un ancestro convierte a este contenedor
+     en containing block y rompe el position:fixed de la bottom bar (hija). */
   .sidebar {
     position: sticky;
     top: 0;
@@ -1811,16 +1813,18 @@ input[type="checkbox"].toggle {
     padding: 10px 14px;
     border-right: 0;
     border-bottom: 1px solid var(--border);
-    background: rgba(255, 255, 255, 0.94);
-    backdrop-filter: blur(14px);
+    background: #ffffff;
   }
 
   .side-logo { padding: 0; flex: 0 0 auto; }
   .side-logo .logo-text span { display: none; }
 
   .side-foot { flex-direction: row; align-items: center; border-top: 0; padding: 0; margin-left: auto; gap: 8px; }
-  .side-foot select { width: auto; max-width: 150px; }
+  .side-foot .brand-switch { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+  .side-foot select { width: auto; max-width: 160px; }
   .user-row { display: none; }
+  /* "+ Marca" y "Salir" viven en Ajustes > Cuenta en mobile */
+  .side-foot .foot-row { display: none; }
 
   /* Bottom tab bar fija, como una app */
   .side-nav {

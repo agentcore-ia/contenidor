@@ -2037,7 +2037,8 @@ function settingsCuenta(brand) {
       <div class="form-group full"><label>Marcas en tu cuenta</label>
         <div class="tag-row">${S.brands.map((b) => `<span class="tag">${esc(b.name)}</span>`).join('') || '<span class="subtle">Sin marcas</span>'}</div>
       </div>
-      <div class="form-group full">
+      <div class="form-group full" style="display:flex;gap:10px;flex-wrap:wrap">
+        <button type="button" class="btn" onclick="openOnboarding()">+ Crear otra marca</button>
         <button type="button" class="btn btn-danger" onclick="logout()">Cerrar sesion</button>
       </div>
     </div>
