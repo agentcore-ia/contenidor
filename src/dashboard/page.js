@@ -716,9 +716,9 @@ async function loadPostVideos(id) {
     const data = await api(`/api/posts/${id}/videos`);
     const videos = data.videos || [];
     if (!videos.length) {
-      box.innerHTML = data.higgsfield_configured
+      box.innerHTML = data.video_configured
         ? '<div class="subtle">Todavia no generaste videos para este post.</div>'
-        : '<div class="subtle">La generacion de video no esta configurada en el servidor (falta la API key de Higgsfield).</div>';
+        : '<div class="subtle">La generacion de video no esta configurada en el servidor (falta la API key del proveedor de video).</div>';
       return;
     }
     box.innerHTML = `<div class="video-grid">${videos.map(videoCard).join('')}</div>`;

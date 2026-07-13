@@ -98,7 +98,7 @@ async function createBucket() {
   const createRes = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ name: 'post-assets', public: true, file_size_limit: 20971520, allowed_mime_types: ['image/png', 'image/jpeg', 'image/webp'] })
+    body: JSON.stringify({ name: 'post-assets', public: true, file_size_limit: 52428800, allowed_mime_types: ['image/png', 'image/jpeg', 'image/webp', 'video/mp4'] })
   });
 
   if (!createRes.ok) {

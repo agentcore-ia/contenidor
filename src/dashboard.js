@@ -21,8 +21,7 @@ import { AppError } from './errors.js';
 import { applyWhatsappDecision, generateAndRenderPost, generateCalendarIdeas, generatePostForCalendar, publishPost, renderPostInBackground, runDailyAutomation, sendApprovalForPost } from './contentEngine.js';
 import { buildAuthUrl, connectFromCode, connectWithToken, instagramConfigured, verifyState } from './instagram.js';
 import { isValidSignature, parseWebhookEvents, verifyWebhook, whatsappConfigured } from './whatsapp.js';
-import { higgsfieldConfigured } from './higgsfield.js';
-import { refreshPostVideo, startPostVideo } from './videoEngine.js';
+import { refreshPostVideo, startPostVideo, videoConfigured } from './videoEngine.js';
 import { getSchedulerState } from './scheduler.js';
 import { authMiddleware, requireBrand, signUp, signIn, refreshSession } from './auth.js';
 import { startOnboarding } from './onboarding.js';
@@ -426,7 +425,7 @@ export function registerDashboardRoutes(app) {
     const videos = await listPostVideos(post.id);
     // Reconcilia los que quedaron 'processing' (p. ej. tras un reinicio).
     const refreshed = await Promise.all(videos.map((v) => (v.status === 'processing' ? refreshPostVideo(v) : v)));
-    res.json({ success: true, videos: refreshed, higgsfield_configured: higgsfieldConfigured() });
+    res.json({ success: true, videos: refreshed, video_configured: videoConfigured() });
   }));
 
   app.post('/api/posts/:id/videos', wrap(async (req, res) => {

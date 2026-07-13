@@ -1,98 +1,138 @@
 import {
   createPostVideo,
   getBrandById,
-  getPostVideo,
   listBrandProducts,
-  updatePostVideo
+  updatePostVideo,
+  uploadPostVideoBuffer
 } from './supabase.js';
 import { generateUgcScript } from './openai.js';
-import { getJobStatus, higgsfieldConfigured, submitImageToVideo, submitUgcVideo } from './higgsfield.js';
+import * as higgsfield from './higgsfield.js';
+import * as gemini from './gemini.js';
 import { AppError } from './errors.js';
 
 const POLL_INTERVAL_MS = 15000;
-const POLL_TIMEOUT_MS = 15 * 60 * 1000; // los videos rara vez tardan tanto
+const POLL_TIMEOUT_MS = 15 * 60 * 1000;
 
-// Movimiento de camara por defecto para animar un creativo de producto.
+// --- Seleccion de proveedor -------------------------------------------------
+// VIDEO_PROVIDER: 'gemini' (Google Omni/Veo, pago por uso) | 'higgsfield'.
+function providerName() {
+  return (process.env.VIDEO_PROVIDER || 'gemini').toLowerCase() === 'higgsfield' ? 'higgsfield' : 'gemini';
+}
+
+export function videoConfigured() {
+  return providerName() === 'higgsfield' ? higgsfield.higgsfieldConfigured() : gemini.geminiConfigured();
+}
+
 function productMotionPrompt(post) {
   const subject = post.image_headline || post.hook || 'el producto';
   return `Cinematic subtle motion bringing the scene to life: slow push-in and gentle parallax on ${subject}. Keep it premium and appetizing, no text distortion, no new text.`;
 }
 
-// Consulta el estado del job en Higgsfield hasta que el video queda listo,
-// sin bloquear la respuesta HTTP. Guarda la URL o el error en la fila.
-function pollVideoInBackground(videoId, jobId) {
+function ugcScenePrompt(script) {
+  return `Vertical UGC-style video: a real, relatable person talking straight to camera in a casual, authentic setting, natural lighting, handheld feel. They say, in a natural spoken tone: "${script}". Lip-synced audio, warm and genuine, not corporate.`;
+}
+
+// Envia el job al proveedor activo. Devuelve { jobId, script }.
+async function submitToProvider({ kind, post, brand }) {
+  let script = null;
+
+  if (providerName() === 'higgsfield') {
+    if (kind === 'product') {
+      const s = await higgsfield.submitImageToVideo({ imageUrl: post.image_url, prompt: productMotionPrompt(post) });
+      return { jobId: s.jobId, script };
+    }
+    const products = await listBrandProducts(brand.id).catch(() => []);
+    script = (await generateUgcScript({ post, brand, products })).script;
+    const s = await higgsfield.submitUgcVideo({ script, imageUrl: post.image_url });
+    return { jobId: s.jobId, script };
+  }
+
+  // Gemini (Omni/Veo)
+  const { fetchRemoteImageBytes } = await import('./openai.js');
+  if (kind === 'product') {
+    const imageBytes = await fetchRemoteImageBytes(post.image_url).catch(() => null);
+    const s = await gemini.submitVideo({ prompt: productMotionPrompt(post), imageBytes, imageMime: 'image/png' });
+    return { jobId: s.jobId, script };
+  }
+  const products = await listBrandProducts(brand.id).catch(() => []);
+  script = (await generateUgcScript({ post, brand, products })).script;
+  const s = await gemini.submitVideo({ prompt: ugcScenePrompt(script) });
+  return { jobId: s.jobId, script };
+}
+
+// Consulta el estado y, cuando esta listo, deja la URL publica del video.
+// Gemini entrega una URI autenticada -> se descarga y se re-hostea en storage.
+async function resolveJob(video) {
+  if (providerName() === 'higgsfield') {
+    const st = await higgsfield.getJobStatus(video.job_id);
+    if (st.done && st.url) return { done: true, videoUrl: st.url };
+    if (st.failed) return { failed: true, error: `Higgsfield: ${st.status}` };
+    return {};
+  }
+  const st = await gemini.getVideoStatus(video.job_id);
+  if (st.failed) return { failed: true, error: st.error || 'Gemini error' };
+  if (st.done && st.uri) {
+    const bytes = await gemini.downloadVideo(st.uri);
+    const url = await uploadPostVideoBuffer(video.id, bytes);
+    return { done: true, videoUrl: url };
+  }
+  if (st.done && !st.uri) return { failed: true, error: 'Gemini no devolvio la URI del video' };
+  return {};
+}
+
+function pollVideoInBackground(video) {
   const startedAt = Date.now();
   const tick = async () => {
     try {
-      const status = await getJobStatus(jobId);
-      if (status.done && status.url) {
-        await updatePostVideo(videoId, { status: 'ready', video_url: status.url, error: null });
-        console.log(`[video:bg] ${videoId} listo -> ${status.url}`);
+      const r = await resolveJob(video);
+      if (r.done) {
+        await updatePostVideo(video.id, { status: 'ready', video_url: r.videoUrl, error: null });
+        console.log(`[video:bg] ${video.id} listo -> ${r.videoUrl}`);
         return;
       }
-      if (status.failed) {
-        await updatePostVideo(videoId, { status: 'error', error: `Higgsfield: ${status.status}` });
+      if (r.failed) {
+        await updatePostVideo(video.id, { status: 'error', error: String(r.error).slice(0, 400) });
         return;
       }
       if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
-        await updatePostVideo(videoId, { status: 'error', error: 'Tiempo de espera agotado' });
+        await updatePostVideo(video.id, { status: 'error', error: 'Tiempo de espera agotado' });
         return;
       }
       setTimeout(tick, POLL_INTERVAL_MS);
     } catch (error) {
-      console.error(`[video:bg:error] ${videoId}:`, error.message);
-      await updatePostVideo(videoId, { status: 'error', error: error.message.slice(0, 400) }).catch(() => {});
+      console.error(`[video:bg:error] ${video.id}:`, error.message);
+      await updatePostVideo(video.id, { status: 'error', error: error.message.slice(0, 400) }).catch(() => {});
     }
   };
   setTimeout(tick, POLL_INTERVAL_MS);
 }
 
 // Punto de entrada: arranca la generacion de un video para un post.
-// kind = 'product' (anima la imagen) | 'ugc' (guion + avatar).
 export async function startPostVideo(post, kind = 'product') {
-  if (!higgsfieldConfigured()) {
-    throw new AppError('Higgsfield no esta configurado en el servidor (falta HIGGSFIELD_API_KEY).', 503, 'HF_NOT_CONFIGURED');
+  if (!videoConfigured()) {
+    throw new AppError('La generacion de video no esta configurada en el servidor.', 503, 'VIDEO_NOT_CONFIGURED');
   }
   if (kind !== 'product' && kind !== 'ugc') {
     throw new AppError('Tipo de video invalido', 400, 'BAD_VIDEO_KIND');
   }
   if (!post.image_url) {
-    throw new AppError('El post todavia no tiene imagen renderizada.', 400, 'HF_NO_IMAGE');
+    throw new AppError('El post todavia no tiene imagen renderizada.', 400, 'VIDEO_NO_IMAGE');
   }
 
   const brand = await getBrandById(post.brand_id);
-
-  let jobId;
-  let script = null;
-
-  if (kind === 'product') {
-    const submitted = await submitImageToVideo({ imageUrl: post.image_url, prompt: productMotionPrompt(post) });
-    jobId = submitted.jobId;
-  } else {
-    const products = await listBrandProducts(brand.id).catch(() => []);
-    const gen = await generateUgcScript({ post, brand, products });
-    script = gen.script;
-    const submitted = await submitUgcVideo({ script, imageUrl: post.image_url });
-    jobId = submitted.jobId;
-  }
-
-  const row = await createPostVideo({ postId: post.id, brandId: brand.id, kind, jobId, script });
-  pollVideoInBackground(row.id, jobId);
+  const { jobId, script } = await submitToProvider({ kind, post, brand });
+  const row = await createPostVideo({ postId: post.id, brandId: brand.id, kind, jobId, script, provider: providerName() });
+  pollVideoInBackground(row);
   return row;
 }
 
-// Reconciliacion: al abrir un post, refresca cualquier video 'processing'
-// consultando Higgsfield (util si el server se reinicio a mitad de un job).
+// Reconciliacion al abrir un post (por si el server se reinicio a mitad).
 export async function refreshPostVideo(video) {
-  if (!video || video.status !== 'processing' || !video.job_id || !higgsfieldConfigured()) return video;
+  if (!video || video.status !== 'processing' || !video.job_id || !videoConfigured()) return video;
   try {
-    const status = await getJobStatus(video.job_id);
-    if (status.done && status.url) {
-      return updatePostVideo(video.id, { status: 'ready', video_url: status.url, error: null });
-    }
-    if (status.failed) {
-      return updatePostVideo(video.id, { status: 'error', error: `Higgsfield: ${status.status}` });
-    }
+    const r = await resolveJob(video);
+    if (r.done) return updatePostVideo(video.id, { status: 'ready', video_url: r.videoUrl, error: null });
+    if (r.failed) return updatePostVideo(video.id, { status: 'error', error: String(r.error).slice(0, 400) });
   } catch (error) {
     console.warn(`[video:refresh] ${video.id}: ${error.message}`);
   }

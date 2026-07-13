@@ -181,6 +181,25 @@ export async function uploadPostImage(postId, imageBuffer) {
   return data.publicUrl;
 }
 
+// Sube el buffer de un video generado y devuelve su URL publica.
+export async function uploadPostVideoBuffer(videoId, buffer) {
+  const filePath = `post-videos/${videoId}.mp4`;
+
+  const { error } = await supabase.storage
+    .from('post-assets')
+    .upload(filePath, buffer, { contentType: 'video/mp4', cacheControl: '31536000', upsert: true });
+
+  if (error) {
+    throw new AppError(`Could not upload video: ${error.message}`, 502, 'STORAGE_UPLOAD_FAILED');
+  }
+
+  const { data } = supabase.storage.from('post-assets').getPublicUrl(filePath);
+  if (!data?.publicUrl) {
+    throw new AppError('Supabase Storage did not return a public URL', 502, 'STORAGE_PUBLIC_URL_FAILED');
+  }
+  return data.publicUrl;
+}
+
 const REFERENCE_EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
 
 // Uploads a user-provided reference image (as a Buffer) to storage and returns
@@ -393,10 +412,12 @@ export async function deleteCustomTemplate(id) {
 
 // --- Videos (Higgsfield) --------------------------------------------------
 
-export async function createPostVideo({ postId, brandId, kind, jobId, script }) {
+export async function createPostVideo({ postId, brandId, kind, jobId, script, provider }) {
+  const row = { post_id: postId, brand_id: brandId, kind, job_id: jobId, script: script || null, status: 'processing' };
+  if (provider) row.provider = provider;
   const { data, error } = await supabase
     .from('post_videos')
-    .insert({ post_id: postId, brand_id: brandId, kind, job_id: jobId, script: script || null, status: 'processing' })
+    .insert(row)
     .select('*')
     .single();
 
