@@ -156,6 +156,29 @@ code {
 
 .tab svg { width: 18px; height: 18px; flex: 0 0 auto; opacity: 0.75; }
 
+/* "Mas" solo existe en la bottom bar mobile */
+.tab-more { display: none; }
+
+/* Hoja de "Mas" (bottom sheet en mobile) */
+.more-sheet h3 { font-size: 17px; font-weight: 800; margin-bottom: 14px; }
+.more-list { display: flex; flex-direction: column; gap: 4px; }
+.more-item {
+  display: flex; align-items: center; gap: 14px;
+  width: 100%; padding: 14px 12px;
+  border: 0; border-radius: var(--r-md);
+  background: transparent; color: var(--text);
+  font: inherit; font-weight: 650; font-size: 15px;
+  cursor: pointer; text-align: left;
+  transition: background 0.15s var(--ease);
+}
+.more-item:hover, .more-item.active { background: var(--surface-2); }
+.more-item.active { color: var(--accent); }
+.more-icon { display: flex; width: 24px; height: 24px; color: var(--muted); }
+.more-item.active .more-icon { color: var(--accent); }
+.more-icon svg { width: 24px; height: 24px; }
+.more-label { flex: 1; }
+.more-chevron { width: 18px; height: 18px; color: var(--faint); }
+
 .tab:hover { background: var(--surface-3); color: var(--text-soft); }
 
 .tab.active {
@@ -1835,31 +1858,31 @@ input[type="checkbox"].toggle {
     z-index: 80;
     flex-direction: row;
     gap: 0;
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
-    background: rgba(255, 255, 255, 0.96);
-    backdrop-filter: blur(16px);
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
+    background: #ffffff;
     border-top: 1px solid var(--border);
-    overflow-x: auto;
-    scrollbar-width: none;
     justify-content: space-around;
   }
-  .side-nav::-webkit-scrollbar { display: none; }
+
+  /* Solo 4 destinos en la barra: Inicio, Posts, Calendario y "Mas". */
+  .tab[data-nav="secondary"] { display: none; }
+  .tab-more { display: flex; }
 
   .tab {
     width: auto;
-    flex: 1 0 60px;
+    flex: 1 1 0;
     flex-direction: column;
     gap: 3px;
-    padding: 6px 4px;
-    font-size: 10px;
+    padding: 7px 4px;
+    font-size: 10.5px;
     font-weight: 650;
     justify-content: center;
     align-items: center;
     text-align: center;
-    border-radius: 10px;
-    min-height: 48px;
+    border-radius: 12px;
+    min-height: 50px;
   }
-  .tab svg { width: 21px; height: 21px; }
+  .tab svg { width: 22px; height: 22px; opacity: 1; }
   .tab.active::before { display: none; }
   .tab.active { background: transparent; color: var(--accent); }
   .tab.active svg { color: var(--accent); }

@@ -190,12 +190,18 @@ async function loadTab() {
 
 // Hash routing: each section lives at /dashboard#<tab> so refresh keeps you in
 // place, back/forward navigate sections, and sections are linkable.
-const VALID_TABS = [...document.querySelectorAll('.tab')].map((tab) => tab.dataset.tab);
+const NAV_TABS = [...document.querySelectorAll('.tab[data-tab]')];
+const VALID_TABS = NAV_TABS.map((tab) => tab.dataset.tab);
+// On mobile only 3 tabs live in the bottom bar; the rest sit behind "Mas".
+const SECONDARY_TABS = NAV_TABS.filter((tab) => tab.dataset.nav === 'secondary').map((tab) => tab.dataset.tab);
 
 function activateTab(tabName, { load = true } = {}) {
   const tab = VALID_TABS.includes(tabName) ? tabName : 'overview';
   S.tab = tab;
   document.querySelectorAll('.tab').forEach((item) => item.classList.toggle('active', item.dataset.tab === tab));
+  // On mobile, light up "Mas" when the active section lives inside it.
+  const moreBtn = document.querySelector('.tab-more');
+  if (moreBtn) moreBtn.classList.toggle('active', SECONDARY_TABS.includes(tab));
   if (load) loadTab();
 }
 
@@ -203,12 +209,37 @@ function currentHashTab() {
   return window.location.hash.replace(/^#\/?/, '') || 'overview';
 }
 
-document.querySelectorAll('.tab').forEach((tab) => {
+NAV_TABS.forEach((tab) => {
   tab.addEventListener('click', () => {
     if (currentHashTab() === tab.dataset.tab) activateTab(tab.dataset.tab);
     else window.location.hash = tab.dataset.tab;
   });
 });
+
+// Bottom-bar "Mas" sheet: lists the sections not shown in the mobile bar.
+window.openMoreSheet = function openMoreSheet() {
+  const items = SECONDARY_TABS.map((name) => {
+    const btn = NAV_TABS.find((t) => t.dataset.tab === name);
+    const label = btn.querySelector('span')?.textContent || name;
+    const icon = btn.querySelector('svg')?.outerHTML || '';
+    const active = S.tab === name ? ' active' : '';
+    return `<button class="more-item${active}" onclick="goSection('${name}')">
+      <span class="more-icon">${icon}</span>
+      <span class="more-label">${esc(label)}</span>
+      <svg class="more-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+    </button>`;
+  }).join('');
+  modal(`<div class="more-sheet">
+    <h3>Todas las secciones</h3>
+    <div class="more-list">${items}</div>
+  </div>`);
+};
+
+window.goSection = function goSection(name) {
+  closeModal();
+  if (currentHashTab() === name) activateTab(name);
+  else window.location.hash = name;
+};
 
 window.addEventListener('hashchange', () => activateTab(currentHashTab()));
 
