@@ -159,6 +159,36 @@ code {
 /* "Mas" solo existe en la bottom bar mobile */
 .tab-more { display: none; }
 
+/* --- Tour guiado --- */
+#tour-root { position: fixed; inset: 0; z-index: 200; }
+.tour-backdrop { position: fixed; inset: 0; }
+.tour-backdrop.dim { background: rgba(17, 17, 17, 0.55); animation: fadeIn 0.25s ease; }
+.tour-spot {
+  position: fixed;
+  border-radius: 14px;
+  box-shadow: 0 0 0 9999px rgba(17, 17, 17, 0.55), 0 0 0 2px var(--accent) inset;
+  transition: top 0.3s var(--ease), left 0.3s var(--ease), width 0.3s var(--ease), height 0.3s var(--ease);
+  pointer-events: none;
+}
+.tour-pop {
+  position: fixed;
+  z-index: 201;
+  width: min(340px, calc(100vw - 28px));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2);
+  padding: 18px 20px;
+  animation: tourFade 0.2s ease;
+}
+.tour-pop.center { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+@keyframes tourFade { from { opacity: 0; } }
+.tour-step { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-bottom: 7px; }
+.tour-pop h3 { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 6px; color: var(--text); }
+.tour-pop p { font-size: 13.5px; line-height: 1.55; color: var(--text-soft); margin-bottom: 16px; }
+.tour-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.tour-nav { display: flex; gap: 8px; margin-left: auto; }
+
 /* Hoja de "Mas" (bottom sheet en mobile) */
 .more-sheet h3 { font-size: 17px; font-weight: 800; margin-bottom: 14px; }
 .more-list { display: flex; flex-direction: column; gap: 4px; }

@@ -2069,6 +2069,7 @@ function settingsCuenta(brand) {
         <div class="tag-row">${S.brands.map((b) => `<span class="tag">${esc(b.name)}</span>`).join('') || '<span class="subtle">Sin marcas</span>'}</div>
       </div>
       <div class="form-group full" style="display:flex;gap:10px;flex-wrap:wrap">
+        <button type="button" class="btn" onclick="startTour(true)">Ver tutorial</button>
         <button type="button" class="btn" onclick="openOnboarding()">+ Crear otra marca</button>
         <button type="button" class="btn btn-danger" onclick="logout()">Cerrar sesion</button>
       </div>
@@ -2416,7 +2417,7 @@ async function showContentPlan(brand) {
     ${week}
     <div class="wizard-actions">
       <button class="btn btn-plain" onclick="closeModal();setTab('brand')">Ver la marca</button>
-      <button class="btn btn-primary" onclick="closeModal();setTab('overview')">Ir a mi dashboard</button>
+      <button class="btn btn-primary" onclick="closeModal();setTab('overview');setTimeout(maybeStartTour,500)">Ir a mi dashboard</button>
     </div>
   </div>`);
   toast(`Marca "${brand.name}" lista`);
@@ -2488,6 +2489,108 @@ function renderNoBrand() {
     </section>`;
 }
 
+// --- Tour guiado para usuarios nuevos ----------------------------------------
+
+const TOUR_KEY = 'contenidor_tour_seen_v1';
+let tourIdx = 0;
+
+const TOUR_STEPS = [
+  { target: null, title: 'Bienvenido a Contenidor 👋', body: 'Tu estudio de contenido con IA. En un minuto te muestro como funciona para que empieces a publicar sin esfuerzo.' },
+  { targets: ['#side-foot .brand-switch', '#side-foot'], title: 'Tus marcas', body: 'Cada negocio es una marca con su propio estilo, catalogo e ideas. Podes tener varias y cambiar entre ellas desde aca.' },
+  { targets: ['.topbar-actions .btn-primary'], title: 'Genera contenido', body: 'Con este boton creas un creativo nuevo al instante: la IA arma la imagen y los textos, listos para revisar.' },
+  { targets: ['[data-tab="calendar"]'], title: 'Tu calendario', body: 'La IA propone ideas y las agenda sola. Aca ves y ajustas el plan de las proximas semanas.' },
+  { targets: ['[data-tab="posts"]'], title: 'Revisa y aproba', body: 'Cada creativo aparece en Posts como una publicacion de Instagram. Lo aprobas o lo rechazas de un toque.' },
+  { targets: ['[data-tab="brand"]', '.tab-more'], title: 'Tu marca e integraciones', body: 'En Marca defines tu identidad, subis tu logo y conectas Instagram y WhatsApp para publicar y aprobar desde el chat.' },
+  { targets: ['[data-tab="products"]', '.tab-more'], title: 'Tu catalogo', body: 'Carga tus productos y precios (o una foto de tu carta) y las ideas van a promocionar lo que realmente vendes.' },
+  { target: null, title: 'Listo, ya sabes lo esencial 🎉', body: 'Podes volver a ver este tutorial cuando quieras desde Ajustes › Cuenta. Ahora si: a crear contenido.' },
+];
+
+function tourTargetEl(step) {
+  const sels = step.target ? [step.target] : (step.targets || []);
+  for (const sel of sels) {
+    const el = document.querySelector(sel);
+    if (el && el.offsetParent !== null) return el;
+  }
+  return null;
+}
+
+function renderTour() {
+  const step = TOUR_STEPS[tourIdx];
+  let root = byId('tour-root');
+  if (!root) { root = document.createElement('div'); root.id = 'tour-root'; document.body.appendChild(root); }
+  const el = tourTargetEl(step);
+  const isLast = tourIdx === TOUR_STEPS.length - 1;
+  const isFirst = tourIdx === 0;
+
+  root.innerHTML = `
+    <div class="tour-backdrop${el ? '' : ' dim'}"></div>
+    ${el ? '<div class="tour-spot" id="tour-spot"></div>' : ''}
+    <div class="tour-pop ${el ? '' : 'center'}" id="tour-pop">
+      <div class="tour-step">Paso ${tourIdx + 1} de ${TOUR_STEPS.length}</div>
+      <h3>${esc(step.title)}</h3>
+      <p>${esc(step.body)}</p>
+      <div class="tour-actions">
+        ${isLast ? '<span></span>' : '<button class="btn btn-sm btn-plain" onclick="tourSkip()">Saltar</button>'}
+        <div class="tour-nav">
+          ${!isFirst ? '<button class="btn btn-sm" onclick="tourPrev()">Atras</button>' : ''}
+          <button class="btn btn-sm btn-primary" onclick="tourNext()">${isLast ? 'Empezar' : 'Siguiente'}</button>
+        </div>
+      </div>
+    </div>`;
+
+  positionTour(el);
+  requestAnimationFrame(() => positionTour(el));
+}
+
+function positionTour(el) {
+  const spot = byId('tour-spot');
+  const pop = byId('tour-pop');
+  if (!pop) return;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  if (el && spot) {
+    const r = el.getBoundingClientRect();
+    const pad = 8;
+    const top = Math.max(r.top - pad, 6);
+    const left = Math.max(r.left - pad, 6);
+    spot.style.top = `${top}px`;
+    spot.style.left = `${left}px`;
+    spot.style.width = `${Math.min(r.width + pad * 2, vw - left - 6)}px`;
+    spot.style.height = `${r.height + pad * 2}px`;
+
+    const pr = pop.getBoundingClientRect();
+    let pTop = r.bottom + 14;
+    if (pTop + pr.height > vh - 10) pTop = r.top - pr.height - 14; // no room below -> above
+    pTop = Math.max(10, Math.min(pTop, vh - pr.height - 10));
+    let pLeft = r.left + r.width / 2 - pr.width / 2;
+    pLeft = Math.max(12, Math.min(pLeft, vw - pr.width - 12));
+    pop.style.top = `${pTop}px`;
+    pop.style.left = `${pLeft}px`;
+  }
+}
+
+window.addEventListener('resize', () => { if (byId('tour-root')) positionTour(tourTargetEl(TOUR_STEPS[tourIdx])); });
+
+window.tourNext = function tourNext() { if (tourIdx >= TOUR_STEPS.length - 1) endTour(); else { tourIdx++; renderTour(); } };
+window.tourPrev = function tourPrev() { if (tourIdx > 0) { tourIdx--; renderTour(); } };
+window.tourSkip = function tourSkip() { endTour(); };
+
+function endTour() {
+  try { localStorage.setItem(TOUR_KEY, '1'); } catch { /* noop */ }
+  byId('tour-root')?.remove();
+}
+
+window.startTour = function startTour(force = false) {
+  if (!force) { try { if (localStorage.getItem(TOUR_KEY)) return; } catch { /* noop */ } }
+  tourIdx = 0;
+  renderTour();
+};
+
+function maybeStartTour() {
+  try { if (localStorage.getItem(TOUR_KEY)) return; } catch { /* noop */ }
+  if (S.brands && S.brands.length) startTour();
+}
+
 async function bootApp() {
   const [data] = await Promise.all([
     api('/api/brands'),
@@ -2510,6 +2613,8 @@ async function bootApp() {
   // Land on the section named in the URL hash (deep link / refresh in place).
   activateTab(currentHashTab(), { load: false });
   await loadTab();
+  // First-time users get the guided tour once the layout has settled.
+  setTimeout(maybeStartTour, 700);
 }
 
 // After the Instagram OAuth callback, the browser lands back on /dashboard with
