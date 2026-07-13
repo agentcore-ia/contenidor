@@ -52,6 +52,21 @@ async function downloadPostImages(posts) {
   return buffers;
 }
 
+// The Instagram profile picture is almost always the brand's logo: store it as
+// logo_url so image generation can integrate it without a manual upload.
+// Instagram CDN URLs expire, so we re-host the bytes in our own storage.
+async function importProfileLogo(brand, profile) {
+  if (!profile?.profile_pic) return;
+  try {
+    const buffer = await fetchRemoteImageBytes(profile.profile_pic);
+    const url = await uploadReferenceImage(buffer, 'image/jpeg');
+    await updateBrandFields(brand.id, { logo_url: url });
+    console.log(`[onboarding] logo importado desde la foto de perfil de @${profile.username}`);
+  } catch (error) {
+    console.warn(`[onboarding] no se pudo importar el logo del perfil: ${error.message}`);
+  }
+}
+
 async function runOnboarding(brand, handle, answers) {
   // 1. Scrape the public profile (null when APIFY_TOKEN is missing).
   let profile = null;
@@ -60,6 +75,9 @@ async function runOnboarding(brand, handle, answers) {
   } catch (error) {
     console.warn(`[onboarding] scraping fallo para @${handle}, sigo sin datos de IG: ${error.message}`);
   }
+
+  // 1b. Profile picture -> brand logo (best-effort, never blocks onboarding).
+  await importProfileLogo(brand, profile);
 
   // 2. Download top post images for vision analysis + style references.
   const imageBuffers = profile ? await downloadPostImages(profile.posts || []) : [];
