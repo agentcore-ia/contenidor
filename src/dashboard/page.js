@@ -650,6 +650,16 @@ window.showPost = async function showPost(id) {
     modal(`<h3>Post</h3>
       ${post.image_url ? `<img class="modal-image" src="${esc(post.image_url)}" alt="" />` : ''}
       ${post.render_error ? `<div class="empty" style="border-color:#7a2b2b;color:#ffb4b4">Error al generar imagen: ${esc(post.render_error)}</div>` : (!post.image_url ? `<div class="empty">Imagen aun no generada. Toca "Regenerar render" o espera a que termine.</div>` : '')}
+      ${post.image_url ? `<section class="video-section">
+        <div class="video-head">
+          <div><strong>Videos</strong><span class="subtle"> · animá el creativo o generá un UGC</span></div>
+          <div class="toolbar">
+            <button class="btn btn-sm" onclick="generateVideo('${post.id}','product')">🎬 Video de producto</button>
+            <button class="btn btn-sm" onclick="generateVideo('${post.id}','ugc')">🗣️ Video UGC</button>
+          </div>
+        </div>
+        <div id="post-videos"><div class="subtle">Cargando videos...</div></div>
+      </section>` : ''}
       <div class="form-grid">
         ${readOnlyField('Hook', post.hook, 2)}
         ${readOnlyField('Body', post.body, 3)}
@@ -671,8 +681,64 @@ window.showPost = async function showPost(id) {
         ${post.image_url ? `<button class="btn" onclick="sendWhatsapp('${post.id}')">Enviar a WhatsApp</button>` : ''}
         <button class="btn btn-plain" onclick="closeModal()">Cerrar</button>
       </div>`);
+    if (post.image_url) loadPostVideos(post.id);
   } catch (error) {
     toast(error.message, 'error');
+  }
+};
+
+const VIDEO_KIND_LABEL = { product: 'Producto', ugc: 'UGC' };
+
+function videoCard(v) {
+  if (v.status === 'ready' && v.video_url) {
+    return `<div class="video-card">
+      <video src="${esc(v.video_url)}" controls playsinline preload="metadata"></video>
+      <div class="video-meta"><span class="tag">${VIDEO_KIND_LABEL[v.kind] || v.kind}</span>
+        <a class="btn btn-sm" href="${esc(v.video_url)}" target="_blank" rel="noopener">Descargar</a></div>
+    </div>`;
+  }
+  if (v.status === 'error') {
+    return `<div class="video-card video-err">
+      <div class="video-ph">⚠️ Error<div class="subtle">${esc(v.error || 'No se pudo generar')}</div></div>
+      <div class="video-meta"><span class="tag">${VIDEO_KIND_LABEL[v.kind] || v.kind}</span></div>
+    </div>`;
+  }
+  return `<div class="video-card">
+    <div class="video-ph"><span class="pc-generating">Generando video...</span><div class="subtle">Tarda ~1 min</div></div>
+    <div class="video-meta"><span class="tag">${VIDEO_KIND_LABEL[v.kind] || v.kind}</span></div>
+  </div>`;
+}
+
+async function loadPostVideos(id) {
+  const box = byId('post-videos');
+  if (!box) return;
+  try {
+    const data = await api(`/api/posts/${id}/videos`);
+    const videos = data.videos || [];
+    if (!videos.length) {
+      box.innerHTML = data.higgsfield_configured
+        ? '<div class="subtle">Todavia no generaste videos para este post.</div>'
+        : '<div class="subtle">La generacion de video no esta configurada en el servidor (falta la API key de Higgsfield).</div>';
+      return;
+    }
+    box.innerHTML = `<div class="video-grid">${videos.map(videoCard).join('')}</div>`;
+    // Si hay alguno procesando, refresca en unos segundos.
+    if (videos.some((v) => v.status === 'processing') && byId('post-videos')) {
+      setTimeout(() => { if (byId('post-videos')) loadPostVideos(id); }, 12000);
+    }
+  } catch (error) {
+    box.innerHTML = `<div class="subtle">${esc(error.message)}</div>`;
+  }
+}
+
+window.generateVideo = async function generateVideo(id, kind) {
+  toast(kind === 'ugc' ? 'Escribiendo guion y generando video UGC...' : 'Generando video de producto...');
+  try {
+    await api(`/api/posts/${id}/videos`, { method: 'POST', body: { kind } });
+    toast('Video en proceso (~1 min). Se actualiza solo.', 'success');
+    loadPostVideos(id);
+  } catch (error) {
+    toast(error.message || 'No se pudo iniciar el video', 'error');
   }
 };
 

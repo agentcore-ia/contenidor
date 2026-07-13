@@ -340,6 +340,51 @@ const brandAnalysisSchema = {
   }
 };
 
+const ugcScriptSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['script'],
+  properties: {
+    script: { type: 'string' }
+  }
+};
+
+// Escribe un guion corto y hablado (estilo UGC / testimonial) para un video de
+// 5-15 segundos, a partir del post, la marca y (si hay) el catalogo.
+export async function generateUgcScript({ post, brand, products = [] }) {
+  const client = createOpenAIClient();
+  const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
+  const manual = brand?.brand_manual || {};
+
+  const prompt = `Escribi el GUION hablado de un video UGC corto (5 a 12 segundos, estilo testimonial casero de un cliente o del dueno) para ${brand?.name || 'la marca'}.
+
+Marca: ${brand?.name || ''}
+Voz/tono: ${manual.voice || 'cercano, natural, real'}
+Tema del post: ${post?.hook || post?.image_headline || ''}
+Mensaje: ${post?.caption_instagram || post?.body || ''}
+${products.length ? `Catalogo (usa nombres/precios exactos si mencionas alguno):\n${compactJson(products.map((p) => ({ name: p.name, price: p.price || undefined })))}` : ''}
+
+Reglas:
+- Es lo que la persona DICE a camara, hablado y natural. Nada de acotaciones, ni "[escena]", ni emojis, ni hashtags.
+- Maximo 2-3 frases, que se pueda decir en 5-12 segundos.
+- Un solo gancho fuerte al inicio para frenar el scroll.
+- Tono real, no publicitario acartonado. Coherente con la voz de la marca.
+- No inventes precios ni promos que no esten en el catalogo.
+- Devolve solo el JSON pedido.`;
+
+  const response = await client.responses.create({
+    model,
+    input: [
+      { role: 'system', content: 'Sos guionista de contenido UGC para redes. Escribis parlamentos cortos, naturales y que enganchan.' },
+      { role: 'user', content: prompt }
+    ],
+    text: { format: { type: 'json_schema', name: 'ugc_script', strict: true, schema: ugcScriptSchema } }
+  });
+
+  const parsed = parseGenerationOutput(response);
+  return { model, script: String(parsed?.script || '').trim() };
+}
+
 const menuExtractionSchema = {
   type: 'object',
   additionalProperties: false,

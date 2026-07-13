@@ -391,6 +391,57 @@ export async function deleteCustomTemplate(id) {
   }
 }
 
+// --- Videos (Higgsfield) --------------------------------------------------
+
+export async function createPostVideo({ postId, brandId, kind, jobId, script }) {
+  const { data, error } = await supabase
+    .from('post_videos')
+    .insert({ post_id: postId, brand_id: brandId, kind, job_id: jobId, script: script || null, status: 'processing' })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw wrapSupabaseError('Could not create post video', error);
+  }
+
+  return data;
+}
+
+export async function updatePostVideo(id, fields) {
+  const { data, error } = await supabase
+    .from('post_videos')
+    .update(fields)
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw wrapSupabaseError('Could not update post video', error);
+  }
+
+  return data;
+}
+
+export async function listPostVideos(postId) {
+  const { data, error } = await supabase
+    .from('post_videos')
+    .select('*')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw wrapSupabaseError('Could not list post videos', error);
+  }
+
+  return data ?? [];
+}
+
+export async function getPostVideo(id) {
+  const { data, error } = await supabase.from('post_videos').select('*').eq('id', id).maybeSingle();
+  if (error) throw wrapSupabaseError('Could not load post video', error);
+  return data;
+}
+
 // --- Multi-tenant helpers -------------------------------------------------
 
 // Brands whose owner_email matches the user's email get claimed on first
