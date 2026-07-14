@@ -157,7 +157,7 @@ export function registerDashboardRoutes(app) {
     if (!cal) throw new AppError('Item de calendario no encontrado', 404);
     const opts = {};
     if (['high', 'medium', 'low'].includes(req.body?.image_quality)) opts.imageQuality = req.body.image_quality;
-    if (['omni', 'veo'].includes(req.body?.video_engine)) opts.videoEngine = req.body.video_engine;
+    if (['omni', 'veo_fast', 'veo'].includes(req.body?.video_engine)) opts.videoEngine = req.body.video_engine;
     const post = await generateAndRenderPost(calendarId, opts);
     res.json({ success: true, post_id: post.id, status: post.status, rendering: true });
   }));
@@ -443,7 +443,7 @@ export function registerDashboardRoutes(app) {
   app.post('/api/posts/:id/videos', wrap(async (req, res) => {
     const { post } = await requirePost(req);
     const kind = req.body?.kind === 'ugc' ? 'ugc' : 'product';
-    const engine = req.body?.engine === 'veo' ? 'veo' : (req.body?.engine === 'omni' ? 'omni' : null);
+    const engine = ['omni', 'veo_fast', 'veo'].includes(req.body?.engine) ? req.body.engine : null;
     const video = await startPostVideo(post, kind, engine);
     res.json({ success: true, video });
   }));
@@ -532,7 +532,7 @@ export function registerDashboardRoutes(app) {
       updates.whatsapp_number = digits || null;
     }
     if (typeof req.body?.logo_url === 'string') updates.logo_url = req.body.logo_url.trim() || null;
-    if (req.body?.video_engine === 'omni' || req.body?.video_engine === 'veo') updates.video_engine = req.body.video_engine;
+    if (['omni', 'veo_fast', 'veo'].includes(req.body?.video_engine)) updates.video_engine = req.body.video_engine;
     if (['high', 'medium', 'low'].includes(req.body?.image_quality)) updates.image_quality = req.body.image_quality;
     if (typeof req.body?.default_template_id === 'string') {
       if (!isValidTemplateId(req.body.default_template_id)) throw new AppError(`Template ${req.body.default_template_id} no existe`, 400);

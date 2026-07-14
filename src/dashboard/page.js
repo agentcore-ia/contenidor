@@ -532,6 +532,16 @@ const POST_FILTER_LABELS = {
   approved: 'Aprobados', posted: 'Publicados', rejected: 'Rechazados',
 };
 
+const VIDEO_ENGINE_OPTS = [
+  ['omni', 'Omni · más barato (~$1 x 10s)'],
+  ['veo_fast', 'Veo 3 Fast · medio (~$1,20 x 8s)'],
+  ['veo', 'Veo 3 Cine · caro (~$3,20 x 8s)'],
+];
+function videoEngineOptions(selected) {
+  const sel = selected || 'omni';
+  return VIDEO_ENGINE_OPTS.map(([v, l]) => `<option value="${v}" ${v === sel ? 'selected' : ''}>${l}</option>`).join('');
+}
+
 const CONTENT_TYPE_LABEL = { product_video: '🎬 Video producto', ugc_video: '🗣️ Video UGC' };
 function ctypeChip(type) {
   const label = CONTENT_TYPE_LABEL[type];
@@ -682,10 +692,9 @@ window.showPost = async function showPost(id) {
       ${post.image_url ? `<section class="video-section">
         <div class="video-head">
           <div><strong>Videos</strong><span class="subtle"> · animá el creativo o generá un UGC</span></div>
-          <div class="segmented">
-            <button class="seg-opt ${(S.videoEngine || (S.brands.find((b)=>b.id===S.brandId)||{}).video_engine || 'omni')==='omni'?'active':''}" onclick="setVideoEngine('omni',this)">Omni</button>
-            <button class="seg-opt ${(S.videoEngine || (S.brands.find((b)=>b.id===S.brandId)||{}).video_engine)==='veo'?'active':''}" onclick="setVideoEngine('veo',this)">Veo 3</button>
-          </div>
+          <select style="width:auto;max-width:230px" onchange="S.videoEngine=this.value">
+            ${videoEngineOptions(S.videoEngine || (S.brands.find((b)=>b.id===S.brandId)||{}).video_engine || 'omni')}
+          </select>
         </div>
         <div class="toolbar" style="margin-bottom:12px">
           <button class="btn btn-sm" onclick="generateVideo('${post.id}','product')">🎬 Video de producto</button>
@@ -1066,10 +1075,7 @@ window.openGenerateModal = function openGenerateModal(id) {
         </select>
       </div>
       ${isVideo ? `<div class="form-group full"><label>Motor de video</label>
-        <select id="gen-ve">
-          <option value="omni" ${ve === 'omni' ? 'selected' : ''}>Omni (mas barato)</option>
-          <option value="veo" ${ve === 'veo' ? 'selected' : ''}>Veo 3 (cinematografico)</option>
-        </select>
+        <select id="gen-ve">${videoEngineOptions(ve)}</select>
       </div>` : ''}
     </div>
     <div class="toolbar" style="justify-content:flex-start;margin-top:16px">
@@ -1166,11 +1172,8 @@ function renderBrand() {
           </div>
           <div class="form-group">
             <label>Motor de video</label>
-            <select name="video_engine">
-              <option value="omni" ${(brand.video_engine || 'omni') === 'omni' ? 'selected' : ''}>Omni (mas barato, avatares)</option>
-              <option value="veo" ${brand.video_engine === 'veo' ? 'selected' : ''}>Veo 3 (cinematografico)</option>
-            </select>
-            <div class="subtle" style="margin-top:6px">Se usa al generar videos desde la agenda y el autopilot.</div>
+            <select name="video_engine">${videoEngineOptions(brand.video_engine)}</select>
+            <div class="subtle" style="margin-top:6px">Default para la agenda y el autopilot. Omni es el mas barato; Veo Cine es el mas caro (~$3 x clip).</div>
           </div>
           <div class="form-group full">
             <label>Logo de la marca</label>
