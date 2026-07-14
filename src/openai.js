@@ -228,8 +228,9 @@ Temas ya usados o programados (NO los repitas ni generes variantes casi iguales)
 ${compactJson(existingTopics)}
 ${catalogBlock(products)}
 Reglas:
-- Le hablamos a la audiencia de esta marca, en su rubro. Ideas concretas para su negocio.${products.length ? `
-- La marca tiene catalogo: al menos la mitad de las ideas deben promocionar productos/servicios concretos del catalogo, nombrandolos igual que en la lista (podes mencionar el precio real en el angle). Jamas inventes productos ni precios.` : ''}
+- Le hablamos a la audiencia de esta marca, en su rubro. Ideas concretas para su negocio.
+- VARIEDAD OBLIGATORIA (lo mas importante): cada idea debe abordar un PILAR distinto. Mezcla entre: mostrar un producto, tip/educacion, detras de escena, comunidad/clientes, momento de consumo/antojo, fecha o estacionalidad, prueba social/testimonio, curiosidad del rubro. NO uses el mismo gancho ni la misma estructura dos veces. Que se sientan 7 posts claramente diferentes, no variaciones del mismo.${products.length ? `
+- La marca tiene catalogo, pero NO repitas el mismo producto/promo en mas de 2 de las ${count} ideas. Si el catalogo tiene pocos productos, la mayoria de las ideas deben ir por OTROS angulos (no la misma oferta repetida con otras palabras). Cuando menciones un producto usa su nombre y precio exactos; jamas inventes.` : ''}
 - Cada idea es un tema concreto y accionable, no un titulo generico.
 - "content_type": el formato de cada idea. La MAYORIA deben ser "image" (post normal). Marca 1 o 2 de cada 7 como video: "product_video" para mostrar el producto en movimiento (ideal cuando el foco es el producto en si), o "ugc_video" para un testimonial estilo persona hablando (ideal para recomendaciones, resenas, generar confianza). No pongas mas de 2-3 videos en total.
 - "topic": el tema puntual del post, maximo 16 palabras.
