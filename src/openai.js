@@ -721,7 +721,7 @@ export async function generatePostImageAsset(post, { brand, referenceBuffers = [
   const client = createOpenAIClient();
   const model = process.env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL;
   const size = process.env.OPENAI_IMAGE_SIZE || DEFAULT_IMAGE_SIZE;
-  const quality = process.env.OPENAI_IMAGE_QUALITY || 'high';
+  const quality = brand?.image_quality || process.env.OPENAI_IMAGE_QUALITY || 'high';
   const prompt = aiPosterPrompt(post, brand, referenceBuffers.length, artDirection, Boolean(logoBuffer));
 
   // The logo always goes LAST so the prompt can point at "the last image".

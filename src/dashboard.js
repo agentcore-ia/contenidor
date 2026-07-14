@@ -529,6 +529,8 @@ export function registerDashboardRoutes(app) {
       updates.whatsapp_number = digits || null;
     }
     if (typeof req.body?.logo_url === 'string') updates.logo_url = req.body.logo_url.trim() || null;
+    if (req.body?.video_engine === 'omni' || req.body?.video_engine === 'veo') updates.video_engine = req.body.video_engine;
+    if (['high', 'medium', 'low'].includes(req.body?.image_quality)) updates.image_quality = req.body.image_quality;
     if (typeof req.body?.default_template_id === 'string') {
       if (!isValidTemplateId(req.body.default_template_id)) throw new AppError(`Template ${req.body.default_template_id} no existe`, 400);
       updates.default_template_id = req.body.default_template_id;

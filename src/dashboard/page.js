@@ -683,8 +683,8 @@ window.showPost = async function showPost(id) {
         <div class="video-head">
           <div><strong>Videos</strong><span class="subtle"> · animá el creativo o generá un UGC</span></div>
           <div class="segmented">
-            <button class="seg-opt ${(S.videoEngine||'omni')==='omni'?'active':''}" onclick="setVideoEngine('omni',this)">Omni</button>
-            <button class="seg-opt ${S.videoEngine==='veo'?'active':''}" onclick="setVideoEngine('veo',this)">Veo 3</button>
+            <button class="seg-opt ${(S.videoEngine || (S.brands.find((b)=>b.id===S.brandId)||{}).video_engine || 'omni')==='omni'?'active':''}" onclick="setVideoEngine('omni',this)">Omni</button>
+            <button class="seg-opt ${(S.videoEngine || (S.brands.find((b)=>b.id===S.brandId)||{}).video_engine)==='veo'?'active':''}" onclick="setVideoEngine('veo',this)">Veo 3</button>
           </div>
         </div>
         <div class="toolbar" style="margin-bottom:12px">
@@ -1114,6 +1114,23 @@ function renderBrand() {
       <section class="settings-card">
         <div class="settings-card-head"><div><h2>Generacion de imagenes</h2><p>Control fino sobre lo que la IA pone (o no) en cada creativo.</p></div></div>
         <div class="settings-card-body form-grid">
+          <div class="form-group">
+            <label>Calidad de imagen</label>
+            <select name="image_quality">
+              <option value="high" ${(brand.image_quality || 'high') === 'high' ? 'selected' : ''}>Alta (mejor, mas cara)</option>
+              <option value="medium" ${brand.image_quality === 'medium' ? 'selected' : ''}>Media (equilibrada)</option>
+              <option value="low" ${brand.image_quality === 'low' ? 'selected' : ''}>Baja (mas barata)</option>
+            </select>
+            <div class="subtle" style="margin-top:6px">GPT Image 2. Media/baja abaratan bastante el costo por imagen.</div>
+          </div>
+          <div class="form-group">
+            <label>Motor de video</label>
+            <select name="video_engine">
+              <option value="omni" ${(brand.video_engine || 'omni') === 'omni' ? 'selected' : ''}>Omni (mas barato, avatares)</option>
+              <option value="veo" ${brand.video_engine === 'veo' ? 'selected' : ''}>Veo 3 (cinematografico)</option>
+            </select>
+            <div class="subtle" style="margin-top:6px">Se usa al generar videos desde la agenda y el autopilot.</div>
+          </div>
           <div class="form-group full">
             <label>Logo de la marca</label>
             <div class="logo-upload">
@@ -1369,6 +1386,8 @@ window.saveBrand = async function saveBrand(event) {
         description: fd.get('description'),
         whatsapp_number: fd.get('whatsapp_number') || '',
         logo_url: fd.get('logo_url') || '',
+        image_quality: fd.get('image_quality') || 'high',
+        video_engine: fd.get('video_engine') || 'omni',
         brand_manual: manual,
       },
     });

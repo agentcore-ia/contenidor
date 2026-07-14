@@ -160,8 +160,9 @@ export async function startPostVideo(post, kind = 'product', engine = null) {
   }
 
   const brand = await getBrandById(post.brand_id);
+  const chosenEngine = engine || brand.video_engine || null;
   const row = await createPostVideo({ postId: post.id, brandId: brand.id, kind, jobId: null, script: null, provider: providerName() });
-  runVideoJobInBackground(row, post, brand, kind, engine);
+  runVideoJobInBackground(row, post, brand, kind, chosenEngine);
   return row;
 }
 
