@@ -13,7 +13,10 @@ import { AppError } from './errors.js';
 
 function baseUrl() { return (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/+$/, ''); }
 function apiKey() { return process.env.GEMINI_API_KEY || ''; }
-function videoModel() { return process.env.GEMINI_VIDEO_MODEL || 'veo-3.1-generate-preview'; }
+function videoModel() { return process.env.GEMINI_VIDEO_MODEL || 'gemini-omni-flash-preview'; }
+
+// Omni usa la Interactions API (sincrona); Veo usa predictLongRunning (async).
+export function isOmniModel() { return /omni/i.test(videoModel()); }
 
 // Diagnostico: lista los modelos de la cuenta y sus metodos soportados.
 export async function listModels() {
@@ -90,6 +93,78 @@ export async function getVideoStatus(operationName) {
   const failed = Boolean(json.error);
   const uri = done ? extractVideoUri(json) : null;
   return { done, failed, uri, error: json.error?.message || null, raw: json };
+}
+
+// --- Omni (Interactions API, sincrona) --------------------------------------
+
+function extractOmniVideoBase64(json) {
+  if (json.output_video?.data) return json.output_video.data;
+  for (const step of json.steps || []) {
+    for (const c of step.content || []) {
+      if ((c.type === 'video' || /video/i.test(c.mime_type || c.mimeType || '')) && c.data) return c.data;
+    }
+  }
+  for (const cand of json.candidates || []) {
+    for (const p of cand.content?.parts || []) {
+      if (p.inlineData?.data && /video/i.test(p.inlineData.mimeType || '')) return p.inlineData.data;
+      if (p.inline_data?.data && /video/i.test(p.inline_data.mime_type || '')) return p.inline_data.data;
+    }
+  }
+  return null;
+}
+
+function extractOmniVideoUri(json) {
+  if (json.output_video?.uri) return json.output_video.uri;
+  for (const step of json.steps || []) {
+    for (const c of step.content || []) {
+      if (c.uri && /video/i.test(c.type || c.mime_type || c.mimeType || '')) return c.uri;
+    }
+  }
+  return json.candidates?.[0]?.content?.parts?.find((p) => p.fileData?.fileUri)?.fileData?.fileUri || null;
+}
+
+// Genera el video de una sola pasada (bloquea ~1 min). Devuelve el Buffer.
+export async function generateOmniVideo({ prompt, imageBytes, imageMime }) {
+  assertConfigured();
+  const input = imageBytes
+    ? [
+        { type: 'image', data: imageBytes.toString('base64'), mime_type: imageMime || 'image/png' },
+        { type: 'text', text: String(prompt || '') }
+      ]
+    : String(prompt || '');
+  const body = {
+    model: videoModel(),
+    input,
+    response_format: { type: 'video', delivery: 'base64', aspect_ratio: aspectRatio() }
+  };
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+  let res;
+  try {
+    res = await fetch(`${baseUrl()}/interactions`, {
+      method: 'POST',
+      headers: keyHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new AppError(`Gemini Omni ${res.status}: ${json.error?.message || JSON.stringify(json).slice(0, 200)}`, 502, 'GEMINI_FAILED');
+  }
+  const status = String(json.status || '').toLowerCase();
+  if (status && status !== 'completed' && status !== 'succeeded') {
+    throw new AppError(`Gemini Omni estado: ${status}`, 502, 'GEMINI_FAILED');
+  }
+
+  const b64 = extractOmniVideoBase64(json);
+  if (b64) return Buffer.from(b64, 'base64');
+  const uri = extractOmniVideoUri(json);
+  if (uri) return downloadVideo(uri);
+  throw new AppError('Omni no devolvio el video en la respuesta', 502, 'GEMINI_NO_VIDEO');
 }
 
 // Descarga los bytes del video (la URI de Gemini requiere autenticacion).

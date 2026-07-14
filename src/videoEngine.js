@@ -32,32 +32,38 @@ function ugcScenePrompt(script) {
   return `Vertical UGC-style video: a real, relatable person talking straight to camera in a casual, authentic setting, natural lighting, handheld feel. They say, in a natural spoken tone: "${script}". Lip-synced audio, warm and genuine, not corporate.`;
 }
 
-// Envia el job al proveedor activo. Devuelve { jobId, script }.
+// Envia el job al proveedor. Devuelve un resultado discriminado:
+//   { mode:'poll', jobId, script }   -> hay que consultar el estado (Veo, Higgsfield)
+//   { mode:'done', videoBuffer, script } -> el video ya vino (Omni, sincrono)
 async function submitToProvider({ kind, post, brand }) {
   let script = null;
+
+  const buildScript = async () => {
+    const products = await listBrandProducts(brand.id).catch(() => []);
+    return (await generateUgcScript({ post, brand, products })).script;
+  };
 
   if (providerName() === 'higgsfield') {
     if (kind === 'product') {
       const s = await higgsfield.submitImageToVideo({ imageUrl: post.image_url, prompt: productMotionPrompt(post) });
-      return { jobId: s.jobId, script };
+      return { mode: 'poll', jobId: s.jobId, script };
     }
-    const products = await listBrandProducts(brand.id).catch(() => []);
-    script = (await generateUgcScript({ post, brand, products })).script;
+    script = await buildScript();
     const s = await higgsfield.submitUgcVideo({ script, imageUrl: post.image_url });
-    return { jobId: s.jobId, script };
+    return { mode: 'poll', jobId: s.jobId, script };
   }
 
-  // Gemini (Omni/Veo)
+  // Gemini
   const { fetchRemoteImageBytes } = await import('./openai.js');
-  if (kind === 'product') {
-    const imageBytes = await fetchRemoteImageBytes(post.image_url).catch(() => null);
-    const s = await gemini.submitVideo({ prompt: productMotionPrompt(post), imageBytes, imageMime: 'image/png' });
-    return { jobId: s.jobId, script };
+  const prompt = kind === 'product' ? productMotionPrompt(post) : ugcScenePrompt((script = await buildScript()));
+  const imageBytes = kind === 'product' ? await fetchRemoteImageBytes(post.image_url).catch(() => null) : null;
+
+  if (gemini.isOmniModel()) {
+    const videoBuffer = await gemini.generateOmniVideo({ prompt, imageBytes, imageMime: 'image/png' });
+    return { mode: 'done', videoBuffer, script };
   }
-  const products = await listBrandProducts(brand.id).catch(() => []);
-  script = (await generateUgcScript({ post, brand, products })).script;
-  const s = await gemini.submitVideo({ prompt: ugcScenePrompt(script) });
-  return { jobId: s.jobId, script };
+  const s = await gemini.submitVideo({ prompt, imageBytes, imageMime: 'image/png' });
+  return { mode: 'poll', jobId: s.jobId, script };
 }
 
 // Consulta el estado y, cuando esta listo, deja la URL publica del video.
@@ -114,10 +120,17 @@ function pollVideoInBackground(video) {
 function runVideoJobInBackground(row, post, brand, kind) {
   Promise.resolve()
     .then(() => submitToProvider({ kind, post, brand }))
-    .then(async ({ jobId, script }) => {
-      if (!jobId) throw new AppError('El proveedor no devolvio un job id', 502, 'VIDEO_NO_JOB');
-      await updatePostVideo(row.id, { job_id: jobId, script: script || null });
-      pollVideoInBackground({ ...row, job_id: jobId });
+    .then(async (result) => {
+      if (result.mode === 'done') {
+        // Omni: el video ya vino -> se sube y queda listo.
+        const url = await uploadPostVideoBuffer(row.id, result.videoBuffer);
+        await updatePostVideo(row.id, { status: 'ready', video_url: url, script: result.script || null, error: null });
+        console.log(`[video:bg] ${row.id} listo (sincrono) -> ${url}`);
+        return;
+      }
+      if (!result.jobId) throw new AppError('El proveedor no devolvio un job id', 502, 'VIDEO_NO_JOB');
+      await updatePostVideo(row.id, { job_id: result.jobId, script: result.script || null });
+      pollVideoInBackground({ ...row, job_id: result.jobId });
     })
     .catch(async (error) => {
       console.error(`[video:submit:error] ${row.id}:`, error.message);
