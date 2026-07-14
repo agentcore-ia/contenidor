@@ -562,6 +562,13 @@ function renderPosts() {
     `)}
     <div style="margin-bottom:18px">${segmented}</div>
     ${body}`;
+
+  // Auto-refresca mientras haya videos generandose, para que aparezcan solos.
+  const anyProcessing = S.posts.some((p) => (p.videos || []).some((v) => v.status === 'processing'));
+  if (anyProcessing) {
+    clearTimeout(S.postsVideoPoll);
+    S.postsVideoPoll = setTimeout(() => { if (S.tab === 'posts') loadPosts(); }, 15000);
+  }
 }
 
 const IG_ICONS = {
@@ -580,11 +587,26 @@ function postCard(post) {
     : `<span class="igp-avatar igp-avatar-initial">${esc((brand.name || '?').trim().charAt(0).toUpperCase())}</span>`;
   const date = fmtDate(String(post.created_at || '').slice(0, 10));
 
-  const media = post.image_url
-    ? `<div class="igp-media" onclick="showPost('${post.id}')"><img src="${esc(post.image_url)}" alt="" loading="lazy" /></div>`
-    : `<div class="igp-media igp-media-empty" onclick="showPost('${post.id}')">
-        ${post.render_error ? `<span class="pc-render-error">Error al generar la imagen</span>` : `<span class="pc-generating">Generando imagen...</span>`}
-      </div>`;
+  const videos = post.videos || [];
+  const readyVideo = videos.find((v) => v.status === 'ready' && v.video_url);
+  const processingVideo = videos.find((v) => v.status === 'processing');
+
+  let media;
+  if (readyVideo) {
+    media = `<div class="igp-media">
+      <video src="${esc(readyVideo.video_url)}" ${post.image_url ? `poster="${esc(post.image_url)}"` : ''} controls playsinline preload="metadata"></video>
+      <span class="igp-play-badge">▶ Video</span>
+    </div>`;
+  } else if (post.image_url) {
+    media = `<div class="igp-media" onclick="showPost('${post.id}')">
+      <img src="${esc(post.image_url)}" alt="" loading="lazy" />
+      ${processingVideo ? '<span class="igp-video-processing">🎬 Generando video...</span>' : ''}
+    </div>`;
+  } else {
+    media = `<div class="igp-media igp-media-empty" onclick="showPost('${post.id}')">
+      ${post.render_error ? `<span class="pc-render-error">Error al generar la imagen</span>` : `<span class="pc-generating">Generando imagen...</span>`}
+    </div>`;
+  }
 
   // Real workflow actions depend on where the post is in the flow.
   let actions = '';

@@ -379,7 +379,7 @@ export function registerDashboardRoutes(app) {
     const limit = Math.min(parseInt(req.query.limit ?? '50', 10) || 50, 200);
     const { data, error } = await supabase
       .from('generated_posts')
-      .select('id, hook, body, cta, caption_instagram, caption_x, caption_linkedin, image_url, status, render_error, template_id, content_type, visual_direction, background_idea, model, created_at, calendar_id, category_id')
+      .select('id, hook, body, cta, caption_instagram, caption_x, caption_linkedin, image_url, status, render_error, template_id, content_type, visual_direction, background_idea, model, created_at, calendar_id, category_id, videos:post_videos(id, kind, status, video_url)')
       .eq('brand_id', brand.id)
       .order('created_at', { ascending: false })
       .limit(limit);
