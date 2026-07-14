@@ -63,7 +63,7 @@ export async function generatePostForCalendar(calendarId) {
   });
 }
 
-async function renderAiPostImage(post) {
+async function renderAiPostImage(post, opts = {}) {
   const brand = await getBrandById(post.brand_id);
   const referenceRows = await getBrandReferenceImages(brand.id);
 
@@ -98,13 +98,13 @@ async function renderAiPostImage(post) {
   // Art-direct this specific piece (typography/colour/layout) before generating.
   const artDirection = await generateImageArtDirection({ post, brand });
 
-  const asset = await generatePostImageAsset(post, { brand, referenceBuffers, artDirection, logoBuffer });
+  const asset = await generatePostImageAsset(post, { brand, referenceBuffers, artDirection, logoBuffer, quality: opts.imageQuality });
   return asset.buffer;
 }
 
-export async function renderAndStorePost(post) {
+export async function renderAndStorePost(post, opts = {}) {
   const imageBuffer = post.template_id === AI_TEMPLATE_ID
-    ? await renderAiPostImage(post)
+    ? await renderAiPostImage(post, opts)
     : await renderPostImage(post);
 
   const imageUrl = await uploadPostImage(post.id, imageBuffer);
@@ -114,7 +114,7 @@ export async function renderAndStorePost(post) {
 
 // Si el post es de tipo video, arranca la generacion del video (producto o UGC)
 // una vez que la imagen ya esta lista. Evita duplicar si ya tiene un video.
-async function maybeGenerateVideoForPost(post) {
+async function maybeGenerateVideoForPost(post, opts = {}) {
   const kind = post.content_type === 'ugc_video' ? 'ugc' : (post.content_type === 'product_video' ? 'product' : null);
   if (!kind) return;
   try {
@@ -123,7 +123,7 @@ async function maybeGenerateVideoForPost(post) {
     const { listPostVideos } = await import('./supabase.js');
     const existing = await listPostVideos(post.id);
     if (existing.some((v) => v.kind === kind && v.status !== 'error')) return;
-    await startPostVideo(post, kind);
+    await startPostVideo(post, kind, opts.videoEngine || null);
     console.log(`[render:bg] video ${kind} auto-iniciado para post ${post.id}`);
   } catch (error) {
     console.warn(`[render:bg] no se pudo auto-generar el video de ${post.id}: ${error.message}`);
@@ -133,14 +133,14 @@ async function maybeGenerateVideoForPost(post) {
 // Renders a post's image without blocking the HTTP response. GPT Image 2 can
 // take longer than the reverse proxy's request timeout, so callers return
 // immediately and the image lands (or an error is recorded) a bit later.
-export function renderPostInBackground(post) {
+export function renderPostInBackground(post, opts = {}) {
   Promise.resolve()
     .then(() => setPostRenderError(post.id, null))
-    .then(() => renderAndStorePost(post))
+    .then(() => renderAndStorePost(post, opts))
     .then(async (rendered) => {
       console.log(`[render:bg] post ${post.id} rendered -> ${rendered.image_url}`);
       await notifyPostForReview(rendered);
-      await maybeGenerateVideoForPost(rendered);
+      await maybeGenerateVideoForPost(rendered, opts);
     })
     .catch(async (error) => {
       console.error(`[render:bg:error] post ${post.id}:`, error);
@@ -230,11 +230,11 @@ export async function applyWhatsappDecision({ action, postId, from }) {
   return { ok: true, status };
 }
 
-export async function generateAndRenderPost(calendarId) {
+export async function generateAndRenderPost(calendarId, opts = {}) {
   const post = await generatePostForCalendar(calendarId);
 
   await markCalendarGenerated(calendarId, post.id);
-  renderPostInBackground(post);
+  renderPostInBackground(post, opts);
 
   return post;
 }

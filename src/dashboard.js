@@ -155,7 +155,10 @@ export function registerDashboardRoutes(app) {
     if (!calendarId) throw new AppError('calendar_id requerido', 400);
     const { data: cal } = await supabase.from('content_calendar').select('id').eq('id', calendarId).eq('brand_id', brand.id).maybeSingle();
     if (!cal) throw new AppError('Item de calendario no encontrado', 404);
-    const post = await generateAndRenderPost(calendarId);
+    const opts = {};
+    if (['high', 'medium', 'low'].includes(req.body?.image_quality)) opts.imageQuality = req.body.image_quality;
+    if (['omni', 'veo'].includes(req.body?.video_engine)) opts.videoEngine = req.body.video_engine;
+    const post = await generateAndRenderPost(calendarId, opts);
     res.json({ success: true, post_id: post.id, status: post.status, rendering: true });
   }));
 

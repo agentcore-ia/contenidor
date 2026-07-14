@@ -969,7 +969,7 @@ function renderCalAgenda() {
     </select></td>
     <td><span class="tag">${esc(item.category?.name || '—')}</span> ${ctypeChip(item.content_type)}</td>
     <td class="actions">
-      ${item.status === 'pending' ? `<button class="btn btn-sm btn-primary" onclick="generateCalendar('${item.id}')">Generar</button>` : ''}
+      ${item.status === 'pending' ? `<button class="btn btn-sm btn-primary" onclick="openGenerateModal('${item.id}')">Generar</button>` : ''}
       ${item.generated_post_id ? `<button class="btn btn-sm" onclick="showPost('${item.generated_post_id}')">Ver post</button>` : ''}
     </td>
   </tr>`).join('');
@@ -1014,7 +1014,7 @@ window.calItemModal = function calItemModal(id) {
       </div>
     </div>
     <div class="toolbar" style="justify-content:flex-start;margin-top:16px">
-      ${item.status === 'pending' ? `<button class="btn btn-primary" onclick="closeModal();generateCalendar('${item.id}')">Generar contenido</button>` : ''}
+      ${item.status === 'pending' ? `<button class="btn btn-primary" onclick="closeModal();openGenerateModal('${item.id}')">Generar contenido</button>` : ''}
       ${item.generated_post_id ? `<button class="btn" onclick="closeModal();showPost('${item.generated_post_id}')">Ver post</button>` : ''}
       <button class="btn btn-plain" onclick="closeModal();loadCalendar()">Cerrar</button>
     </div>`);
@@ -1047,9 +1047,50 @@ window.generateIdeas = async function generateIdeas() {
   }
 };
 
-window.generateCalendar = async function generateCalendar(id) {
+// Modal para elegir calidad de imagen y (si la idea es video) el motor, al
+// generar desde la agenda. Los defaults salen de la marca.
+window.openGenerateModal = function openGenerateModal(id) {
+  const item = S.calendar.find((i) => i.id === id) || {};
+  const brand = S.brands.find((b) => b.id === S.brandId) || {};
+  const iq = brand.image_quality || 'high';
+  const ve = brand.video_engine || 'omni';
+  const isVideo = item.content_type === 'product_video' || item.content_type === 'ugc_video';
+  modal(`<h3>Generar contenido</h3>
+    <p class="subtle" style="margin:0 0 14px">${esc(item.topic || '')}${isVideo ? ` · ${item.content_type === 'ugc_video' ? '🗣️ Video UGC' : '🎬 Video producto'}` : ''}</p>
+    <div class="form-grid">
+      <div class="form-group full"><label>Calidad de imagen</label>
+        <select id="gen-iq">
+          <option value="high" ${iq === 'high' ? 'selected' : ''}>Alta (mejor, mas cara)</option>
+          <option value="medium" ${iq === 'medium' ? 'selected' : ''}>Media (equilibrada)</option>
+          <option value="low" ${iq === 'low' ? 'selected' : ''}>Baja (mas barata)</option>
+        </select>
+      </div>
+      ${isVideo ? `<div class="form-group full"><label>Motor de video</label>
+        <select id="gen-ve">
+          <option value="omni" ${ve === 'omni' ? 'selected' : ''}>Omni (mas barato)</option>
+          <option value="veo" ${ve === 'veo' ? 'selected' : ''}>Veo 3 (cinematografico)</option>
+        </select>
+      </div>` : ''}
+    </div>
+    <div class="toolbar" style="justify-content:flex-start;margin-top:16px">
+      <button class="btn btn-primary" onclick="confirmGenerate('${id}')">Generar</button>
+      <button class="btn btn-plain" onclick="closeModal()">Cancelar</button>
+    </div>`);
+};
+
+window.confirmGenerate = function confirmGenerate(id) {
+  const image_quality = byId('gen-iq')?.value;
+  const video_engine = byId('gen-ve')?.value;
+  closeModal();
+  generateCalendar(id, { image_quality, video_engine });
+};
+
+window.generateCalendar = async function generateCalendar(id, opts = {}) {
   try {
-    await api('/api/generate-and-render', { method: 'POST', body: { calendar_id: id } });
+    const body = { calendar_id: id };
+    if (opts.image_quality) body.image_quality = opts.image_quality;
+    if (opts.video_engine) body.video_engine = opts.video_engine;
+    await api('/api/generate-and-render', { method: 'POST', body });
     toast('Copy generado. La imagen se crea en segundo plano (~1 min).');
     await loadTab();
     pollTabForRender();

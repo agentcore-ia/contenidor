@@ -717,11 +717,11 @@ Reglas: coherente con el ADN de la cuenta y su densidad visual; jerarquia clara 
   }
 }
 
-export async function generatePostImageAsset(post, { brand, referenceBuffers = [], artDirection = '', logoBuffer = null } = {}) {
+export async function generatePostImageAsset(post, { brand, referenceBuffers = [], artDirection = '', logoBuffer = null, quality: qualityOverride } = {}) {
   const client = createOpenAIClient();
   const model = process.env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL;
   const size = process.env.OPENAI_IMAGE_SIZE || DEFAULT_IMAGE_SIZE;
-  const quality = brand?.image_quality || process.env.OPENAI_IMAGE_QUALITY || 'high';
+  const quality = qualityOverride || brand?.image_quality || process.env.OPENAI_IMAGE_QUALITY || 'high';
   const prompt = aiPosterPrompt(post, brand, referenceBuffers.length, artDirection, Boolean(logoBuffer));
 
   // The logo always goes LAST so the prompt can point at "the last image".
