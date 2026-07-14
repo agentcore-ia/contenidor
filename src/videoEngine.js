@@ -107,6 +107,24 @@ function pollVideoInBackground(video) {
   setTimeout(tick, POLL_INTERVAL_MS);
 }
 
+// El submit al proveedor (subir la imagen, encolar el job) puede tardar mas que
+// el timeout del proxy, asi que se hace en segundo plano: se crea la fila en
+// 'processing' y se devuelve al instante; el job y el polling corren aparte, y
+// cualquier error queda guardado en la fila.
+function runVideoJobInBackground(row, post, brand, kind) {
+  Promise.resolve()
+    .then(() => submitToProvider({ kind, post, brand }))
+    .then(async ({ jobId, script }) => {
+      if (!jobId) throw new AppError('El proveedor no devolvio un job id', 502, 'VIDEO_NO_JOB');
+      await updatePostVideo(row.id, { job_id: jobId, script: script || null });
+      pollVideoInBackground({ ...row, job_id: jobId });
+    })
+    .catch(async (error) => {
+      console.error(`[video:submit:error] ${row.id}:`, error.message);
+      await updatePostVideo(row.id, { status: 'error', error: String(error.message).slice(0, 400) }).catch(() => {});
+    });
+}
+
 // Punto de entrada: arranca la generacion de un video para un post.
 export async function startPostVideo(post, kind = 'product') {
   if (!videoConfigured()) {
@@ -120,9 +138,8 @@ export async function startPostVideo(post, kind = 'product') {
   }
 
   const brand = await getBrandById(post.brand_id);
-  const { jobId, script } = await submitToProvider({ kind, post, brand });
-  const row = await createPostVideo({ postId: post.id, brandId: brand.id, kind, jobId, script, provider: providerName() });
-  pollVideoInBackground(row);
+  const row = await createPostVideo({ postId: post.id, brandId: brand.id, kind, jobId: null, script: null, provider: providerName() });
+  runVideoJobInBackground(row, post, brand, kind);
   return row;
 }
 
