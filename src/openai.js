@@ -343,46 +343,58 @@ const brandAnalysisSchema = {
 const ugcScriptSchema = {
   type: 'object',
   additionalProperties: false,
-  required: ['script'],
+  required: ['script', 'product_visual'],
   properties: {
-    script: { type: 'string' }
+    script: { type: 'string' },
+    product_visual: { type: 'string' }
   }
 };
 
-// Escribe un guion corto y hablado (estilo UGC / testimonial) para un video de
-// 5-15 segundos, a partir del post, la marca y (si hay) el catalogo.
+// Escribe un guion UGC corto + una descripcion visual PRECISA del producto que
+// la persona muestra a camara, para que el modelo de video no invente el
+// producto equivocado (ej. una barra de chocolate en vez de un helado).
 export async function generateUgcScript({ post, brand, products = [] }) {
   const client = createOpenAIClient();
   const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
   const manual = brand?.brand_manual || {};
+  const rubro = brand?.analysis?.rubro || '';
 
-  const prompt = `Escribi el GUION hablado de un video UGC corto (5 a 12 segundos, estilo testimonial casero de un cliente o del dueno) para ${brand?.name || 'la marca'}.
+  const prompt = `Sos guionista de UGC. Para un video corto (5-12s, testimonial casero) de ${brand?.name || 'la marca'}, devolve DOS cosas: el guion hablado y una descripcion visual exacta del producto que la persona sostiene y muestra a camara.
 
 Marca: ${brand?.name || ''}
+Rubro / que vende: ${rubro || brand?.description || 'no especificado'}
 Voz/tono: ${manual.voice || 'cercano, natural, real'}
 Tema del post: ${post?.hook || post?.image_headline || ''}
 Mensaje: ${post?.caption_instagram || post?.body || ''}
-${products.length ? `Catalogo (usa nombres/precios exactos si mencionas alguno):\n${compactJson(products.map((p) => ({ name: p.name, price: p.price || undefined })))}` : ''}
+${products.length ? `Catalogo (nombres/precios exactos):\n${compactJson(products.map((p) => ({ name: p.name, description: p.description || undefined, price: p.price || undefined })))}` : ''}
 
-Reglas:
-- Es lo que la persona DICE a camara, hablado y natural. Nada de acotaciones, ni "[escena]", ni emojis, ni hashtags.
-- Maximo 2-3 frases, que se pueda decir en 5-12 segundos.
-- Un solo gancho fuerte al inicio para frenar el scroll.
-- Tono real, no publicitario acartonado. Coherente con la voz de la marca.
-- No inventes precios ni promos que no esten en el catalogo.
-- Devolve solo el JSON pedido.`;
+"script" (lo que la persona DICE a camara):
+- Hablado y natural. Nada de acotaciones, "[escena]", emojis ni hashtags.
+- Maximo 2-3 frases, decible en 5-12s. Un gancho fuerte al inicio.
+- Coherente con la voz de la marca. No inventes precios ni promos fuera del catalogo.
+
+"product_visual" (EN INGLES, para el modelo de video — es lo MAS importante):
+- Describi con precision el producto REAL que la persona sostiene, coherente con el RUBRO de la marca. Ej: una heladeria vende HELADO, no barras de chocolate; si el sabor es "chocolate oreo", el producto es "a cup/cone of chocolate-Oreo ice cream with crushed Oreo cookie pieces on top", NO a chocolate bar.
+- Se concreto: formato (cono, vasito, pote), color, toppings, textura. Que se entienda que es exactamente ese producto de ese rubro.
+- Si hay un item del catalogo que calza, describilo a partir de su nombre/descripcion.
+
+Devolve solo el JSON pedido.`;
 
   const response = await client.responses.create({
     model,
     input: [
-      { role: 'system', content: 'Sos guionista de contenido UGC para redes. Escribis parlamentos cortos, naturales y que enganchan.' },
+      { role: 'system', content: 'Sos guionista y director visual de UGC. Escribis parlamentos naturales y descripciones de producto precisas y fieles al rubro.' },
       { role: 'user', content: prompt }
     ],
     text: { format: { type: 'json_schema', name: 'ugc_script', strict: true, schema: ugcScriptSchema } }
   });
 
   const parsed = parseGenerationOutput(response);
-  return { model, script: String(parsed?.script || '').trim() };
+  return {
+    model,
+    script: String(parsed?.script || '').trim(),
+    productVisual: String(parsed?.product_visual || '').trim()
+  };
 }
 
 const menuExtractionSchema = {

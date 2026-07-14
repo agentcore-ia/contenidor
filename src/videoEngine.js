@@ -28,8 +28,11 @@ function productMotionPrompt(post) {
   return `Cinematic subtle motion bringing the scene to life: slow push-in and gentle parallax on ${subject}. Keep it premium and appetizing, no text distortion, no new text.`;
 }
 
-function ugcScenePrompt(script) {
-  return `Vertical UGC-style video: a real, relatable person talking straight to camera in a casual, authentic setting, natural lighting, handheld feel. They say, in a natural spoken tone: "${script}". Lip-synced audio, warm and genuine, not corporate.`;
+function ugcScenePrompt(script, productVisual) {
+  const product = productVisual
+    ? ` The person is clearly holding and showing to camera ${productVisual}. The product MUST be exactly this and match the reference image — do not substitute a different item or a generic version.`
+    : ' The person holds and shows the exact product from the reference image.';
+  return `Vertical UGC-style video: a real, relatable person talking straight to camera in a casual, authentic setting, natural lighting, handheld feel.${product} They say, in a natural spoken tone: "${script}". Lip-synced audio, warm and genuine, not corporate.`;
 }
 
 // Envia el job al proveedor. Devuelve un resultado discriminado:
@@ -38,9 +41,12 @@ function ugcScenePrompt(script) {
 async function submitToProvider({ kind, post, brand, engine }) {
   let script = null;
 
+  let productVisual = null;
   const buildScript = async () => {
     const products = await listBrandProducts(brand.id).catch(() => []);
-    return (await generateUgcScript({ post, brand, products })).script;
+    const gen = await generateUgcScript({ post, brand, products });
+    productVisual = gen.productVisual;
+    return gen.script;
   };
 
   if (providerName() === 'higgsfield') {
@@ -56,8 +62,10 @@ async function submitToProvider({ kind, post, brand, engine }) {
   // Gemini: el motor ('omni' | 'veo') define el modelo y el mecanismo.
   const model = gemini.modelForEngine(engine);
   const { fetchRemoteImageBytes } = await import('./openai.js');
-  const prompt = kind === 'product' ? productMotionPrompt(post) : ugcScenePrompt((script = await buildScript()));
-  const imageBytes = kind === 'product' ? await fetchRemoteImageBytes(post.image_url).catch(() => null) : null;
+  const prompt = kind === 'product' ? productMotionPrompt(post) : ugcScenePrompt((script = await buildScript()), productVisual);
+  // La imagen del creativo se pasa como referencia SIEMPRE (tambien en UGC) para
+  // que el modelo no invente el producto.
+  const imageBytes = await fetchRemoteImageBytes(post.image_url).catch(() => null);
 
   if (gemini.isOmniModel(model)) {
     const videoBuffer = await gemini.generateOmniVideo({ prompt, imageBytes, imageMime: 'image/png', model });
