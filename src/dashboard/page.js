@@ -533,8 +533,9 @@ const POST_FILTER_LABELS = {
 };
 
 const VIDEO_ENGINE_OPTS = [
-  ['omni', 'Omni · más barato (~$1 x 10s)'],
-  ['veo_fast', 'Veo 3 Fast · medio (~$1,20 x 8s)'],
+  ['veo_lite', 'Veo 3 Lite · el más barato (~$0,50 x 10s)'],
+  ['omni', 'Omni · barato, avatares (~$1 x 10s)'],
+  ['veo_fast', 'Veo 3 Fast (~$0,80 x 8s)'],
   ['veo', 'Veo 3 Cine · caro (~$3,20 x 8s)'],
 ];
 function videoEngineOptions(selected) {
@@ -1173,7 +1174,7 @@ function renderBrand() {
           <div class="form-group">
             <label>Motor de video</label>
             <select name="video_engine">${videoEngineOptions(brand.video_engine)}</select>
-            <div class="subtle" style="margin-top:6px">Default para la agenda y el autopilot. Omni es el mas barato; Veo Cine es el mas caro (~$3 x clip).</div>
+            <div class="subtle" style="margin-top:6px">Default para la agenda y el autopilot. Veo 3 Lite es el mas barato (~$0,50 x clip); Veo Cine el mas caro (~$3 x clip).</div>
           </div>
           <div class="form-group full">
             <label>Logo de la marca</label>

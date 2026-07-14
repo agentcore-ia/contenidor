@@ -14,14 +14,16 @@ import { AppError } from './errors.js';
 function baseUrl() { return (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/+$/, ''); }
 function apiKey() { return process.env.GEMINI_API_KEY || ''; }
 function videoModel() { return process.env.GEMINI_VIDEO_MODEL || 'gemini-omni-flash-preview'; }
-function omniModel() { return process.env.GEMINI_OMNI_MODEL || 'gemini-omni-flash-preview'; }
-function veoModel() { return process.env.GEMINI_VEO_MODEL || 'veo-3.1-generate-preview'; }         // cine/premium (~$0.40/s)
-function veoFastModel() { return process.env.GEMINI_VEO_FAST_MODEL || 'veo-3.1-fast-generate-preview'; } // medio (~$0.15/s)
+function omniModel() { return process.env.GEMINI_OMNI_MODEL || 'gemini-omni-flash-preview'; }             // $0.10/s
+function veoModel() { return process.env.GEMINI_VEO_MODEL || 'veo-3.1-generate-preview'; }               // cine (~$0.40/s)
+function veoFastModel() { return process.env.GEMINI_VEO_FAST_MODEL || 'veo-3.1-fast-generate-preview'; } // fast ($0.10/s)
+function veoLiteModel() { return process.env.GEMINI_VEO_LITE_MODEL || 'veo-3.1-lite-generate-preview'; } // lite ($0.05/s, el mas barato)
 
-// Mapea el motor elegido ('omni' | 'veo_fast' | 'veo') al id de modelo real.
+// Mapea el motor elegido ('omni'|'veo_lite'|'veo_fast'|'veo') al id de modelo real.
 export function modelForEngine(engine) {
   if (engine === 'veo') return veoModel();
   if (engine === 'veo_fast') return veoFastModel();
+  if (engine === 'veo_lite') return veoLiteModel();
   if (engine === 'omni') return omniModel();
   return videoModel();
 }
