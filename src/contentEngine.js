@@ -112,6 +112,24 @@ export async function renderAndStorePost(post) {
   return updateGeneratedPostImageUrl(post.id, imageUrl);
 }
 
+// Si el post es de tipo video, arranca la generacion del video (producto o UGC)
+// una vez que la imagen ya esta lista. Evita duplicar si ya tiene un video.
+async function maybeGenerateVideoForPost(post) {
+  const kind = post.content_type === 'ugc_video' ? 'ugc' : (post.content_type === 'product_video' ? 'product' : null);
+  if (!kind) return;
+  try {
+    const { videoConfigured, startPostVideo } = await import('./videoEngine.js');
+    if (!videoConfigured() || !post.image_url) return;
+    const { listPostVideos } = await import('./supabase.js');
+    const existing = await listPostVideos(post.id);
+    if (existing.some((v) => v.kind === kind && v.status !== 'error')) return;
+    await startPostVideo(post, kind);
+    console.log(`[render:bg] video ${kind} auto-iniciado para post ${post.id}`);
+  } catch (error) {
+    console.warn(`[render:bg] no se pudo auto-generar el video de ${post.id}: ${error.message}`);
+  }
+}
+
 // Renders a post's image without blocking the HTTP response. GPT Image 2 can
 // take longer than the reverse proxy's request timeout, so callers return
 // immediately and the image lands (or an error is recorded) a bit later.
@@ -119,9 +137,10 @@ export function renderPostInBackground(post) {
   Promise.resolve()
     .then(() => setPostRenderError(post.id, null))
     .then(() => renderAndStorePost(post))
-    .then((rendered) => {
+    .then(async (rendered) => {
       console.log(`[render:bg] post ${post.id} rendered -> ${rendered.image_url}`);
-      return notifyPostForReview(rendered);
+      await notifyPostForReview(rendered);
+      await maybeGenerateVideoForPost(rendered);
     })
     .catch(async (error) => {
       console.error(`[render:bg:error] post ${post.id}:`, error);
@@ -264,6 +283,7 @@ export async function generateCalendarIdeas({ brandId = null, count = 7 } = {}) 
       publish_date: cursor,
       topic: idea.topic,
       angle: idea.angle || null,
+      content_type: idea.content_type || 'image',
       status: 'pending'
     });
 

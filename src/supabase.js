@@ -30,6 +30,7 @@ function normalizeCalendarContent(row) {
       publish_date: row.publish_date,
       topic: row.topic,
       angle: row.angle,
+      content_type: row.content_type,
       status: row.status
     },
     brand: normalizeRelation(row.brand),
@@ -45,6 +46,7 @@ function calendarSelect() {
     publish_date,
     topic,
     angle,
+    content_type,
     status,
     brand:brands (*),
     category:content_categories (*)
@@ -121,6 +123,7 @@ export async function createGeneratedPost({ content, generation, templateId }) {
     category_id: content.category.id,
     calendar_id: content.calendar.id,
     template_id: templateId,
+    content_type: content.calendar.content_type || 'image',
     hook: generation.content.hook,
     body: generation.content.body,
     cta: generation.content.cta,

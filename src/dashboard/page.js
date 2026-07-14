@@ -532,6 +532,12 @@ const POST_FILTER_LABELS = {
   approved: 'Aprobados', posted: 'Publicados', rejected: 'Rechazados',
 };
 
+const CONTENT_TYPE_LABEL = { product_video: '🎬 Video producto', ugc_video: '🗣️ Video UGC' };
+function ctypeChip(type) {
+  const label = CONTENT_TYPE_LABEL[type];
+  return label ? `<span class="ctype-chip">${label}</span>` : '';
+}
+
 function renderPosts() {
   const query = (S.searchQuery || '').toLowerCase();
   let posts = S.postFilter === 'all' ? S.posts : S.posts.filter((post) => post.status === S.postFilter);
@@ -603,6 +609,7 @@ function postCard(post) {
         <span class="igp-username">${esc(username)}</span>
         ${category ? `<span class="igp-sub">${esc(category.name)}</span>` : ''}
       </div>
+      ${ctypeChip(post.content_type)}
       ${statusBadge(post.status)}
     </div>
     ${media}
@@ -847,7 +854,7 @@ function calMiniCard(item) {
   return `<button class="cal-mini st-${esc(item.status)}" onclick="calItemModal('${item.id}')" title="${esc(item.topic)}">
     ${thumb}
     <span class="cm-body">
-      <span class="cm-status">${CAL_STATUS_LABEL[item.status] || item.status}</span>
+      <span class="cm-status">${item.content_type === 'ugc_video' ? '🗣️ ' : item.content_type === 'product_video' ? '🎬 ' : ''}${CAL_STATUS_LABEL[item.status] || item.status}</span>
       <span class="cm-title">${esc(item.topic)}</span>
     </span>
   </button>`;
@@ -938,7 +945,7 @@ function renderCalAgenda() {
     <td><select onchange="updateCal('${item.id}','status',this.value)">
       ${CAL_STATUSES.map((status) => `<option value="${status}" ${status === item.status ? 'selected' : ''}>${status.replace(/_/g, ' ')}</option>`).join('')}
     </select></td>
-    <td><span class="tag">${esc(item.category?.name || '—')}</span></td>
+    <td><span class="tag">${esc(item.category?.name || '—')}</span> ${ctypeChip(item.content_type)}</td>
     <td class="actions">
       ${item.status === 'pending' ? `<button class="btn btn-sm btn-primary" onclick="generateCalendar('${item.id}')">Generar</button>` : ''}
       ${item.generated_post_id ? `<button class="btn btn-sm" onclick="showPost('${item.generated_post_id}')">Ver post</button>` : ''}

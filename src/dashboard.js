@@ -254,13 +254,13 @@ export function registerDashboardRoutes(app) {
     const [posts, calendar, categories, inspirations] = await Promise.all([
       supabase
         .from('generated_posts')
-        .select('id, hook, body, cta, image_url, status, render_error, template_id, created_at, calendar_id')
+        .select('id, hook, body, cta, image_url, status, render_error, template_id, content_type, created_at, calendar_id')
         .eq('brand_id', brand.id)
         .order('created_at', { ascending: false })
         .limit(200),
       supabase
         .from('content_calendar')
-        .select('id, publish_date, topic, angle, status, generated_post_id, category:content_categories(name, slug)')
+        .select('id, publish_date, topic, angle, status, content_type, generated_post_id, category:content_categories(name, slug)')
         .eq('brand_id', brand.id)
         .order('publish_date', { ascending: true })
         .limit(300),
@@ -379,7 +379,7 @@ export function registerDashboardRoutes(app) {
     const limit = Math.min(parseInt(req.query.limit ?? '50', 10) || 50, 200);
     const { data, error } = await supabase
       .from('generated_posts')
-      .select('id, hook, body, cta, caption_instagram, caption_x, caption_linkedin, image_url, status, render_error, template_id, visual_direction, background_idea, model, created_at, calendar_id, category_id')
+      .select('id, hook, body, cta, caption_instagram, caption_x, caption_linkedin, image_url, status, render_error, template_id, content_type, visual_direction, background_idea, model, created_at, calendar_id, category_id')
       .eq('brand_id', brand.id)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -474,7 +474,7 @@ export function registerDashboardRoutes(app) {
     const brand = await requireBrand(req);
     const { data, error } = await supabase
       .from('content_calendar')
-      .select('id, publish_date, topic, angle, status, category_id, generated_post_id, created_at, category:content_categories(id, name, slug)')
+      .select('id, publish_date, topic, angle, status, content_type, category_id, generated_post_id, created_at, category:content_categories(id, name, slug)')
       .eq('brand_id', brand.id)
       .order('publish_date', { ascending: true });
     if (error) throw new AppError(error.message, 500, 'SUPABASE_ERROR');

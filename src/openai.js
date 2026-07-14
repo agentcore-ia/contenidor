@@ -179,13 +179,17 @@ function ideasSchema(categorySlugs) {
         items: {
           type: 'object',
           additionalProperties: false,
-          required: ['topic', 'angle', 'category_slug'],
+          required: ['topic', 'angle', 'category_slug', 'content_type'],
           properties: {
             topic: { type: 'string' },
             angle: { type: 'string' },
             category_slug: {
               type: 'string',
               enum: categorySlugs
+            },
+            content_type: {
+              type: 'string',
+              enum: ['image', 'product_video', 'ugc_video']
             }
           }
         }
@@ -227,6 +231,7 @@ Reglas:
 - Le hablamos a la audiencia de esta marca, en su rubro. Ideas concretas para su negocio.${products.length ? `
 - La marca tiene catalogo: al menos la mitad de las ideas deben promocionar productos/servicios concretos del catalogo, nombrandolos igual que en la lista (podes mencionar el precio real en el angle). Jamas inventes productos ni precios.` : ''}
 - Cada idea es un tema concreto y accionable, no un titulo generico.
+- "content_type": el formato de cada idea. La MAYORIA deben ser "image" (post normal). Marca 1 o 2 de cada 7 como video: "product_video" para mostrar el producto en movimiento (ideal cuando el foco es el producto en si), o "ugc_video" para un testimonial estilo persona hablando (ideal para recomendaciones, resenas, generar confianza). No pongas mas de 2-3 videos en total.
 - "topic": el tema puntual del post, maximo 16 palabras.
 - "angle": el enfoque o insight con el que se aborda, maximo 20 palabras.
 - "category_slug": elegí la categoria que mejor calce, de la lista provista.
@@ -266,11 +271,13 @@ Reglas:
   const parsed = parseGenerationOutput(response);
   const ideas = Array.isArray(parsed?.ideas) ? parsed.ideas : [];
 
+  const VALID_TYPES = new Set(['image', 'product_video', 'ugc_video']);
   const cleaned = ideas
     .map((idea) => ({
       topic: String(idea?.topic ?? '').trim(),
       angle: String(idea?.angle ?? '').trim(),
-      category_slug: String(idea?.category_slug ?? '').trim()
+      category_slug: String(idea?.category_slug ?? '').trim(),
+      content_type: VALID_TYPES.has(idea?.content_type) ? idea.content_type : 'image'
     }))
     .filter((idea) => idea.topic && categorySlugs.includes(idea.category_slug));
 
