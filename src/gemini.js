@@ -14,9 +14,18 @@ import { AppError } from './errors.js';
 function baseUrl() { return (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/+$/, ''); }
 function apiKey() { return process.env.GEMINI_API_KEY || ''; }
 function videoModel() { return process.env.GEMINI_VIDEO_MODEL || 'gemini-omni-flash-preview'; }
+function omniModel() { return process.env.GEMINI_OMNI_MODEL || 'gemini-omni-flash-preview'; }
+function veoModel() { return process.env.GEMINI_VEO_MODEL || 'veo-3.1-generate-preview'; }
+
+// Mapea el motor elegido en la UI ('omni' | 'veo') al id de modelo real.
+export function modelForEngine(engine) {
+  if (engine === 'veo') return veoModel();
+  if (engine === 'omni') return omniModel();
+  return videoModel();
+}
 
 // Omni usa la Interactions API (sincrona); Veo usa predictLongRunning (async).
-export function isOmniModel() { return /omni/i.test(videoModel()); }
+export function isOmniModel(model) { return /omni/i.test(model || videoModel()); }
 
 // Diagnostico: lista los modelos de la cuenta y sus metodos soportados.
 export async function listModels() {
@@ -48,7 +57,7 @@ function keyHeaders(extra = {}) {
 }
 
 // Arranca la generacion. imageBytes (Buffer) opcional -> image-to-video.
-export async function submitVideo({ prompt, imageBytes, imageMime }) {
+export async function submitVideo({ prompt, imageBytes, imageMime, model }) {
   assertConfigured();
   const instance = { prompt: String(prompt || '') };
   if (imageBytes) {
@@ -56,7 +65,7 @@ export async function submitVideo({ prompt, imageBytes, imageMime }) {
   }
   const body = { instances: [instance], parameters: { aspectRatio: aspectRatio() } };
 
-  const res = await fetch(`${baseUrl()}/models/${videoModel()}:predictLongRunning`, {
+  const res = await fetch(`${baseUrl()}/models/${model || videoModel()}:predictLongRunning`, {
     method: 'POST',
     headers: keyHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(body)
@@ -124,7 +133,7 @@ function extractOmniVideoUri(json) {
 }
 
 // Genera el video de una sola pasada (bloquea ~1 min). Devuelve el Buffer.
-export async function generateOmniVideo({ prompt, imageBytes, imageMime }) {
+export async function generateOmniVideo({ prompt, imageBytes, imageMime, model }) {
   assertConfigured();
   const input = imageBytes
     ? [
@@ -133,7 +142,7 @@ export async function generateOmniVideo({ prompt, imageBytes, imageMime }) {
       ]
     : String(prompt || '');
   const body = {
-    model: videoModel(),
+    model: model || videoModel(),
     input,
     response_format: { type: 'video', delivery: process.env.GEMINI_OMNI_DELIVERY || 'inline', aspect_ratio: aspectRatio() }
   };

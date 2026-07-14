@@ -440,7 +440,8 @@ export function registerDashboardRoutes(app) {
   app.post('/api/posts/:id/videos', wrap(async (req, res) => {
     const { post } = await requirePost(req);
     const kind = req.body?.kind === 'ugc' ? 'ugc' : 'product';
-    const video = await startPostVideo(post, kind);
+    const engine = req.body?.engine === 'veo' ? 'veo' : (req.body?.engine === 'omni' ? 'omni' : null);
+    const video = await startPostVideo(post, kind, engine);
     res.json({ success: true, video });
   }));
 

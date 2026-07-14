@@ -35,7 +35,7 @@ function ugcScenePrompt(script) {
 // Envia el job al proveedor. Devuelve un resultado discriminado:
 //   { mode:'poll', jobId, script }   -> hay que consultar el estado (Veo, Higgsfield)
 //   { mode:'done', videoBuffer, script } -> el video ya vino (Omni, sincrono)
-async function submitToProvider({ kind, post, brand }) {
+async function submitToProvider({ kind, post, brand, engine }) {
   let script = null;
 
   const buildScript = async () => {
@@ -53,16 +53,17 @@ async function submitToProvider({ kind, post, brand }) {
     return { mode: 'poll', jobId: s.jobId, script };
   }
 
-  // Gemini
+  // Gemini: el motor ('omni' | 'veo') define el modelo y el mecanismo.
+  const model = gemini.modelForEngine(engine);
   const { fetchRemoteImageBytes } = await import('./openai.js');
   const prompt = kind === 'product' ? productMotionPrompt(post) : ugcScenePrompt((script = await buildScript()));
   const imageBytes = kind === 'product' ? await fetchRemoteImageBytes(post.image_url).catch(() => null) : null;
 
-  if (gemini.isOmniModel()) {
-    const videoBuffer = await gemini.generateOmniVideo({ prompt, imageBytes, imageMime: 'image/png' });
+  if (gemini.isOmniModel(model)) {
+    const videoBuffer = await gemini.generateOmniVideo({ prompt, imageBytes, imageMime: 'image/png', model });
     return { mode: 'done', videoBuffer, script };
   }
-  const s = await gemini.submitVideo({ prompt, imageBytes, imageMime: 'image/png' });
+  const s = await gemini.submitVideo({ prompt, imageBytes, imageMime: 'image/png', model });
   return { mode: 'poll', jobId: s.jobId, script };
 }
 
@@ -117,9 +118,9 @@ function pollVideoInBackground(video) {
 // el timeout del proxy, asi que se hace en segundo plano: se crea la fila en
 // 'processing' y se devuelve al instante; el job y el polling corren aparte, y
 // cualquier error queda guardado en la fila.
-function runVideoJobInBackground(row, post, brand, kind) {
+function runVideoJobInBackground(row, post, brand, kind, engine) {
   Promise.resolve()
-    .then(() => submitToProvider({ kind, post, brand }))
+    .then(() => submitToProvider({ kind, post, brand, engine }))
     .then(async (result) => {
       if (result.mode === 'done') {
         // Omni: el video ya vino -> se sube y queda listo.
@@ -139,7 +140,7 @@ function runVideoJobInBackground(row, post, brand, kind) {
 }
 
 // Punto de entrada: arranca la generacion de un video para un post.
-export async function startPostVideo(post, kind = 'product') {
+export async function startPostVideo(post, kind = 'product', engine = null) {
   if (!videoConfigured()) {
     throw new AppError('La generacion de video no esta configurada en el servidor.', 503, 'VIDEO_NOT_CONFIGURED');
   }
@@ -152,7 +153,7 @@ export async function startPostVideo(post, kind = 'product') {
 
   const brand = await getBrandById(post.brand_id);
   const row = await createPostVideo({ postId: post.id, brandId: brand.id, kind, jobId: null, script: null, provider: providerName() });
-  runVideoJobInBackground(row, post, brand, kind);
+  runVideoJobInBackground(row, post, brand, kind, engine);
   return row;
 }
 

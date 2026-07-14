@@ -653,10 +653,14 @@ window.showPost = async function showPost(id) {
       ${post.image_url ? `<section class="video-section">
         <div class="video-head">
           <div><strong>Videos</strong><span class="subtle"> · animá el creativo o generá un UGC</span></div>
-          <div class="toolbar">
-            <button class="btn btn-sm" onclick="generateVideo('${post.id}','product')">🎬 Video de producto</button>
-            <button class="btn btn-sm" onclick="generateVideo('${post.id}','ugc')">🗣️ Video UGC</button>
+          <div class="segmented">
+            <button class="seg-opt ${(S.videoEngine||'omni')==='omni'?'active':''}" onclick="setVideoEngine('omni',this)">Omni</button>
+            <button class="seg-opt ${S.videoEngine==='veo'?'active':''}" onclick="setVideoEngine('veo',this)">Veo 3</button>
           </div>
+        </div>
+        <div class="toolbar" style="margin-bottom:12px">
+          <button class="btn btn-sm" onclick="generateVideo('${post.id}','product')">🎬 Video de producto</button>
+          <button class="btn btn-sm" onclick="generateVideo('${post.id}','ugc')">🗣️ Video UGC</button>
         </div>
         <div id="post-videos"><div class="subtle">Cargando videos...</div></div>
       </section>` : ''}
@@ -731,10 +735,17 @@ async function loadPostVideos(id) {
   }
 }
 
+window.setVideoEngine = function setVideoEngine(engine, btn) {
+  S.videoEngine = engine;
+  btn.parentElement.querySelectorAll('.seg-opt').forEach((b) => b.classList.toggle('active', b === btn));
+};
+
 window.generateVideo = async function generateVideo(id, kind) {
-  toast(kind === 'ugc' ? 'Escribiendo guion y generando video UGC...' : 'Generando video de producto...');
+  const engine = S.videoEngine || 'omni';
+  const engineLabel = engine === 'veo' ? 'Veo 3' : 'Omni';
+  toast(kind === 'ugc' ? `Escribiendo guion y generando UGC con ${engineLabel}...` : `Generando video de producto con ${engineLabel}...`);
   try {
-    await api(`/api/posts/${id}/videos`, { method: 'POST', body: { kind } });
+    await api(`/api/posts/${id}/videos`, { method: 'POST', body: { kind, engine } });
     toast('Video en proceso (~1 min). Se actualiza solo.', 'success');
     loadPostVideos(id);
   } catch (error) {
