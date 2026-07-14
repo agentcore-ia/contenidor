@@ -13,7 +13,21 @@ import { AppError } from './errors.js';
 
 function baseUrl() { return (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/+$/, ''); }
 function apiKey() { return process.env.GEMINI_API_KEY || ''; }
-function videoModel() { return process.env.GEMINI_VIDEO_MODEL || 'gemini-omni-flash-preview'; }
+function videoModel() { return process.env.GEMINI_VIDEO_MODEL || 'veo-3.1-generate-preview'; }
+
+// Diagnostico: lista los modelos de la cuenta y sus metodos soportados.
+export async function listModels() {
+  assertConfigured();
+  const res = await fetch(`${baseUrl()}/models?pageSize=1000`, { headers: keyHeaders() });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new AppError(`Gemini ${res.status}: ${json.error?.message || 'list models error'}`, 502, 'GEMINI_FAILED');
+  }
+  return (json.models || []).map((m) => ({
+    name: m.name,
+    methods: m.supportedGenerationMethods || m.supportedActions || []
+  }));
+}
 function aspectRatio() { return process.env.GEMINI_ASPECT_RATIO || '9:16'; }
 
 export function geminiConfigured() {

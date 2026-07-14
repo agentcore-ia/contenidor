@@ -419,7 +419,16 @@ export function registerDashboardRoutes(app) {
     res.json({ success: true, post: data });
   }));
 
-  // --- Videos (Higgsfield) ---
+  // Diagnostico: modelos de video disponibles para la key de Gemini.
+  app.get('/api/video/models', wrap(async (req, res) => {
+    await requireBrand(req);
+    const { listModels } = await import('./gemini.js');
+    const models = await listModels();
+    const video = models.filter((m) => /veo|omni|video/i.test(m.name) || (m.methods || []).some((x) => /predictLongRunning|video/i.test(x)));
+    res.json({ success: true, video, all_count: models.length });
+  }));
+
+  // --- Videos ---
   app.get('/api/posts/:id/videos', wrap(async (req, res) => {
     const { post } = await requirePost(req);
     const videos = await listPostVideos(post.id);
