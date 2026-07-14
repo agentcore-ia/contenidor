@@ -135,7 +135,7 @@ export async function generateOmniVideo({ prompt, imageBytes, imageMime }) {
   const body = {
     model: videoModel(),
     input,
-    response_format: { type: 'video', delivery: 'base64', aspect_ratio: aspectRatio() }
+    response_format: { type: 'video', delivery: process.env.GEMINI_OMNI_DELIVERY || 'inline', aspect_ratio: aspectRatio() }
   };
 
   const controller = new AbortController();
