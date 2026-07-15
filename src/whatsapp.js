@@ -60,16 +60,19 @@ async function postMessage(payload) {
       signal: controller.signal
     });
   } catch (error) {
+    // 4xx a proposito: el proxy de Easypanel reemplaza las respuestas 5xx por
+    // su propia pagina HTML, y el front las recibe como "no es JSON". Con 4xx el
+    // JSON con el motivo real llega tal cual al usuario.
     if (error.name === 'AbortError') {
-      throw new AppError('WhatsApp tardo demasiado en responder (posible imagen lenta o link inaccesible para Meta).', 504, 'WA_TIMEOUT');
+      throw new AppError('WhatsApp tardo demasiado en responder (posible imagen lenta o link inaccesible para Meta).', 408, 'WA_TIMEOUT');
     }
-    throw new AppError(`No se pudo contactar a WhatsApp: ${error.message}`, 502, 'WA_NETWORK');
+    throw new AppError(`No se pudo contactar a WhatsApp: ${error.message}`, 400, 'WA_NETWORK');
   } finally {
     clearTimeout(timer);
   }
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new AppError(`WhatsApp API ${res.status}: ${json.error?.message || 'error'}`, 502, 'WA_SEND_FAILED');
+    throw new AppError(`WhatsApp API ${res.status}: ${json.error?.message || 'error'}`, 400, 'WA_SEND_FAILED');
   }
   return json;
 }
@@ -79,7 +82,7 @@ async function postMessage(payload) {
 // action. When a videoUrl is given and a video template is configured, it sends
 // the video; otherwise it falls back to the image header.
 export async function sendApprovalRequest({ to, imageUrl, videoUrl, bodyText, postId }) {
-  if (!whatsappConfigured()) throw new AppError('WhatsApp no esta configurado', 503, 'WA_NOT_CONFIGURED');
+  if (!whatsappConfigured()) throw new AppError('WhatsApp no esta configurado', 400, 'WA_NOT_CONFIGURED');
   const recipient = normalizeNumber(to);
   if (!recipient) throw new AppError('Numero de WhatsApp invalido', 400, 'WA_BAD_NUMBER');
 

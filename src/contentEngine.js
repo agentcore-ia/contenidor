@@ -220,7 +220,7 @@ export async function notifyPostVideoFailed(postId) {
 // the caller (a manual "probar WhatsApp" action) can show them.
 export async function sendApprovalForPost(postId) {
   if (!whatsappConfigured()) {
-    throw new AppError('WhatsApp no esta configurado en el servidor (faltan variables WHATSAPP_*).', 503, 'WA_NOT_CONFIGURED');
+    throw new AppError('WhatsApp no esta configurado en el servidor (faltan variables WHATSAPP_*).', 400, 'WA_NOT_CONFIGURED');
   }
   const post = await getGeneratedPost(postId);
   if (!post.image_url) throw new AppError('El post todavia no tiene imagen.', 400, 'WA_NO_IMAGE');
