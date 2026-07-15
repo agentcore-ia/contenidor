@@ -1,0 +1,1179 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Postia — Tu marca postea sola</title>
+<style>
+  /* ============ TOKENS ============ */
+  :root{
+    --bg:#FBFBF9;
+    --surface:#FFFFFF;
+    --ink:#0B0B0C;
+    --muted:#6B6B70;
+    --line:rgba(11,11,12,.09);
+    --pill-bg:#0B0B0C;
+    --pill-ink:#FFFFFF;
+    --ok:#23A55A;
+    --wa:#25D366;
+    --shadow:0 1px 2px rgba(11,11,12,.05),0 12px 40px -12px rgba(11,11,12,.14);
+    --shadow-lg:0 2px 4px rgba(11,11,12,.06),0 32px 80px -24px rgba(11,11,12,.24);
+    --font-sans:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI Variable Display","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --font-mono:ui-monospace,"SF Mono","Cascadia Code","Segoe UI Mono",Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0B0B0D; --surface:#151517; --ink:#F5F5F7; --muted:#9A9AA1;
+      --line:rgba(245,245,247,.11);
+      --pill-bg:#F5F5F7; --pill-ink:#0B0B0C;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 40px -12px rgba(0,0,0,.6);
+      --shadow-lg:0 2px 4px rgba(0,0,0,.5),0 32px 80px -24px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0B0B0D; --surface:#151517; --ink:#F5F5F7; --muted:#9A9AA1;
+    --line:rgba(245,245,247,.11);
+    --pill-bg:#F5F5F7; --pill-ink:#0B0B0C;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 40px -12px rgba(0,0,0,.6);
+    --shadow-lg:0 2px 4px rgba(0,0,0,.5),0 32px 80px -24px rgba(0,0,0,.8);
+  }
+  :root[data-theme="light"]{
+    --bg:#FBFBF9; --surface:#FFFFFF; --ink:#0B0B0C; --muted:#6B6B70;
+    --line:rgba(11,11,12,.09);
+    --pill-bg:#0B0B0C; --pill-ink:#FFFFFF;
+    --shadow:0 1px 2px rgba(11,11,12,.05),0 12px 40px -12px rgba(11,11,12,.14);
+    --shadow-lg:0 2px 4px rgba(11,11,12,.06),0 32px 80px -24px rgba(11,11,12,.24);
+  }
+
+  /* ============ BASE ============ */
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:var(--font-sans);font-size:17px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--ink);color:var(--bg)}
+  a{color:inherit;text-decoration:none}
+  img,svg{display:block;max-width:100%}
+  button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+  :focus-visible{outline:2px solid var(--ink);outline-offset:3px;border-radius:6px}
+
+  .wrap{max-width:1120px;margin:0 auto;padding:0 clamp(20px,4vw,40px)}
+  section{padding:clamp(72px,9vw,120px) 0}
+
+  .eyebrow{
+    font-family:var(--font-mono);font-size:.72rem;font-weight:600;
+    letter-spacing:.17em;text-transform:uppercase;color:var(--muted);
+    display:flex;align-items:center;gap:10px;
+  }
+  .eyebrow::before{content:"";width:22px;height:1px;background:var(--muted);flex:none}
+  h2{
+    font-size:clamp(1.9rem,4.2vw,3rem);font-weight:750;line-height:1.08;
+    letter-spacing:-.03em;text-wrap:balance;margin:16px 0 14px;
+  }
+  .lead{color:var(--muted);font-size:1.1rem;max-width:34em}
+
+  /* ============ NAV ============ */
+  .nav{
+    position:fixed;inset:0 0 auto 0;z-index:50;
+    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    background:color-mix(in srgb,var(--bg) 78%,transparent);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-in{
+    max-width:1120px;margin:0 auto;padding:0 clamp(20px,4vw,40px);
+    height:60px;display:flex;align-items:center;gap:28px;
+  }
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:1.12rem;letter-spacing:-.02em}
+  .brand-dot{
+    width:22px;height:22px;border-radius:7px;background:var(--ink);flex:none;
+    display:grid;place-items:center;color:var(--bg);font-size:.72rem;font-weight:900;
+  }
+  .nav-links{display:flex;gap:24px;margin-left:auto;font-size:.92rem;color:var(--muted)}
+  .nav-links a:hover{color:var(--ink)}
+  @media (max-width:760px){.nav-links{display:none}}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;border-radius:999px;
+    padding:12px 24px;font-weight:600;font-size:.95rem;letter-spacing:-.01em;
+    transition:transform .18s ease,box-shadow .18s ease,background .18s ease;
+    white-space:nowrap;
+  }
+  .btn-solid{background:var(--pill-bg);color:var(--pill-ink)}
+  .btn-solid:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+  .btn-ghost{border:1px solid var(--line);color:var(--ink)}
+  .btn-ghost:hover{border-color:var(--muted)}
+  .btn-sm{padding:9px 18px;font-size:.88rem}
+
+  /* ============ HERO ============ */
+  .hero{padding:clamp(120px,16vh,180px) 0 clamp(48px,6vw,80px)}
+  .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(32px,5vw,72px);align-items:center}
+  @media (max-width:920px){.hero-grid{grid-template-columns:1fr}}
+  h1{
+    font-size:clamp(2.9rem,7.2vw,5.1rem);font-weight:800;line-height:1.01;
+    letter-spacing:-.045em;text-wrap:balance;margin:20px 0 22px;
+  }
+  .hero p.sub{font-size:clamp(1.06rem,1.6vw,1.24rem);color:var(--muted);max-width:30em;margin-bottom:34px}
+  .hero p.sub strong{color:var(--ink);font-weight:600}
+  .hero-cta{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  .hero-note{font-size:.84rem;color:var(--muted);margin-top:18px;display:flex;align-items:center;gap:7px}
+  .hero-note .ok-dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
+
+  /* --- Phone demo --- */
+  .demo-zone{display:flex;gap:clamp(18px,2.5vw,30px);justify-content:center;align-items:center}
+  .rail{display:flex;flex-direction:column;gap:0;flex:none}
+  .rail-step{display:flex;align-items:center;gap:10px;padding:9px 0;color:var(--muted);font-size:.82rem;font-weight:500;transition:color .3s}
+  .rail-step .dot{
+    width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line);flex:none;
+    display:grid;place-items:center;font-family:var(--font-mono);font-size:.62rem;font-weight:700;
+    transition:all .3s;background:var(--surface);
+  }
+  .rail-step.active{color:var(--ink)}
+  .rail-step.active .dot{border-color:var(--ink);background:var(--ink);color:var(--bg);transform:scale(1.08)}
+  .rail-step.done .dot{border-color:var(--ok);background:var(--ok);color:#fff}
+  .rail-step.done .dot::after{content:"✓";font-size:.7rem}
+  .rail-step.done .dot span{display:none}
+  .rail-line{width:1.5px;height:14px;background:var(--line);margin-left:12.5px}
+  @media (max-width:560px){.rail{display:none}}
+
+  .phone{
+    width:min(300px,82vw);aspect-ratio:9/18.6;border-radius:42px;
+    background:#111;padding:9px;box-shadow:var(--shadow-lg);flex:none;
+    position:relative;
+  }
+  .screen{
+    width:100%;height:100%;border-radius:34px;background:var(--surface);
+    overflow:hidden;position:relative;display:flex;flex-direction:column;
+  }
+  .notch{position:absolute;top:16px;left:50%;transform:translateX(-50%);width:78px;height:20px;border-radius:12px;background:#111;z-index:5}
+  .scr-bar{display:flex;align-items:center;gap:8px;padding:44px 16px 10px;border-bottom:1px solid var(--line)}
+  .scr-bar .mini-dot{width:16px;height:16px;border-radius:5px;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-size:.5rem;font-weight:900}
+  .scr-bar b{font-size:.8rem;letter-spacing:-.01em}
+  .scr-brand{margin-left:auto;font-family:var(--font-mono);font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 9px}
+  .scr-body{flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px;min-height:0}
+
+  .idea-chip{
+    border:1px solid var(--line);border-radius:14px;padding:9px 12px;
+    font-size:.72rem;line-height:1.45;opacity:0;transform:translateY(8px);
+    transition:all .5s cubic-bezier(.2,.7,.2,1);background:var(--surface);
+  }
+  .idea-chip .tag{font-family:var(--font-mono);font-size:.55rem;letter-spacing:.14em;color:var(--muted);display:block;margin-bottom:2px}
+  .s1 .idea-chip{opacity:1;transform:none}
+
+  .gen-img{
+    border-radius:16px;aspect-ratio:4/5;position:relative;overflow:hidden;flex:none;
+    background:linear-gradient(120deg,rgba(128,128,128,.12),rgba(128,128,128,.05));
+  }
+  .gen-scene{position:absolute;inset:0;display:grid;place-items:center;opacity:0;transform:scale(1.06);transition:all .9s cubic-bezier(.2,.7,.2,1)}
+  .s2 .gen-scene.cur{opacity:1;transform:scale(1)}
+  .gen-scene svg{width:52%}
+  .gen-head{
+    position:absolute;left:14px;bottom:14px;right:14px;color:#fff;
+    font-weight:800;font-size:1.02rem;line-height:1.1;letter-spacing:-.02em;
+    text-shadow:0 2px 14px rgba(0,0,0,.35);opacity:0;transform:translateY(8px);transition:all .6s .3s;
+  }
+  .s2 .gen-scene.cur .gen-head{opacity:1;transform:none}
+  .shimmer{position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.5) 50%,transparent 70%);background-size:250% 100%;animation:shim 1.4s linear infinite;transition:opacity .5s}
+  @media (prefers-color-scheme:dark){.shimmer{background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.09) 50%,transparent 70%);background-size:250% 100%}}
+  .s2 .shimmer{opacity:0}
+  @keyframes shim{to{background-position:-150% 0}}
+
+  .cap-block{font-size:.7rem;line-height:1.5;color:var(--muted);opacity:0;transform:translateY(8px);transition:all .5s}
+  .cap-block b{color:var(--ink);display:block;font-size:.72rem}
+  .cap-block .tags{color:#5B7FD4;font-size:.64rem}
+  .s3 .cap-block{opacity:1;transform:none}
+
+  .wa-row{
+    margin-top:auto;background:#E7F8EE;border-radius:14px;padding:9px 11px;
+    opacity:0;transform:translateY(10px);transition:all .5s;
+  }
+  @media (prefers-color-scheme:dark){.wa-row{background:#0F2A1C}}
+  :root[data-theme="dark"] .wa-row{background:#0F2A1C}
+  :root[data-theme="light"] .wa-row{background:#E7F8EE}
+  .s4 .wa-row{opacity:1;transform:none}
+  .wa-row .wa-lbl{display:flex;align-items:center;gap:6px;font-size:.62rem;font-weight:600;color:var(--ok);margin-bottom:7px}
+  .wa-row .wa-lbl svg{width:12px;height:12px}
+  .wa-btns{display:flex;gap:7px}
+  .wa-btn{flex:1;text-align:center;border-radius:9px;padding:7px 0;font-size:.7rem;font-weight:600;border:1px solid var(--line);background:var(--surface);transition:all .3s}
+  .wa-btn.yes.pressed{background:var(--ok);color:#fff;border-color:var(--ok);transform:scale(1.03)}
+
+  .pub-banner{
+    position:absolute;inset:auto 14px 14px;background:var(--ok);color:#fff;
+    border-radius:13px;padding:10px 13px;font-size:.72rem;font-weight:600;
+    display:flex;align-items:center;gap:8px;
+    opacity:0;transform:translateY(14px);transition:all .5s cubic-bezier(.2,.7,.2,1);
+    box-shadow:0 10px 30px -8px rgba(35,165,90,.5);z-index:6;
+  }
+  .s5 .pub-banner{opacity:1;transform:none}
+  .pub-banner .ig{
+    width:17px;height:17px;border-radius:5px;flex:none;
+    background:linear-gradient(45deg,#F58529,#DD2A7B,#8134AF);
+    display:grid;place-items:center;
+  }
+  .pub-banner .ig svg{width:10px;height:10px}
+
+  /* content gradients (fixed — son "imágenes generadas") */
+  .g-ice{background:linear-gradient(155deg,#FFE9EE 0%,#FFD2DD 55%,#FFC0CF 100%)}
+  .g-burger{background:linear-gradient(160deg,#2A1E12 0%,#4A301D 60%,#6B4423 100%)}
+  .g-coffee{background:linear-gradient(155deg,#F3E7D6 0%,#E2CBAB 60%,#D3B890 100%)}
+  .g-green{background:linear-gradient(155deg,#EAF2E4 0%,#D4E6C8 60%,#BFD9AE 100%)}
+  .g-ugc{background:linear-gradient(165deg,#20242E 0%,#2C3140 70%,#3A4054 100%)}
+  .g-pizza{background:linear-gradient(155deg,#F8F1E2 0%,#F2DFC0 55%,#E8CDA2 100%)}
+
+  /* ============ LOGOS STRIP ============ */
+  .logos{padding:34px 0 10px;border-top:1px solid var(--line)}
+  .logos-in{display:flex;align-items:center;gap:clamp(24px,5vw,56px);flex-wrap:wrap;justify-content:center}
+  .logos-lbl{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+  .logo-word{font-weight:800;font-size:1.02rem;letter-spacing:-.01em;opacity:.42}
+  .logo-word.serif{font-family:Georgia,serif;font-weight:700;font-style:italic;letter-spacing:0}
+  .logo-word.mono{font-family:var(--font-mono);font-weight:600;letter-spacing:.1em;font-size:.9rem}
+
+  /* ============ MARQUEE ============ */
+  .marquee-sec{padding:clamp(48px,6vw,72px) 0;overflow:hidden}
+  .marquee-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:28px}
+  .marquee{overflow:hidden;margin:0 calc(-1*clamp(20px,4vw,40px));
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);
+    mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);}
+  .mq-track{display:flex;width:max-content;animation:mq 46s linear infinite}
+  .marquee:hover .mq-track{animation-play-state:paused}
+  @keyframes mq{to{transform:translateX(-50%)}}
+  .mq-group{display:flex;gap:18px;padding-right:18px}
+  .mini-post{
+    width:196px;border-radius:16px;border:1px solid var(--line);background:var(--surface);
+    overflow:hidden;box-shadow:var(--shadow);flex:none;
+  }
+  .mini-post .mp-img{aspect-ratio:4/5;position:relative;display:grid;place-items:center;overflow:hidden}
+  .mini-post .mp-img svg{width:48%}
+  .mini-post .mp-head{
+    position:absolute;left:11px;bottom:11px;right:11px;color:#fff;font-weight:800;
+    font-size:.8rem;line-height:1.12;letter-spacing:-.01em;text-shadow:0 2px 10px rgba(0,0,0,.3);
+  }
+  .mini-post .mp-head.dark-ink{color:#3A2A16;text-shadow:none}
+  .mini-post .mp-meta{padding:9px 12px;display:flex;align-items:center;gap:7px;font-size:.68rem;color:var(--muted)}
+  .mini-post .mp-meta .av{width:15px;height:15px;border-radius:50%;flex:none}
+  .mp-chip{
+    position:absolute;top:10px;left:10px;font-family:var(--font-mono);font-size:.54rem;
+    letter-spacing:.1em;text-transform:uppercase;background:rgba(255,255,255,.85);color:#111;
+    border-radius:999px;padding:3px 8px;font-weight:600;backdrop-filter:blur(4px);
+  }
+
+  /* ============ STEPS ============ */
+  .steps-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:44px}
+  @media (max-width:980px){.steps-grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:560px){.steps-grid{grid-template-columns:1fr}}
+  .step{
+    border:1px solid var(--line);border-radius:20px;background:var(--surface);
+    padding:24px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow);
+  }
+  .step-n{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.14em;color:var(--muted);font-weight:600}
+  .step h3{font-size:1.08rem;font-weight:700;letter-spacing:-.02em}
+  .step p{font-size:.9rem;color:var(--muted);line-height:1.55}
+  .step-viz{
+    border-radius:14px;border:1px solid var(--line);padding:12px;margin-top:auto;
+    font-size:.72rem;display:flex;flex-direction:column;gap:7px;background:var(--bg);
+  }
+  .viz-row{display:flex;align-items:center;gap:8px}
+  .viz-dot{width:8px;height:8px;border-radius:50%;flex:none}
+  .viz-pill{border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:.66rem;color:var(--muted);background:var(--surface)}
+  .viz-pill.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .viz-bar{height:7px;border-radius:4px;background:var(--line);overflow:hidden;position:relative;flex:1}
+  .viz-bar i{position:absolute;inset:0;width:70%;background:var(--ok);border-radius:4px}
+  .viz-wa{background:#E7F8EE;border-radius:10px;padding:8px 10px;display:flex;gap:6px;align-items:center;font-weight:600;font-size:.68rem;color:#157A43}
+  @media (prefers-color-scheme:dark){.viz-wa{background:#0F2A1C;color:#4BC98A}}
+  :root[data-theme="dark"] .viz-wa{background:#0F2A1C;color:#4BC98A}
+  :root[data-theme="light"] .viz-wa{background:#E7F8EE;color:#157A43}
+
+  /* ============ GALLERY ============ */
+  .gal-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:40px}
+  @media (max-width:980px){.gal-grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:520px){.gal-grid{grid-template-columns:1fr}}
+  .post{
+    border:1px solid var(--line);border-radius:18px;background:var(--surface);
+    overflow:hidden;box-shadow:var(--shadow);
+    transition:transform .25s ease,box-shadow .25s ease;
+  }
+  .post:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
+  .post-top{display:flex;align-items:center;gap:8px;padding:10px 13px}
+  .post-top .av{width:24px;height:24px;border-radius:50%;flex:none}
+  .post-top b{font-size:.76rem;letter-spacing:-.01em}
+  .post-top .dots{margin-left:auto;color:var(--muted);letter-spacing:1px;font-weight:700;font-size:.8rem}
+  .post-img{aspect-ratio:4/5;position:relative;display:grid;place-items:center;overflow:hidden}
+  .post-img svg{width:50%}
+  .post-headline{
+    position:absolute;left:14px;bottom:14px;right:14px;color:#fff;font-weight:800;
+    font-size:1.06rem;line-height:1.08;letter-spacing:-.02em;text-shadow:0 2px 12px rgba(0,0,0,.32);
+  }
+  .post-headline .price{
+    display:inline-block;margin-top:7px;background:#fff;color:#111;border-radius:999px;
+    padding:3px 11px;font-size:.72rem;font-weight:700;text-shadow:none;
+  }
+  .post-headline.dark-ink{color:#3A2A16;text-shadow:none}
+  .post-headline.green-ink{color:#2F4A22;text-shadow:none}
+  .post-acts{display:flex;gap:12px;padding:10px 13px 4px;color:var(--ink)}
+  .post-acts svg{width:20px;height:20px}
+  .post-acts .save{margin-left:auto}
+  .post-cap{padding:2px 13px 14px;font-size:.76rem;color:var(--muted);line-height:1.5}
+  .post-cap b{color:var(--ink)}
+  .gen-chip{
+    position:absolute;top:11px;left:11px;font-family:var(--font-mono);font-size:.56rem;
+    letter-spacing:.1em;text-transform:uppercase;background:rgba(255,255,255,.88);color:#111;
+    border-radius:999px;padding:4px 9px;font-weight:600;backdrop-filter:blur(4px);
+  }
+
+  /* --- videos --- */
+  .vid-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:40px}
+  @media (max-width:920px){.vid-grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:520px){.vid-grid{grid-template-columns:1fr}}
+  .vid{
+    border-radius:18px;overflow:hidden;position:relative;aspect-ratio:9/14;
+    border:1px solid var(--line);box-shadow:var(--shadow);
+    display:grid;place-items:center;
+  }
+  .vid-scene{position:absolute;inset:0;display:grid;place-items:center}
+  .vid-scene svg{width:44%}
+  @media (prefers-reduced-motion:no-preference){
+    .vid-scene.kenburns{animation:kb 9s ease-in-out infinite alternate}
+    @keyframes kb{from{transform:scale(1)}to{transform:scale(1.09)}}
+  }
+  .play{
+    position:relative;z-index:3;width:56px;height:56px;border-radius:50%;
+    background:rgba(255,255,255,.92);display:grid;place-items:center;
+    box-shadow:0 8px 30px rgba(0,0,0,.28);
+  }
+  .play svg{width:20px;height:20px;margin-left:3px}
+  .vid-chip{
+    position:absolute;top:12px;left:12px;z-index:3;font-family:var(--font-mono);
+    font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;font-weight:600;
+    background:rgba(0,0,0,.55);color:#fff;border-radius:999px;padding:4px 10px;
+    backdrop-filter:blur(4px);display:flex;align-items:center;gap:6px;
+  }
+  .vid-chip .rec{width:6px;height:6px;border-radius:50%;background:#FF5252}
+  @media (prefers-reduced-motion:no-preference){.vid-chip .rec{animation:blink 1.2s steps(2) infinite}@keyframes blink{50%{opacity:.25}}}
+  .vid-foot{position:absolute;left:12px;right:12px;bottom:12px;z-index:3;color:#fff}
+  .vid-cap{
+    font-size:.86rem;font-weight:700;line-height:1.25;text-shadow:0 2px 10px rgba(0,0,0,.5);
+    min-height:2.6em;
+  }
+  .wave{display:flex;gap:3px;align-items:flex-end;height:18px;margin-top:8px}
+  .wave i{width:3px;border-radius:2px;background:rgba(255,255,255,.85);height:30%}
+  @media (prefers-reduced-motion:no-preference){
+    .wave i{animation:wv 1s ease-in-out infinite alternate}
+    .wave i:nth-child(2n){animation-duration:.7s}.wave i:nth-child(3n){animation-duration:1.3s}
+    .wave i:nth-child(4n){animation-delay:.2s}.wave i:nth-child(5n){animation-delay:.4s}
+    @keyframes wv{from{height:22%}to{height:95%}}
+  }
+  .vid .avatar-ugc{width:38%;aspect-ratio:1;border-radius:50%;background:linear-gradient(145deg,#E8B08A,#C98B66);position:relative;z-index:2;box-shadow:0 14px 40px rgba(0,0,0,.35)}
+  .vid .avatar-ugc::after{content:"";position:absolute;left:50%;top:105%;transform:translateX(-50%);width:150%;height:70%;border-radius:50% 50% 0 0;background:#39415A}
+  .prog-wrap{position:absolute;left:16px;right:16px;bottom:16px;z-index:3}
+  .prog-lbl{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:.6rem;letter-spacing:.1em;color:#fff;margin-bottom:7px}
+  .prog{height:5px;border-radius:3px;background:rgba(255,255,255,.25);overflow:hidden}
+  .prog i{display:block;height:100%;width:64%;border-radius:3px;background:#fff}
+  @media (prefers-reduced-motion:no-preference){.prog i{animation:pg 3.2s ease-in-out infinite alternate}@keyframes pg{from{width:42%}to{width:86%}}}
+  .vid-blur{filter:blur(9px) saturate(1.1);transform:scale(1.1)}
+
+  /* ============ WHATSAPP SPOTLIGHT ============ */
+  .wa-sec .wrap{display:grid;grid-template-columns:1fr 1fr;gap:clamp(36px,6vw,80px);align-items:center}
+  @media (max-width:880px){.wa-sec .wrap{grid-template-columns:1fr}}
+  .chat{
+    border-radius:26px;background:#EFE7DC;border:1px solid var(--line);
+    box-shadow:var(--shadow-lg);overflow:hidden;max-width:420px;justify-self:center;width:100%;
+  }
+  .chat-top{background:#075E54;color:#fff;display:flex;align-items:center;gap:11px;padding:13px 16px}
+  .chat-top .av{width:34px;height:34px;border-radius:50%;background:var(--pill-bg);color:var(--pill-ink);display:grid;place-items:center;font-weight:900;font-size:.8rem;flex:none}
+  .chat-top .av{background:#fff;color:#075E54}
+  .chat-top b{font-size:.92rem;display:block;line-height:1.2}
+  .chat-top span{font-size:.7rem;opacity:.75}
+  .chat-body{padding:18px 14px 20px;display:flex;flex-direction:column;gap:10px;background:
+    linear-gradient(rgba(239,231,220,.94),rgba(239,231,220,.94))}
+  .bub{
+    max-width:88%;background:#fff;border-radius:12px;padding:9px;box-shadow:0 1px 1px rgba(0,0,0,.08);
+    font-size:.8rem;line-height:1.45;color:#222;
+  }
+  .bub .b-img{border-radius:9px;aspect-ratio:4/3.4;position:relative;display:grid;place-items:center;overflow:hidden;margin-bottom:8px}
+  .bub .b-img svg{width:38%}
+  .bub .b-img .bh{position:absolute;left:10px;bottom:9px;color:#fff;font-weight:800;font-size:.82rem;text-shadow:0 2px 8px rgba(0,0,0,.35)}
+  .bub .b-time{display:block;text-align:right;font-size:.6rem;color:#999;margin-top:5px}
+  .bub-btns{display:flex;flex-direction:column;gap:6px;margin-top:9px;border-top:1px solid #eee;padding-top:9px}
+  .bub-btn{text-align:center;color:#1D8FE0;font-weight:600;font-size:.8rem;padding:5px 0;border-radius:8px;background:#F4FAFF}
+  .bub.out{align-self:flex-end;background:#DCF8C6}
+  .bub .ticks{color:#4FC3F7;font-size:.62rem}
+  .chat-note{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:#8A8378;text-align:center}
+  .wa-feat-list{display:flex;flex-direction:column;gap:16px;margin-top:30px}
+  .wa-feat{display:flex;gap:14px;align-items:flex-start}
+  .wa-feat .ic{
+    width:38px;height:38px;border-radius:12px;border:1px solid var(--line);flex:none;
+    display:grid;place-items:center;background:var(--surface);
+  }
+  .wa-feat .ic svg{width:18px;height:18px}
+  .wa-feat b{display:block;font-size:.98rem;letter-spacing:-.01em;margin-bottom:2px}
+  .wa-feat p{font-size:.88rem;color:var(--muted)}
+
+  /* ============ FEATURES ============ */
+  .feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:44px}
+  @media (max-width:920px){.feat-grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:560px){.feat-grid{grid-template-columns:1fr}}
+  .feat{
+    border:1px solid var(--line);border-radius:20px;padding:26px;background:var(--surface);
+    box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px;
+  }
+  .feat .f-ic{width:40px;height:40px;border-radius:13px;background:var(--ink);color:var(--bg);display:grid;place-items:center;margin-bottom:6px}
+  .feat .f-ic svg{width:19px;height:19px}
+  .feat h3{font-size:1.05rem;font-weight:700;letter-spacing:-.02em}
+  .feat p{font-size:.89rem;color:var(--muted);line-height:1.55}
+
+  /* ============ TESTIMONIOS ============ */
+  .testi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:44px}
+  @media (max-width:920px){.testi-grid{grid-template-columns:1fr}}
+  .testi{
+    border:1px solid var(--line);border-radius:20px;padding:28px;background:var(--surface);
+    box-shadow:var(--shadow);display:flex;flex-direction:column;gap:16px;
+  }
+  .stars{color:#F5A623;font-size:.85rem;letter-spacing:2px}
+  .testi blockquote{font-size:1.02rem;line-height:1.55;letter-spacing:-.01em;font-weight:500;text-wrap:balance}
+  .testi-who{display:flex;align-items:center;gap:11px;margin-top:auto}
+  .testi-who .av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:.8rem;flex:none}
+  .testi-who b{display:block;font-size:.88rem}
+  .testi-who span{font-size:.76rem;color:var(--muted)}
+
+  /* ============ STATS ============ */
+  .stats{border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(24px,4vw,48px)}
+  @media (max-width:760px){.stats-grid{grid-template-columns:1fr}}
+  .stat b{
+    font-size:clamp(2.6rem,5vw,3.8rem);font-weight:800;letter-spacing:-.04em;line-height:1;
+    display:block;margin-bottom:10px;font-variant-numeric:tabular-nums;
+  }
+  .stat p{color:var(--muted);font-size:.95rem;max-width:22em}
+
+  /* ============ FAQ ============ */
+  .faq-list{max-width:760px;margin-top:36px}
+  details{border-bottom:1px solid var(--line)}
+  summary{
+    list-style:none;cursor:pointer;padding:20px 4px;display:flex;align-items:center;gap:14px;
+    font-weight:600;font-size:1.02rem;letter-spacing:-.01em;
+  }
+  summary::-webkit-details-marker{display:none}
+  summary .plus{
+    margin-left:auto;flex:none;width:26px;height:26px;border-radius:50%;border:1px solid var(--line);
+    display:grid;place-items:center;font-weight:400;font-size:1rem;color:var(--muted);
+    transition:transform .25s;
+  }
+  details[open] .plus{transform:rotate(45deg)}
+  details .ans{padding:0 44px 22px 4px;color:var(--muted);font-size:.94rem;max-width:60ch}
+
+  /* ============ CTA / FOOTER ============ */
+  .cta-final{text-align:left}
+  .cta-card{
+    border-radius:28px;background:var(--ink);color:var(--bg);
+    padding:clamp(40px,6vw,72px);position:relative;overflow:hidden;
+  }
+  .cta-card h2{color:inherit;max-width:14em}
+  .cta-card p{opacity:.65;max-width:34em;margin-bottom:32px}
+  .cta-card .btn-solid{background:var(--bg);color:var(--ink)}
+  .cta-card .btn-ghost{border-color:color-mix(in srgb,var(--bg) 30%,transparent);color:var(--bg)}
+  .cta-orbit{position:absolute;right:-60px;top:50%;transform:translateY(-50%);width:340px;opacity:.14;pointer-events:none}
+  @media (max-width:760px){.cta-orbit{display:none}}
+
+  footer{padding:56px 0 44px;border-top:1px solid var(--line)}
+  .foot-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:32px}
+  @media (max-width:720px){.foot-grid{grid-template-columns:1fr}}
+  .foot-blurb{color:var(--muted);font-size:.88rem;max-width:26em;margin-top:12px}
+  .foot-col b{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:14px;font-weight:600}
+  .foot-col a{display:block;font-size:.9rem;padding:4px 0;color:var(--muted)}
+  .foot-col a:hover{color:var(--ink)}
+  .foot-base{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:44px;padding-top:22px;border-top:1px solid var(--line);font-size:.78rem;color:var(--muted)}
+
+  /* ============ REVEAL ============ */
+  .reveal{opacity:0;transform:translateY(22px);transition:opacity .8s cubic-bezier(.2,.7,.2,1),transform .8s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){
+    .reveal{opacity:1;transform:none;transition:none}
+    .mq-track{animation:none}
+    html{scroll-behavior:auto}
+  }
+</style>
+
+<!-- ================= NAV ================= -->
+<nav class="nav">
+  <div class="nav-in">
+    <a class="brand" href="#top"><span class="brand-dot">P</span>Postia</a>
+    <div class="nav-links">
+      <a href="#como">Cómo funciona</a>
+      <a href="#ejemplos">Ejemplos</a>
+      <a href="#whatsapp">WhatsApp</a>
+      <a href="#faq">Preguntas</a>
+    </div>
+    <a class="btn btn-solid btn-sm" href="https://app.postia.ar/dashboard" style="margin-left:auto">Probar gratis</a>
+  </div>
+</nav>
+
+<!-- ================= HERO ================= -->
+<header class="hero" id="top">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow">Contenido en piloto automático</span>
+      <h1>Tu marca postea sola.</h1>
+      <p class="sub">Postia piensa las ideas, diseña las imágenes, genera los videos y publica en tu Instagram. <strong>Vos solo aprobás con un toque, desde WhatsApp.</strong></p>
+      <div class="hero-cta">
+        <a class="btn btn-solid" href="https://app.postia.ar/dashboard">Empezar gratis
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a class="btn btn-ghost" href="#como">Ver cómo funciona</a>
+      </div>
+      <p class="hero-note"><span class="ok-dot"></span>Sin diseñadores, sin agencia, sin abrir Photoshop.</p>
+    </div>
+
+    <div class="demo-zone">
+      <div class="rail" id="rail" aria-hidden="true">
+        <div class="rail-step" data-k="1"><span class="dot"><span>1</span></span>Idea</div>
+        <div class="rail-line"></div>
+        <div class="rail-step" data-k="2"><span class="dot"><span>2</span></span>Imagen</div>
+        <div class="rail-line"></div>
+        <div class="rail-step" data-k="3"><span class="dot"><span>3</span></span>Copy</div>
+        <div class="rail-line"></div>
+        <div class="rail-step" data-k="4"><span class="dot"><span>4</span></span>WhatsApp</div>
+        <div class="rail-line"></div>
+        <div class="rail-step" data-k="5"><span class="dot"><span>5</span></span>Publicado</div>
+      </div>
+
+      <div class="phone" role="img" aria-label="Demostración: Postia genera y publica un post automáticamente">
+        <div class="notch"></div>
+        <div class="screen" id="demo">
+          <div class="scr-bar">
+            <span class="mini-dot">P</span><b>Postia</b>
+            <span class="scr-brand" id="d-brand">Heladería Lucca</span>
+          </div>
+          <div class="scr-body">
+            <div class="idea-chip"><span class="tag">Idea · martes</span><span id="d-idea">2x1 en cucuruchos para levantar el martes</span></div>
+
+            <div class="gen-img">
+              <div class="shimmer"></div>
+              <div class="gen-scene g-ice cur" id="scene-a">
+                <svg viewBox="0 0 120 160" aria-hidden="true">
+                  <path d="M60 152 L36 90 L84 90 Z" fill="#E8A85C"/>
+                  <path d="M44 96 L60 140 L76 96" fill="none" stroke="#D18F3F" stroke-width="2" opacity=".5"/>
+                  <circle cx="46" cy="74" r="21" fill="#FF8FB1"/>
+                  <circle cx="74" cy="74" r="21" fill="#FFC7D6"/>
+                  <circle cx="60" cy="54" r="23" fill="#FFF3F6"/>
+                  <circle cx="60" cy="30" r="7" fill="#D93654"/>
+                </svg>
+                <div class="gen-head" id="d-head">2X1 EN CUCURUCHOS<br>SOLO HOY</div>
+              </div>
+              <div class="gen-scene g-burger" id="scene-b">
+                <svg viewBox="0 0 140 120" aria-hidden="true">
+                  <path d="M22 54 Q70 10 118 54 L118 62 L22 62 Z" fill="#F0B45C"/>
+                  <ellipse cx="52" cy="36" rx="3.4" ry="2.2" fill="#FFEFD2"/><ellipse cx="72" cy="30" rx="3.4" ry="2.2" fill="#FFEFD2"/><ellipse cx="92" cy="38" rx="3.4" ry="2.2" fill="#FFEFD2"/>
+                  <rect x="20" y="62" width="100" height="7" rx="3.5" fill="#7FBF6A"/>
+                  <rect x="24" y="69" width="92" height="9" rx="4" fill="#FFC94D"/>
+                  <rect x="22" y="78" width="96" height="14" rx="7" fill="#6B3E26"/>
+                  <rect x="24" y="92" width="92" height="16" rx="8" fill="#E8A85C"/>
+                </svg>
+                <div class="gen-head" id="d-head-b">NUEVA<br>SMASH DOBLE</div>
+              </div>
+            </div>
+
+            <div class="cap-block">
+              <b id="d-cap-t">El plan del martes ya está decidido 🍦</b>
+              <span id="d-cap">2x1 en cucuruchos hasta las 22h. Te esperamos.</span><br>
+              <span class="tags" id="d-tags">#heladería #promo #2x1</span>
+            </div>
+
+            <div class="wa-row">
+              <span class="wa-lbl">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.9-1.4A10 10 0 1 0 12 2Z"/></svg>
+                Enviado a tu WhatsApp
+              </span>
+              <div class="wa-btns">
+                <span class="wa-btn yes" id="d-approve">✓ Aprobar</span>
+                <span class="wa-btn">✗ Rechazar</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pub-banner">
+            <span class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4.2"/></svg></span>
+            <span id="d-pub">Publicado en @heladerialucca</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ================= LOGOS ================= -->
+<div class="logos">
+  <div class="wrap logos-in">
+    <span class="logos-lbl">Marcas que ya postean solas</span>
+    <span class="logo-word">BURGA</span>
+    <span class="logo-word serif">Heladería Lucca</span>
+    <span class="logo-word mono">TROKA</span>
+    <span class="logo-word">Café Norte</span>
+    <span class="logo-word serif">Verde Pilates</span>
+  </div>
+</div>
+
+<!-- ================= MARQUEE ================= -->
+<section class="marquee-sec" id="ejemplos">
+  <div class="wrap marquee-head reveal">
+    <div>
+      <span class="eyebrow">Generado por Postia</span>
+      <h2 style="margin-bottom:0">Esto sale de la máquina.<br>Sin retoques.</h2>
+    </div>
+    <p class="lead" style="max-width:20em;font-size:.95rem">Cada pieza se diseña con tu identidad: tu logo, tus colores, tus precios reales.</p>
+  </div>
+  <div class="marquee" aria-hidden="true">
+    <div class="mq-track" id="mq-track">
+      <div class="mq-group">
+
+        <div class="mini-post"><div class="mp-img g-ice"><span class="mp-chip">Imagen · IA</span>
+          <svg viewBox="0 0 120 160"><path d="M60 152 L36 90 L84 90 Z" fill="#E8A85C"/><circle cx="46" cy="74" r="21" fill="#FF8FB1"/><circle cx="74" cy="74" r="21" fill="#FFC7D6"/><circle cx="60" cy="54" r="23" fill="#FFF3F6"/><circle cx="60" cy="30" r="7" fill="#D93654"/></svg>
+          <div class="mp-head">2X1 EN CUCURUCHOS</div></div>
+          <div class="mp-meta"><span class="av" style="background:linear-gradient(45deg,#FF8FB1,#D93654)"></span>heladerialucca</div>
+        </div>
+
+        <div class="mini-post"><div class="mp-img g-burger"><span class="mp-chip">Imagen · IA</span>
+          <svg viewBox="0 0 140 120"><path d="M22 54 Q70 10 118 54 L118 62 L22 62 Z" fill="#F0B45C"/><rect x="20" y="62" width="100" height="7" rx="3.5" fill="#7FBF6A"/><rect x="24" y="69" width="92" height="9" rx="4" fill="#FFC94D"/><rect x="22" y="78" width="96" height="14" rx="7" fill="#6B3E26"/><rect x="24" y="92" width="92" height="16" rx="8" fill="#E8A85C"/></svg>
+          <div class="mp-head">SMASH DOBLE<br>DESDE HOY</div></div>
+          <div class="mp-meta"><span class="av" style="background:linear-gradient(45deg,#F0B45C,#6B3E26)"></span>burga.ok</div>
+        </div>
+
+        <div class="mini-post"><div class="mp-img g-coffee"><span class="mp-chip">Catálogo real</span>
+          <svg viewBox="0 0 140 140"><path d="M55 24 q7 11 0 22" stroke="#B78A5E" stroke-width="3.4" fill="none" stroke-linecap="round" opacity=".65"/><path d="M76 18 q7 12 0 24" stroke="#B78A5E" stroke-width="3.4" fill="none" stroke-linecap="round" opacity=".65"/><ellipse cx="70" cy="114" rx="46" ry="8" fill="#DCC5A5"/><rect x="35" y="56" width="70" height="52" rx="13" fill="#FFFDF8"/><ellipse cx="70" cy="60" rx="27" ry="7" fill="#6B4226"/><path d="M105 70 a15 15 0 0 1 0 26" stroke="#FFFDF8" stroke-width="9" fill="none"/></svg>
+          <div class="mp-head dark-ink">MEDIALUNAS + CAFÉ<br>$4.500</div></div>
+          <div class="mp-meta"><span class="av" style="background:linear-gradient(45deg,#D3B890,#6B4226)"></span>cafenorte.ba</div>
+        </div>
+
+        <div class="mini-post"><div class="mp-img g-green"><span class="mp-chip">Imagen · IA</span>
+          <svg viewBox="0 0 140 140"><circle cx="52" cy="62" r="34" fill="#9CC184" opacity=".8"/><circle cx="88" cy="76" r="30" fill="#7BAF63" opacity=".75"/><circle cx="66" cy="96" r="22" fill="#5E9A48" opacity=".7"/></svg>
+          <div class="mp-head green-ink">2 CLASES<br>DE REGALO</div></div>
+          <div class="mp-meta"><span class="av" style="background:linear-gradient(45deg,#9CC184,#5E9A48)"></span>verdepilates</div>
+        </div>
+
+        <div class="mini-post"><div class="mp-img g-pizza"><span class="mp-chip">Imagen · IA</span>
+          <svg viewBox="0 0 140 140"><circle cx="70" cy="70" r="48" fill="#F2C879"/><circle cx="70" cy="70" r="40" fill="#E8A54B"/><circle cx="56" cy="58" r="7" fill="#C1372B"/><circle cx="84" cy="64" r="7" fill="#C1372B"/><circle cx="66" cy="86" r="7" fill="#C1372B"/><path d="M70 22 L70 118 M22 70 L118 70" stroke="#D18F3F" stroke-width="3" opacity=".5"/></svg>
+          <div class="mp-head dark-ink">MUZZA + FAINÁ<br>VIERNES</div></div>
+          <div class="mp-meta"><span class="av" style="background:linear-gradient(45deg,#E8A54B,#C1372B)"></span>trattoria.roma</div>
+        </div>
+
+        <div class="mini-post"><div class="mp-img g-ugc"><span class="mp-chip">Video · UGC</span>
+          <svg viewBox="0 0 120 120"><circle cx="60" cy="46" r="24" fill="#E8B08A"/><path d="M20 118 Q60 76 100 118 Z" fill="#39415A"/></svg>
+          <div class="mp-head">“Lo probé y<br>no vuelvo atrás”</div></div>
+          <div class="mp-meta"><span class="av" style="background:linear-gradient(45deg,#39415A,#E8B08A)"></span>burga.ok</div>
+        </div>
+
+      </div>
+      <div class="mq-group" id="mq-clone"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CÓMO FUNCIONA ================= -->
+<section id="como">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="eyebrow">Cómo funciona</span>
+      <h2>De cero a publicado,<br>en cuatro pasos.</h2>
+      <p class="lead">Postia es el circuito completo: ideas, diseño, video, aprobación y publicación. Vos aparecés solo en el paso 3 — y son dos toques.</p>
+    </div>
+    <div class="steps-grid">
+      <div class="step reveal">
+        <span class="step-n">Paso 01</span>
+        <h3>Contale de tu negocio</h3>
+        <p>Conectá tu Instagram o describilo en dos líneas. Postia aprende tu estilo, tu rubro, tus productos y tus precios reales.</p>
+        <div class="step-viz">
+          <div class="viz-row"><span class="viz-pill on">Heladería</span><span class="viz-pill">Restaurante</span><span class="viz-pill">Estudio</span></div>
+          <div class="viz-row"><span class="viz-dot" style="background:var(--ok)"></span>Catálogo importado: 14 productos</div>
+        </div>
+      </div>
+      <div class="step reveal">
+        <span class="step-n">Paso 02</span>
+        <h3>Recibí ideas ya agendadas</h3>
+        <p>Una agenda de contenido variada y lista: promos, producto, fechas especiales. Nada repetido, nada genérico.</p>
+        <div class="step-viz">
+          <div class="viz-row"><span class="viz-dot" style="background:#FF8FB1"></span>Mar · 2x1 en cucuruchos</div>
+          <div class="viz-row"><span class="viz-dot" style="background:#F0B45C"></span>Jue · Nuevo sabor: pistacho</div>
+          <div class="viz-row"><span class="viz-dot" style="background:#7BAF63"></span>Dom · Video UGC del local</div>
+        </div>
+      </div>
+      <div class="step reveal">
+        <span class="step-n">Paso 03</span>
+        <h3>Aprobá desde WhatsApp</h3>
+        <p>Te llega la imagen o el video con el copy listo. Tocás <b>Aprobar</b> o <b>Rechazar</b>. Sin paneles, sin apps nuevas.</p>
+        <div class="step-viz">
+          <div class="viz-wa">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.9-1.4A10 10 0 1 0 12 2Z"/></svg>
+            ✓ Aprobado y publicado 🎉
+          </div>
+        </div>
+      </div>
+      <div class="step reveal">
+        <span class="step-n">Paso 04</span>
+        <h3>Se publica solo</h3>
+        <p>Al aprobar, sale al instante a tu Instagram. O queda agendado para su fecha, como prefieras.</p>
+        <div class="step-viz">
+          <div class="viz-row"><span class="viz-bar"><i></i></span></div>
+          <div class="viz-row"><span class="viz-dot" style="background:var(--ok)"></span>Publicado en @heladerialucca · 19:02</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= GALERÍA IMÁGENES ================= -->
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="eyebrow">Imágenes generadas</span>
+      <h2>Piezas que abren el apetito.</h2>
+      <p class="lead">Estética limpia y consistente, tu logo integrado en la escena y —cuando hay promo— tus precios exactos, tomados de tu catálogo.</p>
+    </div>
+    <div class="gal-grid">
+
+      <article class="post reveal">
+        <div class="post-top"><span class="av" style="background:linear-gradient(45deg,#FF8FB1,#D93654)"></span><b>heladerialucca</b><span class="dots">···</span></div>
+        <div class="post-img g-ice"><span class="gen-chip">Imagen · IA</span>
+          <svg viewBox="0 0 120 160"><path d="M60 152 L36 90 L84 90 Z" fill="#E8A85C"/><path d="M44 96 L60 140 L76 96" fill="none" stroke="#D18F3F" stroke-width="2" opacity=".5"/><circle cx="46" cy="74" r="21" fill="#FF8FB1"/><circle cx="74" cy="74" r="21" fill="#FFC7D6"/><circle cx="60" cy="54" r="23" fill="#FFF3F6"/><circle cx="60" cy="30" r="7" fill="#D93654"/></svg>
+          <div class="post-headline">2X1 EN<br>CUCURUCHOS</div>
+        </div>
+        <div class="post-acts">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7.5-4.6-9.7-9A5.4 5.4 0 0 1 12 6.6 5.4 5.4 0 0 1 21.7 12c-2.2 4.4-9.7 9-9.7 9Z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-4-7.5L21 3l-1.2 4.2A9 9 0 0 1 21 12Z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></svg>
+          <svg class="save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-5 7 5Z"/></svg>
+        </div>
+        <div class="post-cap"><b>heladerialucca</b> El plan del martes ya está decidido 🍦 Hasta las 22h.</div>
+      </article>
+
+      <article class="post reveal">
+        <div class="post-top"><span class="av" style="background:linear-gradient(45deg,#F0B45C,#6B3E26)"></span><b>burga.ok</b><span class="dots">···</span></div>
+        <div class="post-img g-burger"><span class="gen-chip">Imagen · IA</span>
+          <svg viewBox="0 0 140 120"><path d="M22 54 Q70 10 118 54 L118 62 L22 62 Z" fill="#F0B45C"/><ellipse cx="52" cy="36" rx="3.4" ry="2.2" fill="#FFEFD2"/><ellipse cx="72" cy="30" rx="3.4" ry="2.2" fill="#FFEFD2"/><ellipse cx="92" cy="38" rx="3.4" ry="2.2" fill="#FFEFD2"/><rect x="20" y="62" width="100" height="7" rx="3.5" fill="#7FBF6A"/><rect x="24" y="69" width="92" height="9" rx="4" fill="#FFC94D"/><rect x="22" y="78" width="96" height="14" rx="7" fill="#6B3E26"/><rect x="24" y="92" width="92" height="16" rx="8" fill="#E8A85C"/></svg>
+          <div class="post-headline">NUEVA<br>SMASH DOBLE</div>
+        </div>
+        <div class="post-acts">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7.5-4.6-9.7-9A5.4 5.4 0 0 1 12 6.6 5.4 5.4 0 0 1 21.7 12c-2.2 4.4-9.7 9-9.7 9Z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-4-7.5L21 3l-1.2 4.2A9 9 0 0 1 21 12Z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></svg>
+          <svg class="save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-5 7 5Z"/></svg>
+        </div>
+        <div class="post-cap"><b>burga.ok</b> Doble smash, cheddar fundido, pan brioche. Desde hoy 🍔</div>
+      </article>
+
+      <article class="post reveal">
+        <div class="post-top"><span class="av" style="background:linear-gradient(45deg,#D3B890,#6B4226)"></span><b>cafenorte.ba</b><span class="dots">···</span></div>
+        <div class="post-img g-coffee"><span class="gen-chip">Precio del catálogo</span>
+          <svg viewBox="0 0 140 140"><path d="M55 24 q7 11 0 22" stroke="#B78A5E" stroke-width="3.4" fill="none" stroke-linecap="round" opacity=".65"/><path d="M76 18 q7 12 0 24" stroke="#B78A5E" stroke-width="3.4" fill="none" stroke-linecap="round" opacity=".65"/><ellipse cx="70" cy="114" rx="46" ry="8" fill="#DCC5A5"/><rect x="35" y="56" width="70" height="52" rx="13" fill="#FFFDF8"/><ellipse cx="70" cy="60" rx="27" ry="7" fill="#6B4226"/><path d="M105 70 a15 15 0 0 1 0 26" stroke="#FFFDF8" stroke-width="9" fill="none"/></svg>
+          <div class="post-headline dark-ink">COMBO MAÑANA<span class="price">Medialunas + café · $4.500</span></div>
+        </div>
+        <div class="post-acts">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7.5-4.6-9.7-9A5.4 5.4 0 0 1 12 6.6 5.4 5.4 0 0 1 21.7 12c-2.2 4.4-9.7 9-9.7 9Z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-4-7.5L21 3l-1.2 4.2A9 9 0 0 1 21 12Z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></svg>
+          <svg class="save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-5 7 5Z"/></svg>
+        </div>
+        <div class="post-cap"><b>cafenorte.ba</b> El precio sale de tu catálogo. Exacto, no inventado ☕</div>
+      </article>
+
+      <article class="post reveal">
+        <div class="post-top"><span class="av" style="background:linear-gradient(45deg,#9CC184,#5E9A48)"></span><b>verdepilates</b><span class="dots">···</span></div>
+        <div class="post-img g-green"><span class="gen-chip">Imagen · IA</span>
+          <svg viewBox="0 0 140 140"><circle cx="52" cy="62" r="34" fill="#9CC184" opacity=".8"/><circle cx="88" cy="76" r="30" fill="#7BAF63" opacity=".75"/><circle cx="66" cy="96" r="22" fill="#5E9A48" opacity=".7"/></svg>
+          <div class="post-headline green-ink">ÚLTIMA SEMANA<br>2 CLASES DE REGALO</div>
+        </div>
+        <div class="post-acts">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7.5-4.6-9.7-9A5.4 5.4 0 0 1 12 6.6 5.4 5.4 0 0 1 21.7 12c-2.2 4.4-9.7 9-9.7 9Z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-4-7.5L21 3l-1.2 4.2A9 9 0 0 1 21 12Z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></svg>
+          <svg class="save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-5 7 5Z"/></svg>
+        </div>
+        <div class="post-cap"><b>verdepilates</b> No es solo gastronomía: funciona para cualquier rubro 🌿</div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ================= VIDEOS ================= -->
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="eyebrow">Videos generados</span>
+      <h2>Videos que frenan el scroll.</h2>
+      <p class="lead">Clips de producto con movimiento de cine y videos UGC con guión, voz y una persona mostrando <em>tu</em> producto. Elegís el motor y ves el costo estimado antes de generar.</p>
+    </div>
+    <div class="vid-grid">
+
+      <div class="vid reveal">
+        <div class="vid-scene g-burger kenburns">
+          <svg viewBox="0 0 140 120"><path d="M22 54 Q70 10 118 54 L118 62 L22 62 Z" fill="#F0B45C"/><rect x="20" y="62" width="100" height="7" rx="3.5" fill="#7FBF6A"/><rect x="24" y="69" width="92" height="9" rx="4" fill="#FFC94D"/><rect x="22" y="78" width="96" height="14" rx="7" fill="#6B3E26"/><rect x="24" y="92" width="92" height="16" rx="8" fill="#E8A85C"/></svg>
+        </div>
+        <span class="vid-chip">Producto · 0:08</span>
+        <span class="play"><svg viewBox="0 0 24 24" fill="#111"><path d="M8 5v14l11-7L8 5Z"/></svg></span>
+        <div class="vid-foot"><div class="vid-cap">Push-in lento sobre la smash doble. Premium, sin cámara.</div></div>
+      </div>
+
+      <div class="vid reveal">
+        <div class="vid-scene g-ugc"></div>
+        <span class="vid-chip"><span class="rec"></span>UGC · 0:09</span>
+        <span class="avatar-ugc" aria-hidden="true"></span>
+        <div class="vid-foot">
+          <div class="vid-cap" id="ugc-cap">“Probé el helado de oreo y…”</div>
+          <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+      </div>
+
+      <div class="vid reveal">
+        <div class="vid-scene g-pizza vid-blur">
+          <svg viewBox="0 0 140 140"><circle cx="70" cy="70" r="48" fill="#F2C879"/><circle cx="70" cy="70" r="40" fill="#E8A54B"/><circle cx="56" cy="58" r="7" fill="#C1372B"/><circle cx="84" cy="64" r="7" fill="#C1372B"/><circle cx="66" cy="86" r="7" fill="#C1372B"/></svg>
+        </div>
+        <span class="vid-chip">Generando…</span>
+        <div class="prog-wrap">
+          <div class="prog-lbl"><span>VIDEO UGC · GUIÓN LISTO</span><span>~40s</span></div>
+          <div class="prog"><i></i></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ================= WHATSAPP ================= -->
+<section class="wa-sec" id="whatsapp" style="border-top:1px solid var(--line)">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="eyebrow">Aprobación por WhatsApp</span>
+      <h2>Tu panel de control es el chat que ya usás.</h2>
+      <p class="lead">Cada creativo nuevo te llega como un mensaje: imagen o video, copy completo y dos botones. Todo el control, cero fricción.</p>
+      <div class="wa-feat-list">
+        <div class="wa-feat">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="m8 12 3 3 5-6"/></svg></span>
+          <div><b>Aprobás y se publica al instante</b><p>Un toque en “Aprobar” y el post sale a tu Instagram en ese momento.</p></div>
+        </div>
+        <div class="wa-feat">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/></svg></span>
+          <div><b>Rechazás sin culpa</b><p>Lo que no te convence no sale. Postia aprende de lo que rechazás.</p></div>
+        </div>
+        <div class="wa-feat">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 10.5V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-3.5l6 4.5V6l-6 4.5Z"/></svg></span>
+          <div><b>Videos incluidos</b><p>Los clips también llegan al chat, listos para mirar y aprobar.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat reveal" role="img" aria-label="Conversación de WhatsApp donde se aprueba un post">
+      <div class="chat-top">
+        <span class="av">P</span>
+        <div><b>Postia</b><span>cuenta de empresa</span></div>
+      </div>
+      <div class="chat-body">
+        <span class="chat-note">hoy</span>
+        <div class="bub">
+          <div class="b-img g-ice">
+            <svg viewBox="0 0 120 160"><path d="M60 152 L36 90 L84 90 Z" fill="#E8A85C"/><circle cx="46" cy="74" r="21" fill="#FF8FB1"/><circle cx="74" cy="74" r="21" fill="#FFC7D6"/><circle cx="60" cy="54" r="23" fill="#FFF3F6"/><circle cx="60" cy="30" r="7" fill="#D93654"/></svg>
+            <span class="bh">2X1 EN CUCURUCHOS</span>
+          </div>
+          📣 <b>Heladería Lucca</b><br>
+          El plan del martes ya está decidido 🍦 2x1 en cucuruchos hasta las 22h. Te esperamos.<br>
+          <span style="color:#5B7FD4;font-size:.72rem">#heladería #promo #2x1</span>
+          <span class="b-time">18:47</span>
+          <div class="bub-btns">
+            <span class="bub-btn">✓ Aprobar</span>
+            <span class="bub-btn">✗ Rechazar</span>
+          </div>
+        </div>
+        <div class="bub out">✓ Aprobar<span class="b-time">18:49 <span class="ticks">✓✓</span></span></div>
+        <div class="bub">✅ Aprobado y publicado en Instagram. 🎉<span class="b-time">18:49</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FEATURES ================= -->
+<section>
+  <div class="wrap">
+    <div class="reveal">
+      <span class="eyebrow">Todo incluido</span>
+      <h2>Un equipo de contenido entero,<br>dentro de una sola herramienta.</h2>
+    </div>
+    <div class="feat-grid">
+      <div class="feat reveal">
+        <span class="f-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 7V6a6 6 0 0 1 12 0v1"/><path d="M4 7h16l-1.3 12.1a2 2 0 0 1-2 1.9H7.3a2 2 0 0 1-2-1.9L4 7Z"/></svg></span>
+        <h3>Catálogo con precios reales</h3>
+        <p>Cargá tus productos o subí una foto de tu carta: las promos usan tus precios exactos, nunca inventados.</p>
+      </div>
+      <div class="feat reveal">
+        <span class="f-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.4l-5.3 2.7 1-5.8L3.5 9.2l5.9-.9Z"/></svg></span>
+        <h3>Tu logo, integrado</h3>
+        <p>La IA pone tu logo en los potes, la vestimenta, el packaging. Cada pieza construye tu marca.</p>
+      </div>
+      <div class="feat reveal">
+        <span class="f-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 10.5V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-3.5l6 4.5V6l-6 4.5Z"/></svg></span>
+        <h3>Videos con costo a la vista</h3>
+        <p>Producto y UGC con guión y voz. Elegís calidad y motor, y ves cuánto cuesta cada clip antes de generarlo.</p>
+      </div>
+      <div class="feat reveal">
+        <span class="f-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10.5h18"/></svg></span>
+        <h3>Agenda inteligente</h3>
+        <p>Ideas variadas que no se repiten, agendadas para el mejor momento. El feed nunca queda vacío.</p>
+      </div>
+      <div class="feat reveal">
+        <span class="f-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19a6.3 6.3 0 0 1 12.4 0"/><circle cx="17.5" cy="9.5" r="2.6"/><path d="M15.2 14.6a5 5 0 0 1 6 3.9"/></svg></span>
+        <h3>Multimarca</h3>
+        <p>¿Manejás varias cuentas? Cada marca con su identidad, su catálogo, su calendario y su WhatsApp.</p>
+      </div>
+      <div class="feat reveal">
+        <span class="f-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18"/><path d="M7 17V9M12 17V4M17 17v-6"/></svg></span>
+        <h3>Métricas sin humo</h3>
+        <p>Qué se publicó, qué aprobaste y cuánto gastaste en generación. Números claros, sin sorpresas.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= TESTIMONIOS ================= -->
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="eyebrow">Lo que dicen</span>
+      <h2>Dueños que recuperaron sus domingos.</h2>
+    </div>
+    <div class="testi-grid">
+      <div class="testi reveal">
+        <span class="stars" aria-label="5 estrellas">★★★★★</span>
+        <blockquote>“Antes le dedicaba los domingos a armar los posts de la semana. Ahora apruebo tres por WhatsApp mientras cierro la caja.”</blockquote>
+        <div class="testi-who">
+          <span class="av" style="background:linear-gradient(45deg,#FF8FB1,#D93654)">SL</span>
+          <div><b>Sofía L.</b><span>Heladería · Junín</span></div>
+        </div>
+      </div>
+      <div class="testi reveal">
+        <span class="stars" aria-label="5 estrellas">★★★★★</span>
+        <blockquote>“El video del lanzamiento lo hizo Postia: guión, voz, todo. Nadie me cree que no contratamos una productora.”</blockquote>
+        <div class="testi-who">
+          <span class="av" style="background:linear-gradient(45deg,#F0B45C,#6B3E26)">NB</span>
+          <div><b>Nico B.</b><span>Hamburguesería · CABA</span></div>
+        </div>
+      </div>
+      <div class="testi reveal">
+        <span class="stars" aria-label="5 estrellas">★★★★★</span>
+        <blockquote>“Manejo seis marcas de clientes. Postia me devolvió unas veinte horas por semana — y los feeds nunca estuvieron tan consistentes.”</blockquote>
+        <div class="testi-who">
+          <span class="av" style="background:linear-gradient(45deg,#9CC184,#39415A)">AM</span>
+          <div><b>Agus M.</b><span>Estudio de marketing · Rosario</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= STATS ================= -->
+<section class="stats">
+  <div class="wrap stats-grid">
+    <div class="stat reveal"><b>30+</b><p>posts por mes, con imágenes y videos, generados y agendados solos.</p></div>
+    <div class="stat reveal"><b>2 min</b><p>por día de tu tiempo. Lo que tardás en tocar “Aprobar” en WhatsApp.</p></div>
+    <div class="stat reveal"><b>1</b><p>sola herramienta para todo el circuito: idea → diseño → video → aprobación → publicación.</p></div>
+  </div>
+</section>
+
+<!-- ================= FAQ ================= -->
+<section id="faq">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="eyebrow">Preguntas frecuentes</span>
+      <h2>Lo que todos preguntan<br>antes de empezar.</h2>
+    </div>
+    <div class="faq-list reveal">
+      <details>
+        <summary>¿Tengo que saber de diseño o de marketing?<span class="plus">+</span></summary>
+        <p class="ans">No. Contale a Postia de tu negocio (o conectá tu Instagram) y el sistema arma tu identidad visual, tu calendario y tus piezas. Tu única tarea es aprobar o rechazar.</p>
+      </details>
+      <details>
+        <summary>¿De verdad publica solo en Instagram?<span class="plus">+</span></summary>
+        <p class="ans">Sí. Conectás tu cuenta de Instagram profesional una vez y, cada vez que aprobás un post, se publica automáticamente — al instante o en la fecha agendada.</p>
+      </details>
+      <details>
+        <summary>¿Qué pasa si no me gusta lo que genera?<span class="plus">+</span></summary>
+        <p class="ans">Tocás “Rechazar” y no se publica. También podés regenerar el texto o la imagen con un toque, o editar el copy antes de aprobar. Nada sale sin tu OK.</p>
+      </details>
+      <details>
+        <summary>¿Usa mis precios y productos reales?<span class="plus">+</span></summary>
+        <p class="ans">Sí. Cargás tu catálogo (incluso subiendo una foto de tu carta) y las promos usan tus precios exactos. Si cambiás un precio, las próximas piezas lo reflejan.</p>
+      </details>
+      <details>
+        <summary>¿Los videos también los genera?<span class="plus">+</span></summary>
+        <p class="ans">Sí: clips de producto con movimiento cinematográfico y videos UGC con guión y voz donde una persona muestra tu producto. Elegís el motor de video y ves el costo estimado de cada clip antes de generarlo.</p>
+      </details>
+      <details>
+        <summary>¿Sirve para mi rubro?<span class="plus">+</span></summary>
+        <p class="ans">Postia funciona para gastronomía, estética, fitness, servicios profesionales, comercios y más. Si tu negocio necesita estar presente en Instagram, Postia le arma el contenido.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CTA FINAL ================= -->
+<section class="cta-final" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <svg class="cta-orbit" viewBox="0 0 200 200" fill="none" stroke="currentColor" aria-hidden="true">
+        <circle cx="100" cy="100" r="60" stroke-width="1"/>
+        <circle cx="100" cy="100" r="90" stroke-width="1" opacity=".6"/>
+        <circle cx="160" cy="100" r="5" fill="currentColor" stroke="none"/>
+        <circle cx="100" cy="10" r="3.4" fill="currentColor" stroke="none"/>
+      </svg>
+      <span class="eyebrow" style="color:inherit;opacity:.55">Empezá hoy</span>
+      <h2>Dejá de deberle contenido a tu marca.</h2>
+      <p>Creá tu cuenta y mirá cómo Postia arma tu primera semana de posts. Si no te gusta, no aprobás — así de simple.</p>
+      <div class="hero-cta">
+        <a class="btn btn-solid" href="https://app.postia.ar/dashboard">Crear mi cuenta
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a class="btn btn-ghost" href="#top">Ver la demo de nuevo</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FOOTER ================= -->
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <a class="brand" href="#top"><span class="brand-dot">P</span>Postia</a>
+        <p class="foot-blurb">La plataforma que crea, aprueba y publica el contenido de tu marca en Instagram. Hecho en Argentina.</p>
+      </div>
+      <div class="foot-col">
+        <b>Producto</b>
+        <a href="#como">Cómo funciona</a>
+        <a href="#ejemplos">Ejemplos</a>
+        <a href="#whatsapp">Aprobación por WhatsApp</a>
+        <a href="#faq">Preguntas frecuentes</a>
+      </div>
+      <div class="foot-col">
+        <b>Contacto</b>
+        <a href="mailto:hola@postia.ar">hola@postia.ar</a>
+        <a href="https://app.postia.ar/dashboard">Ingresar a la app</a>
+      </div>
+    </div>
+    <div class="foot-base">
+      <span>© 2026 Postia · postia.ar</span>
+      <span>Tu marca postea sola.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---- marquee clone ---- */
+  var track = document.getElementById("mq-track");
+  var clone = document.getElementById("mq-clone");
+  if (track && clone) clone.innerHTML = track.querySelector(".mq-group").innerHTML;
+
+  /* ---- reveals ---- */
+  var reveals = [].slice.call(document.querySelectorAll(".reveal"));
+  if (reduced || !("IntersectionObserver" in window)) {
+    reveals.forEach(function(el){ el.classList.add("in"); });
+  } else {
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+      });
+    }, { threshold: .12, rootMargin: "0px 0px -6% 0px" });
+    reveals.forEach(function(el){ io.observe(el); });
+  }
+
+  /* ---- hero demo state machine ---- */
+  var demo = document.getElementById("demo");
+  var rail = document.getElementById("rail");
+  if (!demo) return;
+
+  var variants = [
+    {
+      brand:"Heladería Lucca", handle:"@heladerialucca",
+      idea:"2x1 en cucuruchos para levantar el martes",
+      capT:"El plan del martes ya está decidido 🍦",
+      cap:"2x1 en cucuruchos hasta las 22h. Te esperamos.",
+      tags:"#heladería #promo #2x1", scene:"a"
+    },
+    {
+      brand:"BURGA", handle:"@burga.ok",
+      idea:"Lanzamiento: smash doble con cheddar",
+      capT:"Doble smash, cero vueltas 🍔",
+      cap:"Cheddar fundido y pan brioche. Desde hoy en el local.",
+      tags:"#burger #smash #lanzamiento", scene:"b"
+    }
+  ];
+  var el = function(id){ return document.getElementById(id); };
+  var steps = ["s1","s2","s3","s4","s5"];
+  var durations = [1600, 2100, 1500, 2000, 2200];
+  var vi = 0, timer = null;
+
+  function setRail(n){
+    if (!rail) return;
+    [].slice.call(rail.querySelectorAll(".rail-step")).forEach(function(s){
+      var k = parseInt(s.getAttribute("data-k"), 10);
+      s.classList.toggle("active", k === n);
+      s.classList.toggle("done", k < n);
+    });
+  }
+  function applyVariant(v){
+    el("d-brand").textContent = v.brand;
+    el("d-idea").textContent = v.idea;
+    el("d-cap-t").textContent = v.capT;
+    el("d-cap").textContent = v.cap;
+    el("d-tags").textContent = v.tags;
+    el("d-pub").textContent = "Publicado en " + v.handle;
+    el("scene-a").classList.toggle("cur", v.scene === "a");
+    el("scene-b").classList.toggle("cur", v.scene === "b");
+  }
+
+  if (reduced) {
+    applyVariant(variants[0]);
+    demo.classList.add("s1","s2","s3","s4","s5");
+    el("d-approve").classList.add("pressed");
+    setRail(6);
+    return;
+  }
+
+  function runCycle(){
+    var v = variants[vi % variants.length];
+    vi++;
+    steps.forEach(function(s){ demo.classList.remove(s); });
+    el("d-approve").classList.remove("pressed");
+    applyVariant(v);
+    setRail(0);
+
+    var t = 350;
+    steps.forEach(function(s, i){
+      setTimeout(function(){
+        demo.classList.add(s);
+        setRail(i + 1);
+        if (s === "s4") setTimeout(function(){ el("d-approve").classList.add("pressed"); }, 1100);
+      }, t);
+      t += durations[i];
+    });
+    timer = setTimeout(runCycle, t + 1400);
+  }
+  runCycle();
+
+  document.addEventListener("visibilitychange", function(){
+    if (document.hidden && timer) { clearTimeout(timer); timer = null; }
+    else if (!document.hidden && !timer) runCycle();
+  });
+
+  /* ---- UGC caption rotation ---- */
+  var caps = [
+    "“Probé el helado de oreo y…”",
+    "“…no pienso volver a otro lado.”",
+    "“El 2x1 de los martes es LEY.”"
+  ];
+  var capEl = document.getElementById("ugc-cap"), ci = 0;
+  if (capEl) setInterval(function(){
+    ci = (ci + 1) % caps.length;
+    capEl.style.opacity = "0";
+    setTimeout(function(){ capEl.textContent = caps[ci]; capEl.style.opacity = "1"; }, 300);
+  }, 2600);
+  if (capEl) capEl.style.transition = "opacity .3s";
+})();
+</script>
