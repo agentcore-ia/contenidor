@@ -157,25 +157,62 @@ function approvalBodyText(post, brand) {
   return parts.join('\n\n');
 }
 
-// Sends the WhatsApp approval message for a freshly rendered post, if the brand
-// has a WhatsApp number and WhatsApp is configured. Fire-and-forget: a failure
-// here never breaks rendering.
-export async function notifyPostForReview(post) {
+const VIDEO_CONTENT_TYPES = new Set(['product_video', 'ugc_video']);
+function isVideoPost(post) { return VIDEO_CONTENT_TYPES.has(post?.content_type); }
+
+// Sends the WhatsApp approval message for a post, if the brand has a WhatsApp
+// number and WhatsApp is configured. Fire-and-forget: a failure here never
+// breaks rendering.
+//   opts.videoUrl  send the video (via the video template) instead of the image
+//   opts.force     send now even if it's a video post (fallback if video failed)
+export async function notifyPostForReview(post, opts = {}) {
   try {
     if (!whatsappConfigured()) return;
     if (!post?.image_url || post.wa_notified_at) return;
     const brand = await getBrandById(post.brand_id);
     if (!brand.whatsapp_number) return;
+
+    // Para posts de video mandamos el VIDEO, no la imagen: si el video todavia
+    // no llego (y se va a generar), esperamos — el aviso saldra cuando este listo.
+    if (!opts.force && !opts.videoUrl && isVideoPost(post)) {
+      const { videoConfigured } = await import('./videoEngine.js');
+      if (videoConfigured()) return;
+    }
+
     await sendApprovalRequest({
       to: brand.whatsapp_number,
       imageUrl: post.image_url,
+      videoUrl: opts.videoUrl || null,
       bodyText: approvalBodyText(post, brand),
       postId: post.id
     });
     await markPostWaNotified(post.id);
-    console.log(`[whatsapp] approval sent for post ${post.id} -> ${brand.whatsapp_number}`);
+    console.log(`[whatsapp] approval sent for post ${post.id} (${opts.videoUrl ? 'video' : 'image'}) -> ${brand.whatsapp_number}`);
   } catch (error) {
     console.warn(`[whatsapp] could not notify post ${post?.id}: ${error.message}`);
+  }
+}
+
+// Llamado desde videoEngine cuando un video queda listo: manda la aprobacion
+// por WhatsApp con el video incluido.
+export async function notifyPostVideoReady(postId, videoUrl) {
+  try {
+    const post = await getGeneratedPost(postId);
+    await notifyPostForReview(post, { videoUrl });
+  } catch (error) {
+    console.warn(`[whatsapp] video-ready notify failed for ${postId}: ${error.message}`);
+  }
+}
+
+// Llamado desde videoEngine cuando la generacion de video falla: como el post de
+// video habia esperado al video, mandamos la imagen para que igual se pueda
+// aprobar/rechazar por WhatsApp.
+export async function notifyPostVideoFailed(postId) {
+  try {
+    const post = await getGeneratedPost(postId);
+    await notifyPostForReview(post, { force: true });
+  } catch (error) {
+    console.warn(`[whatsapp] video-failed notify failed for ${postId}: ${error.message}`);
   }
 }
 
@@ -189,9 +226,17 @@ export async function sendApprovalForPost(postId) {
   if (!post.image_url) throw new AppError('El post todavia no tiene imagen.', 400, 'WA_NO_IMAGE');
   const brand = await getBrandById(post.brand_id);
   if (!brand.whatsapp_number) throw new AppError('Esta marca no tiene numero de WhatsApp configurado.', 400, 'WA_NO_NUMBER');
+  // Si el post ya tiene un video listo, lo mandamos (si no, va la imagen).
+  let videoUrl = null;
+  try {
+    const { listPostVideos } = await import('./supabase.js');
+    const ready = (await listPostVideos(postId)).find((v) => v.status === 'ready' && v.video_url);
+    if (ready) videoUrl = ready.video_url;
+  } catch { /* si no se puede listar, seguimos con la imagen */ }
   await sendApprovalRequest({
     to: brand.whatsapp_number,
     imageUrl: post.image_url,
+    videoUrl,
     bodyText: approvalBodyText(post, brand),
     postId: post.id
   });

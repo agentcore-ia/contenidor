@@ -13,6 +13,24 @@ import { AppError } from './errors.js';
 const POLL_INTERVAL_MS = 15000;
 const POLL_TIMEOUT_MS = 15 * 60 * 1000;
 
+// Avisa por WhatsApp (import dinamico para evitar el ciclo con contentEngine).
+async function notifyVideoReady(postId, videoUrl) {
+  try {
+    const { notifyPostVideoReady } = await import('./contentEngine.js');
+    await notifyPostVideoReady(postId, videoUrl);
+  } catch (error) {
+    console.warn(`[video:wa] ${postId}: ${error.message}`);
+  }
+}
+async function notifyVideoFailed(postId) {
+  try {
+    const { notifyPostVideoFailed } = await import('./contentEngine.js');
+    await notifyPostVideoFailed(postId);
+  } catch (error) {
+    console.warn(`[video:wa] ${postId}: ${error.message}`);
+  }
+}
+
 // --- Seleccion de proveedor -------------------------------------------------
 // VIDEO_PROVIDER: 'gemini' (Google Omni/Veo, pago por uso) | 'higgsfield'.
 function providerName() {
@@ -103,20 +121,24 @@ function pollVideoInBackground(video) {
       if (r.done) {
         await updatePostVideo(video.id, { status: 'ready', video_url: r.videoUrl, error: null });
         console.log(`[video:bg] ${video.id} listo -> ${r.videoUrl}`);
+        await notifyVideoReady(video.post_id, r.videoUrl);
         return;
       }
       if (r.failed) {
         await updatePostVideo(video.id, { status: 'error', error: String(r.error).slice(0, 400) });
+        await notifyVideoFailed(video.post_id);
         return;
       }
       if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
         await updatePostVideo(video.id, { status: 'error', error: 'Tiempo de espera agotado' });
+        await notifyVideoFailed(video.post_id);
         return;
       }
       setTimeout(tick, POLL_INTERVAL_MS);
     } catch (error) {
       console.error(`[video:bg:error] ${video.id}:`, error.message);
       await updatePostVideo(video.id, { status: 'error', error: error.message.slice(0, 400) }).catch(() => {});
+      await notifyVideoFailed(video.post_id);
     }
   };
   setTimeout(tick, POLL_INTERVAL_MS);
@@ -135,6 +157,7 @@ function runVideoJobInBackground(row, post, brand, kind, engine) {
         const url = await uploadPostVideoBuffer(row.id, result.videoBuffer);
         await updatePostVideo(row.id, { status: 'ready', video_url: url, script: result.script || null, error: null });
         console.log(`[video:bg] ${row.id} listo (sincrono) -> ${url}`);
+        await notifyVideoReady(post.id, url);
         return;
       }
       if (!result.jobId) throw new AppError('El proveedor no devolvio un job id', 502, 'VIDEO_NO_JOB');
@@ -144,6 +167,7 @@ function runVideoJobInBackground(row, post, brand, kind, engine) {
     .catch(async (error) => {
       console.error(`[video:submit:error] ${row.id}:`, error.message);
       await updatePostVideo(row.id, { status: 'error', error: String(error.message).slice(0, 400) }).catch(() => {});
+      await notifyVideoFailed(post.id);
     });
 }
 
@@ -171,7 +195,11 @@ export async function refreshPostVideo(video) {
   if (!video || video.status !== 'processing' || !video.job_id || !videoConfigured()) return video;
   try {
     const r = await resolveJob(video);
-    if (r.done) return updatePostVideo(video.id, { status: 'ready', video_url: r.videoUrl, error: null });
+    if (r.done) {
+      const updated = await updatePostVideo(video.id, { status: 'ready', video_url: r.videoUrl, error: null });
+      await notifyVideoReady(video.post_id, r.videoUrl);
+      return updated;
+    }
     if (r.failed) return updatePostVideo(video.id, { status: 'error', error: String(r.error).slice(0, 400) });
   } catch (error) {
     console.warn(`[video:refresh] ${video.id}: ${error.message}`);

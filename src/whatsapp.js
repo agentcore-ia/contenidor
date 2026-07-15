@@ -6,18 +6,21 @@ import { AppError } from './errors.js';
 // button taps back through a webhook. Docs: developers.facebook.com/docs/whatsapp
 //
 // Required env:
-//   WHATSAPP_PHONE_NUMBER_ID  the sending number's id (WhatsApp > API setup)
-//   WHATSAPP_ACCESS_TOKEN     permanent access token
-//   WHATSAPP_TEMPLATE_NAME    approved template with image header + 2 quick-reply buttons
-//   WHATSAPP_TEMPLATE_LANG    template language code (e.g. es_AR, default es)
-//   WHATSAPP_VERIFY_TOKEN     shared secret for the webhook verification handshake
-//   WHATSAPP_APP_SECRET       (optional) Meta app secret to verify webhook signatures
+//   WHATSAPP_PHONE_NUMBER_ID    the sending number's id (WhatsApp > API setup)
+//   WHATSAPP_ACCESS_TOKEN       permanent access token
+//   WHATSAPP_TEMPLATE_NAME      approved template with image header + 2 quick-reply buttons
+//   WHATSAPP_TEMPLATE_NAME_VIDEO (optional) approved template with a VIDEO header + the
+//                               same 2 quick-reply buttons — used to send video posts
+//   WHATSAPP_TEMPLATE_LANG      template language code (e.g. es_AR, default es)
+//   WHATSAPP_VERIFY_TOKEN       shared secret for the webhook verification handshake
+//   WHATSAPP_APP_SECRET         (optional) Meta app secret to verify webhook signatures
 
 const GRAPH = 'https://graph.facebook.com/v21.0';
 
 function phoneNumberId() { return process.env.WHATSAPP_PHONE_NUMBER_ID || ''; }
 function accessToken() { return process.env.WHATSAPP_ACCESS_TOKEN || ''; }
 function templateName() { return process.env.WHATSAPP_TEMPLATE_NAME || ''; }
+function templateNameVideo() { return process.env.WHATSAPP_TEMPLATE_NAME_VIDEO || ''; }
 function templateLang() { return process.env.WHATSAPP_TEMPLATE_LANG || 'es'; }
 export function verifyToken() { return process.env.WHATSAPP_VERIFY_TOKEN || ''; }
 function appSecret() { return process.env.WHATSAPP_APP_SECRET || process.env.INSTAGRAM_APP_SECRET || ''; }
@@ -47,23 +50,33 @@ async function postMessage(payload) {
   return json;
 }
 
-// Sends the approval template: image header (the creative), body with the copy,
-// and two quick-reply buttons whose payloads carry the post id + action.
-export async function sendApprovalRequest({ to, imageUrl, bodyText, postId }) {
+// Sends the approval template with a media header (image or video), body with
+// the copy, and two quick-reply buttons whose payloads carry the post id +
+// action. When a videoUrl is given and a video template is configured, it sends
+// the video; otherwise it falls back to the image header.
+export async function sendApprovalRequest({ to, imageUrl, videoUrl, bodyText, postId }) {
   if (!whatsappConfigured()) throw new AppError('WhatsApp no esta configurado', 503, 'WA_NOT_CONFIGURED');
   const recipient = normalizeNumber(to);
   if (!recipient) throw new AppError('Numero de WhatsApp invalido', 400, 'WA_BAD_NUMBER');
-  if (!imageUrl) throw new AppError('El post no tiene imagen', 400, 'WA_NO_IMAGE');
+
+  // Solo mandamos video si hay URL de video Y una plantilla con header de video
+  // aprobada; si no, caemos a la imagen (que el post de video igual tiene).
+  const useVideo = Boolean(videoUrl && templateNameVideo());
+  if (!useVideo && !imageUrl) throw new AppError('El post no tiene imagen ni video', 400, 'WA_NO_MEDIA');
+
+  const header = useVideo
+    ? { type: 'header', parameters: [{ type: 'video', video: { link: videoUrl } }] }
+    : { type: 'header', parameters: [{ type: 'image', image: { link: imageUrl } }] };
 
   return postMessage({
     messaging_product: 'whatsapp',
     to: recipient,
     type: 'template',
     template: {
-      name: templateName(),
+      name: useVideo ? templateNameVideo() : templateName(),
       language: { code: templateLang() },
       components: [
-        { type: 'header', parameters: [{ type: 'image', image: { link: imageUrl } }] },
+        header,
         { type: 'body', parameters: [{ type: 'text', text: (bodyText || '').slice(0, 900) || '-' }] },
         { type: 'button', sub_type: 'quick_reply', index: '0', parameters: [{ type: 'payload', payload: `approve:${postId}` }] },
         { type: 'button', sub_type: 'quick_reply', index: '1', parameters: [{ type: 'payload', payload: `reject:${postId}` }] }
