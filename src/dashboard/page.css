@@ -562,6 +562,33 @@ label {
 .bh-palette { display: flex; gap: 4px; }
 .bh-palette span { width: 18px; height: 18px; border-radius: 6px; border: 1px solid var(--border); }
 
+/* --- Agenda: lista de ideas --- */
+.agenda-list { display: flex; flex-direction: column; gap: 10px; }
+.agenda-item {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); box-shadow: var(--shadow-1);
+  padding: 12px 14px;
+  transition: box-shadow 0.15s var(--ease), border-color 0.15s;
+}
+.agenda-item:hover { box-shadow: var(--shadow-2); }
+.agenda-item.is-today { border-color: rgba(255, 106, 0, 0.35); background: var(--accent-wash); }
+.ag-thumb {
+  width: 52px; height: 52px; flex: 0 0 52px; border-radius: 10px;
+  object-fit: cover; background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center; color: var(--faint);
+}
+.ag-thumb-empty svg { width: 22px; height: 22px; }
+.ag-main { flex: 1; min-width: 0; cursor: pointer; }
+.ag-date { font-size: 11.5px; font-weight: 700; letter-spacing: 0.02em; color: var(--muted); text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+.ag-topic { font-size: 15px; font-weight: 700; color: var(--text); margin-top: 3px; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ag-angle { font-size: 12.5px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ag-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+@media (max-width: 560px) {
+  .agenda-item { flex-wrap: wrap; }
+  .ag-actions { width: 100%; justify-content: flex-end; }
+}
+
 .ctype-chip {
   display: inline-flex; align-items: center; white-space: nowrap;
   font-size: 10.5px; font-weight: 700; letter-spacing: 0.01em;

@@ -17,7 +17,7 @@ const S = {
   needsReviewPosts: [],
   onb: { step: 0, data: {} },
   calMonth: null,
-  calView: 'month',
+  calView: 'agenda',
   calPosts: null,
 };
 
@@ -855,7 +855,7 @@ async function loadCalendar() {
   S.calendar = cal.calendar || [];
   S.calPosts = new Map((posts.posts || []).map((p) => [p.id, p]));
   if (!S.calMonth) S.calMonth = todayStr().slice(0, 7);
-  if (!S.calView) S.calView = 'month';
+  if (!S.calView) S.calView = 'agenda';
   renderCalendar();
 }
 
@@ -949,8 +949,8 @@ function renderCalMonth() {
         </div>
         <div class="cal-month-label">${esc(monthLabel)}</div>
         <div class="segmented">
-          <button class="seg-opt active" onclick="setCalView('month')">Mes</button>
-          <button class="seg-opt" onclick="setCalView('agenda')">Agenda</button>
+          <button class="seg-opt" onclick="setCalView('agenda')">Ideas</button>
+          <button class="seg-opt active" onclick="setCalView('month')">Calendario</button>
         </div>
       </div>
       <div class="cal-grid">
@@ -963,49 +963,57 @@ function renderCalMonth() {
       <h2>Proximos posts</h2>
       <div class="side-sub">Lo que viene en tu calendario</div>
       ${sidePosts || empty('Nada programado')}
-      <button class="btn" style="width:100%;margin-top:14px" onclick="setCalView('agenda')">Ver agenda completa</button>
+      <button class="btn" style="width:100%;margin-top:14px" onclick="setCalView('agenda')">Ver todas las ideas</button>
     </aside>
   </div>`;
 }
 
-function renderCalAgenda() {
+function agendaItem(item) {
   const today = todayStr();
-  const rows = S.calendar.map((item) => `<tr class="${item.publish_date === today ? 'cal-today' : ''}">
-    <td style="white-space:nowrap"><span class="date-chip">${fmtDate(item.publish_date)}</span></td>
-    <td style="min-width:220px"><input value="${esc(item.topic)}" onchange="updateCal('${item.id}','topic',this.value)" /></td>
-    <td style="min-width:180px"><input value="${esc(item.angle || '')}" onchange="updateCal('${item.id}','angle',this.value)" /></td>
-    <td><select onchange="updateCal('${item.id}','status',this.value)">
-      ${CAL_STATUSES.map((status) => `<option value="${status}" ${status === item.status ? 'selected' : ''}>${status.replace(/_/g, ' ')}</option>`).join('')}
-    </select></td>
-    <td><span class="tag">${esc(item.category?.name || '—')}</span> ${ctypeChip(item.content_type)}</td>
-    <td class="actions">
-      ${item.status === 'pending' ? `<button class="btn btn-sm btn-primary" onclick="openGenerateModal('${item.id}')">Generar</button>` : ''}
-      ${item.generated_post_id ? `<button class="btn btn-sm" onclick="showPost('${item.generated_post_id}')">Ver post</button>` : ''}
-    </td>
-  </tr>`).join('');
+  const post = item.generated_post_id ? S.calPosts?.get(item.generated_post_id) : null;
+  const thumb = post?.image_url
+    ? `<img class="ag-thumb" src="${esc(post.image_url)}" alt="" />`
+    : `<span class="ag-thumb ag-thumb-empty">${item.content_type === 'ugc_video' ? '🗣️' : item.content_type === 'product_video' ? '🎬' : ICON.image}</span>`;
+  return `<div class="agenda-item ${item.publish_date === today ? 'is-today' : ''}">
+    ${thumb}
+    <div class="ag-main" onclick="calItemModal('${item.id}')">
+      <div class="ag-date">${esc(fmtDate(item.publish_date))}${item.publish_date === today ? ' · hoy' : ''} ${ctypeChip(item.content_type)}</div>
+      <div class="ag-topic">${esc(item.topic)}</div>
+      ${item.angle ? `<div class="ag-angle">${esc(item.angle)}</div>` : ''}
+    </div>
+    <div class="ag-actions">
+      ${statusBadge(item.status)}
+      ${item.status === 'pending' ? `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openGenerateModal('${item.id}')">Generar</button>` : ''}
+      ${item.generated_post_id ? `<button class="btn btn-sm" onclick="event.stopPropagation();showPost('${item.generated_post_id}')">Ver post</button>` : ''}
+    </div>
+  </div>`;
+}
 
-  return `<div style="margin-bottom:14px" class="toolbar">
+function renderCalAgenda() {
+  const list = S.calendar.length
+    ? S.calendar.map(agendaItem).join('')
+    : empty('Todavia no hay ideas. Toca "+ Generar ideas" y la IA arma tu plan.');
+  return `
+    <div class="toolbar" style="margin-bottom:14px">
       <div class="segmented">
-        <button class="seg-opt" onclick="setCalView('month')">Mes</button>
-        <button class="seg-opt active" onclick="setCalView('agenda')">Agenda</button>
+        <button class="seg-opt active" onclick="setCalView('agenda')">Ideas</button>
+        <button class="seg-opt" onclick="setCalView('month')">Calendario</button>
       </div>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Fecha</th><th>Tema</th><th>Angulo</th><th>Estado</th><th>Categoria</th><th></th></tr></thead>
-        <tbody>${rows || `<tr><td colspan="6">${empty('No hay calendario')}</td></tr>`}</tbody>
-      </table>
-    </div>`;
+    <div class="agenda-list">${list}</div>`;
 }
 
 function renderCalendar() {
   const pending = S.calendar.filter((item) => item.status === 'pending').length;
+  const sub = pending
+    ? `${pending} idea${pending === 1 ? '' : 's'} lista${pending === 1 ? '' : 's'} para generar. Tocá "Generar" y la IA crea el post.`
+    : 'Tus ideas de contenido. Generá ideas nuevas cuando quieras.';
   byId('content').innerHTML = `
-    ${pageHead('Calendario', 'Planifica, programa y gestiona tu contenido', `
+    ${pageHead('Agenda de contenido', sub, `
       <button class="btn" onclick="loadCalendar()">Actualizar</button>
       <button class="btn btn-primary" onclick="generateIdeas()">+ Generar ideas</button>
     `)}
-    ${S.calView === 'agenda' ? renderCalAgenda() : renderCalMonth()}`;
+    ${S.calView === 'month' ? renderCalMonth() : renderCalAgenda()}`;
 }
 
 window.calItemModal = function calItemModal(id) {
