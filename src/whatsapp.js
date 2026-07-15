@@ -44,14 +44,29 @@ function normalizeNumber(value) {
 }
 
 async function postMessage(payload) {
-  const res = await fetch(`${GRAPH}/${phoneNumberId()}/messages`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken()}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
+  // Timeout propio: si Meta se cuelga descargando la media del link, cortamos
+  // nosotros y devolvemos un error legible en vez de que el proxy responda HTML.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
+  let res;
+  try {
+    res = await fetch(`${GRAPH}/${phoneNumberId()}/messages`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken()}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new AppError('WhatsApp tardo demasiado en responder (posible imagen lenta o link inaccesible para Meta).', 504, 'WA_TIMEOUT');
+    }
+    throw new AppError(`No se pudo contactar a WhatsApp: ${error.message}`, 502, 'WA_NETWORK');
+  } finally {
+    clearTimeout(timer);
+  }
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new AppError(`WhatsApp API ${res.status}: ${json.error?.message || 'error'}`, 502, 'WA_SEND_FAILED');
