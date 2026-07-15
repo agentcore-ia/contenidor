@@ -398,10 +398,41 @@ function renderOverview() {
       </div>`).join('')
     : empty('Todavia no hay posts generados');
 
+  let todayHero;
+  if (todayPost) {
+    todayHero = `<div class="today-hero done">
+      ${todayPost.image_url ? `<img class="th-thumb" src="${esc(todayPost.image_url)}" alt="" />` : ''}
+      <div class="th-main">
+        <div class="th-eyebrow">${ICON.check} Contenido de hoy listo</div>
+        <div class="th-title">${esc(todayPost.hook || 'Tu creativo de hoy esta generado')}</div>
+      </div>
+      <button class="btn btn-primary" onclick="showPost('${todayPost.id}')">Ver post</button>
+    </div>`;
+  } else if (today) {
+    todayHero = `<div class="today-hero">
+      <div class="th-main">
+        <div class="th-eyebrow">✨ Contenido de hoy ${ctypeChip(today.content_type)}</div>
+        <div class="th-title">${esc(today.topic)}</div>
+        <div class="th-sub">${esc(today.angle || 'Listo para generar')}</div>
+      </div>
+      <button class="btn btn-primary" onclick="openGenerateModal('${today.id}')">Generar ahora</button>
+    </div>`;
+  } else {
+    todayHero = `<div class="today-hero">
+      <div class="th-main">
+        <div class="th-eyebrow">✨ Contenido de hoy</div>
+        <div class="th-title">No hay una idea para hoy</div>
+        <div class="th-sub">Genera ideas nuevas y empeza a crear.</div>
+      </div>
+      <button class="btn btn-primary" onclick="generateIdeas()">+ Generar ideas</button>
+    </div>`;
+  }
+
   byId('content').innerHTML = `
     <div class="dash-head">
       <div><h1>Hola${S.userEmail ? `, ${esc(S.userEmail.split('@')[0])}` : ''}</h1><p>Resumen de ${brand ? esc(brand.name) : 'tu marca'} · ${o.today}</p></div>
     </div>
+    ${todayHero}
     ${metrics}
     <div class="grid two" style="margin-top:14px">
       <div class="section">
@@ -1068,7 +1099,9 @@ window.generateIdeas = async function generateIdeas() {
 // Modal para elegir calidad de imagen y (si la idea es video) el motor, al
 // generar desde la agenda. Los defaults salen de la marca.
 window.openGenerateModal = function openGenerateModal(id) {
-  const item = S.calendar.find((i) => i.id === id) || {};
+  const item = (S.calendar || []).find((i) => i.id === id)
+    || (S.overview?.today_item?.id === id ? S.overview.today_item : null)
+    || {};
   const brand = S.brands.find((b) => b.id === S.brandId) || {};
   const iq = brand.image_quality || 'high';
   const ve = brand.video_engine || 'omni';

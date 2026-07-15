@@ -562,6 +562,29 @@ label {
 .bh-palette { display: flex; gap: 4px; }
 .bh-palette span { width: 18px; height: 18px; border-radius: 6px; border: 1px solid var(--border); }
 
+/* --- Banner "contenido de hoy" en el Inicio --- */
+.today-hero {
+  display: flex; align-items: center; gap: 16px;
+  margin: 8px 0 18px;
+  padding: 16px 20px;
+  border-radius: var(--r-lg);
+  background: var(--accent-wash);
+  border: 1px solid rgba(255, 106, 0, 0.22);
+}
+.today-hero.done { background: var(--good-bg); border-color: rgba(22, 163, 74, 0.22); }
+.today-hero .th-thumb { width: 52px; height: 52px; flex: 0 0 52px; border-radius: 12px; object-fit: cover; }
+.today-hero .th-main { flex: 1; min-width: 0; }
+.th-eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; color: var(--accent); }
+.today-hero.done .th-eyebrow { color: var(--good); }
+.th-eyebrow svg { width: 14px; height: 14px; }
+.th-title { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; color: var(--text); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.th-sub { font-size: 13px; color: var(--text-soft); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.today-hero .btn { flex: 0 0 auto; }
+@media (max-width: 560px) {
+  .today-hero { flex-wrap: wrap; }
+  .today-hero .btn { width: 100%; justify-content: center; }
+}
+
 /* --- Agenda: lista de ideas --- */
 .agenda-list { display: flex; flex-direction: column; gap: 10px; }
 .agenda-item {
