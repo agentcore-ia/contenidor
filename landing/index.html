@@ -217,6 +217,8 @@
   .g-green{background:linear-gradient(155deg,#EAF2E4 0%,#D4E6C8 60%,#BFD9AE 100%)}
   .g-ugc{background:linear-gradient(165deg,#20242E 0%,#2C3140 70%,#3A4054 100%)}
   .g-pizza{background:linear-gradient(155deg,#F8F1E2 0%,#F2DFC0 55%,#E8CDA2 100%)}
+  .g-lilac{background:linear-gradient(155deg,#F1EBF9 0%,#DFD0F0 55%,#CDB7E6 100%)}
+  .g-blue{background:linear-gradient(155deg,#EAF0F7 0%,#CFDCEC 60%,#B3C8DF 100%)}
 
   /* ============ LOGOS STRIP ============ */
   .logos{padding:34px 0 10px;border-top:1px solid var(--line)}
@@ -247,6 +249,9 @@
     font-size:.8rem;line-height:1.12;letter-spacing:-.01em;text-shadow:0 2px 10px rgba(0,0,0,.3);
   }
   .mini-post .mp-head.dark-ink{color:#3A2A16;text-shadow:none}
+  .mini-post .mp-head.lilac-ink{color:#4A3A63;text-shadow:none}
+  .mini-post .mp-head.blue-ink{color:#2B3E55;text-shadow:none}
+  .mini-post .mp-head.green-ink{color:#2F4A22;text-shadow:none}
   .mini-post .mp-meta{padding:9px 12px;display:flex;align-items:center;gap:7px;font-size:.68rem;color:var(--muted)}
   .mini-post .mp-meta .av{width:15px;height:15px;border-radius:50%;flex:none}
   .mp-chip{
@@ -354,6 +359,8 @@
   }
   .post-headline.dark-ink{color:#3A2A16;text-shadow:none}
   .post-headline.green-ink{color:#2F4A22;text-shadow:none}
+  .post-headline.lilac-ink{color:#4A3A63;text-shadow:none}
+  .post-headline.blue-ink{color:#2B3E55;text-shadow:none}
   .post-acts{display:flex;gap:12px;padding:10px 13px 4px;color:var(--ink)}
   .post-acts svg{width:20px;height:20px}
   .post-acts .save{margin-left:auto}
@@ -587,23 +594,20 @@
         <div class="screen" id="demo">
           <div class="scr-bar">
             <span class="mini-dot">P</span><b>Postia</b>
-            <span class="scr-brand" id="d-brand">Heladería Lucca</span>
+            <span class="scr-brand" id="d-brand">Verde Pilates</span>
           </div>
           <div class="scr-body">
-            <div class="idea-chip"><span class="tag">Idea · martes</span><span id="d-idea">2x1 en cucuruchos para levantar el martes</span></div>
+            <div class="idea-chip"><span class="tag">Idea · martes</span><span id="d-idea">Tip: 3 posturas para descontracturar la espalda</span></div>
 
             <div class="gen-img">
               <div class="shimmer"></div>
-              <div class="gen-scene g-ice cur" id="scene-a">
-                <svg viewBox="0 0 120 160" aria-hidden="true">
-                  <path d="M60 152 L36 90 L84 90 Z" fill="#E8A85C"/>
-                  <path d="M44 96 L60 140 L76 96" fill="none" stroke="#D18F3F" stroke-width="2" opacity=".5"/>
-                  <circle cx="46" cy="74" r="21" fill="#FF8FB1"/>
-                  <circle cx="74" cy="74" r="21" fill="#FFC7D6"/>
-                  <circle cx="60" cy="54" r="23" fill="#FFF3F6"/>
-                  <circle cx="60" cy="30" r="7" fill="#D93654"/>
+              <div class="gen-scene g-green cur" id="scene-a">
+                <svg viewBox="0 0 140 140" aria-hidden="true">
+                  <circle cx="52" cy="62" r="34" fill="#9CC184" opacity=".8"/>
+                  <circle cx="88" cy="76" r="30" fill="#7BAF63" opacity=".75"/>
+                  <circle cx="66" cy="96" r="22" fill="#5E9A48" opacity=".7"/>
                 </svg>
-                <div class="gen-head" id="d-head">2X1 EN CUCURUCHOS<br>SOLO HOY</div>
+                <div class="gen-head" id="d-head" style="color:#2F4A22;text-shadow:none">3 POSTURAS PARA<br>TU ESPALDA</div>
               </div>
               <div class="gen-scene g-burger" id="scene-b">
                 <svg viewBox="0 0 140 120" aria-hidden="true">
@@ -614,14 +618,14 @@
                   <rect x="22" y="78" width="96" height="14" rx="7" fill="#6B3E26"/>
                   <rect x="24" y="92" width="92" height="16" rx="8" fill="#E8A85C"/>
                 </svg>
-                <div class="gen-head" id="d-head-b">NUEVA<br>SMASH DOBLE</div>
+                <div class="gen-head" id="d-head-b">DETRÁS DEL<br>MOSTRADOR</div>
               </div>
             </div>
 
             <div class="cap-block">
-              <b id="d-cap-t">El plan del martes ya está decidido 🍦</b>
-              <span id="d-cap">2x1 en cucuruchos hasta las 22h. Te esperamos.</span><br>
-              <span class="tags" id="d-tags">#heladería #promo #2x1</span>
+              <b id="d-cap-t">Tu espalda te lo va a agradecer 🧘</b>
+              <span id="d-cap">Guardá este post para después del trabajo.</span><br>
+              <span class="tags" id="d-tags">#pilates #bienestar #tips</span>
             </div>
 
             <div class="wa-row">
@@ -638,7 +642,7 @@
 
           <div class="pub-banner">
             <span class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4.2"/></svg></span>
-            <span id="d-pub">Publicado en @heladerialucca</span>
+            <span id="d-pub">Publicado en @verdepilates</span>
           </div>
         </div>
       </div>
@@ -651,9 +655,9 @@
   <div class="wrap logos-in">
     <span class="logos-lbl">Marcas que ya usan Postia</span>
     <span class="logo-word">BURGA</span>
-    <span class="logo-word serif">Heladería Lucca</span>
+    <span class="logo-word serif">Lumen Estética</span>
     <span class="logo-word mono">TROKA</span>
-    <span class="logo-word">Café Norte</span>
+    <span class="logo-word">Norte Propiedades</span>
     <span class="logo-word serif">Verde Pilates</span>
   </div>
 </div>
@@ -665,21 +669,21 @@
       <span class="eyebrow">Generado por Postia</span>
       <h2 style="margin-bottom:0">Esto sale de la máquina.<br>Sin retoques.</h2>
     </div>
-    <p class="lead" style="max-width:20em;font-size:.95rem">Cada pieza se diseña con tu identidad: tu logo, tus colores, tus precios reales.</p>
+    <p class="lead" style="max-width:20em;font-size:.95rem">Cada pieza se diseña con tu identidad — sea gastronomía, estética, fitness, inmobiliaria o el rubro que sea.</p>
   </div>
   <div class="marquee" aria-hidden="true">
     <div class="mq-track" id="mq-track">
       <div class="mq-group">
 
-        <div class="mini-post"><div class="mp-img g-ice"><span class="mp-chip">Imagen · IA</span>
-          <svg viewBox="0 0 120 160"><path d="M60 152 L36 90 L84 90 Z" fill="#E8A85C"/><circle cx="46" cy="74" r="21" fill="#FF8FB1"/><circle cx="74" cy="74" r="21" fill="#FFC7D6"/><circle cx="60" cy="54" r="23" fill="#FFF3F6"/><circle cx="60" cy="30" r="7" fill="#D93654"/></svg>
-          <div class="mp-head">2X1 EN CUCURUCHOS</div></div>
-          <div class="mp-meta"><span class="av" style="background:linear-gradient(45deg,#FF8FB1,#D93654)"></span>heladerialucca</div>
+        <div class="mini-post"><div class="mp-img g-lilac"><span class="mp-chip">Imagen · IA</span>
+          <svg viewBox="0 0 120 160"><rect x="44" y="58" width="32" height="66" rx="9" fill="#FFFDFB"/><rect x="50" y="40" width="20" height="18" rx="4" fill="#8E7AB5"/><rect x="56" y="28" width="8" height="14" rx="3" fill="#6D5A94"/><rect x="50" y="86" width="20" height="20" rx="4" fill="#E5DAF3"/><path d="M96 92 C102 102 102 110 96 113 C90 110 90 102 96 92 Z" fill="#B79BDB"/></svg>
+          <div class="mp-head lilac-ink">5 MITOS DEL<br>SKINCARE</div></div>
+          <div class="mp-meta"><span class="av" style="background:linear-gradient(45deg,#CDB7E6,#6D5A94)"></span>lumen.estetica</div>
         </div>
 
         <div class="mini-post"><div class="mp-img g-burger"><span class="mp-chip">Imagen · IA</span>
           <svg viewBox="0 0 140 120"><path d="M22 54 Q70 10 118 54 L118 62 L22 62 Z" fill="#F0B45C"/><rect x="20" y="62" width="100" height="7" rx="3.5" fill="#7FBF6A"/><rect x="24" y="69" width="92" height="9" rx="4" fill="#FFC94D"/><rect x="22" y="78" width="96" height="14" rx="7" fill="#6B3E26"/><rect x="24" y="92" width="92" height="16" rx="8" fill="#E8A85C"/></svg>
-          <div class="mp-head">SMASH DOBLE<br>DESDE HOY</div></div>
+          <div class="mp-head">DETRÁS DEL<br>MOSTRADOR</div></div>
           <div class="mp-meta"><span class="av" style="background:linear-gradient(45deg,#F0B45C,#6B3E26)"></span>burga.ok</div>
         </div>
 
@@ -691,14 +695,14 @@
 
         <div class="mini-post"><div class="mp-img g-green"><span class="mp-chip">Imagen · IA</span>
           <svg viewBox="0 0 140 140"><circle cx="52" cy="62" r="34" fill="#9CC184" opacity=".8"/><circle cx="88" cy="76" r="30" fill="#7BAF63" opacity=".75"/><circle cx="66" cy="96" r="22" fill="#5E9A48" opacity=".7"/></svg>
-          <div class="mp-head green-ink">2 CLASES<br>DE REGALO</div></div>
+          <div class="mp-head green-ink">3 POSTURAS PARA<br>TU ESPALDA</div></div>
           <div class="mp-meta"><span class="av" style="background:linear-gradient(45deg,#9CC184,#5E9A48)"></span>verdepilates</div>
         </div>
 
-        <div class="mini-post"><div class="mp-img g-pizza"><span class="mp-chip">Imagen · IA</span>
-          <svg viewBox="0 0 140 140"><circle cx="70" cy="70" r="48" fill="#F2C879"/><circle cx="70" cy="70" r="40" fill="#E8A54B"/><circle cx="56" cy="58" r="7" fill="#C1372B"/><circle cx="84" cy="64" r="7" fill="#C1372B"/><circle cx="66" cy="86" r="7" fill="#C1372B"/><path d="M70 22 L70 118 M22 70 L118 70" stroke="#D18F3F" stroke-width="3" opacity=".5"/></svg>
-          <div class="mp-head dark-ink">MUZZA + FAINÁ<br>VIERNES</div></div>
-          <div class="mp-meta"><span class="av" style="background:linear-gradient(45deg,#E8A54B,#C1372B)"></span>trattoria.roma</div>
+        <div class="mini-post"><div class="mp-img g-blue"><span class="mp-chip">Imagen · IA</span>
+          <svg viewBox="0 0 140 140"><path d="M70 26 L124 66 L16 66 Z" fill="#5B7A9E"/><rect x="32" y="66" width="76" height="46" rx="4" fill="#FFFFFF"/><rect x="62" y="82" width="16" height="30" rx="3" fill="#5B7A9E"/><rect x="42" y="76" width="14" height="12" rx="2" fill="#AFC4DE"/><rect x="84" y="76" width="14" height="12" rx="2" fill="#AFC4DE"/></svg>
+          <div class="mp-head blue-ink">CHECKLIST ANTES<br>DE ALQUILAR</div></div>
+          <div class="mp-meta"><span class="av" style="background:linear-gradient(45deg,#AFC4DE,#5B7A9E)"></span>norte.propiedades</div>
         </div>
 
         <div class="mini-post"><div class="mp-img g-ugc"><span class="mp-chip">Video · UGC</span>
@@ -727,18 +731,18 @@
         <h3>Contale de tu negocio</h3>
         <p>Conectá tu Instagram o describilo en dos líneas. Postia aprende tu estilo, tu rubro, tus productos y tus precios reales.</p>
         <div class="step-viz">
-          <div class="viz-row"><span class="viz-pill on">Heladería</span><span class="viz-pill">Restaurante</span><span class="viz-pill">Estudio</span></div>
-          <div class="viz-row"><span class="viz-dot" style="background:var(--ok)"></span>Catálogo importado: 14 productos</div>
+          <div class="viz-row"><span class="viz-pill on">Estética</span><span class="viz-pill">Gastronomía</span><span class="viz-pill">Inmobiliaria</span></div>
+          <div class="viz-row"><span class="viz-dot" style="background:var(--ok)"></span>Catálogo importado: 14 productos y servicios</div>
         </div>
       </div>
       <div class="step reveal">
         <span class="step-n">Paso 02</span>
         <h3>Recibí ideas ya agendadas</h3>
-        <p>Una agenda de contenido variada y lista: promos, producto, fechas especiales. Nada repetido, nada genérico.</p>
+        <p>Una agenda variada y lista: tips, detrás de escena, reseñas, fechas especiales — y alguna promo solo cuando suma.</p>
         <div class="step-viz">
-          <div class="viz-row"><span class="viz-dot" style="background:#FF8FB1"></span>Mar · 2x1 en cucuruchos</div>
-          <div class="viz-row"><span class="viz-dot" style="background:#F0B45C"></span>Jue · Nuevo sabor: pistacho</div>
-          <div class="viz-row"><span class="viz-dot" style="background:#7BAF63"></span>Dom · Video UGC del local</div>
+          <div class="viz-row"><span class="viz-dot" style="background:#CDB7E6"></span>Mar · Tip: rutina exprés post oficina</div>
+          <div class="viz-row"><span class="viz-dot" style="background:#F0B45C"></span>Jue · Detrás de escena del estudio</div>
+          <div class="viz-row"><span class="viz-dot" style="background:#39415A"></span>Dom · Reseña de una clienta (video UGC)</div>
         </div>
       </div>
       <div class="step reveal">
@@ -758,7 +762,7 @@
         <p>Al aprobar, sale al instante a tu Instagram. O queda agendado para su fecha, como prefieras.</p>
         <div class="step-viz">
           <div class="viz-row"><span class="viz-bar"><i></i></span></div>
-          <div class="viz-row"><span class="viz-dot" style="background:var(--ok)"></span>Publicado en @heladerialucca · 19:02</div>
+          <div class="viz-row"><span class="viz-dot" style="background:var(--ok)"></span>Publicado en @verdepilates · 19:02</div>
         </div>
       </div>
     </div>
@@ -790,8 +794,8 @@
       <div class="ag-row">
         <div class="ag-date"><span class="dow">Lun</span><span class="dnum">13</span></div>
         <div class="ag-body">
-          <div class="ag-topic">Detrás de escena: así se arma tu pedido</div>
-          <div class="ag-kind"><span class="k-dot" style="background:#FF8FB1"></span>Imagen</div>
+          <div class="ag-topic">Detrás de escena: un día en el estudio</div>
+          <div class="ag-kind"><span class="k-dot" style="background:#CDB7E6"></span>Imagen</div>
         </div>
         <span class="ag-st st-pub">✓ Publicado</span>
       </div>
@@ -799,8 +803,8 @@
       <div class="ag-row">
         <div class="ag-date"><span class="dow">Mar</span><span class="dnum">14</span></div>
         <div class="ag-body">
-          <div class="ag-topic">2x1 en cucuruchos — martes de helado</div>
-          <div class="ag-kind"><span class="k-dot" style="background:#FF8FB1"></span>Imagen</div>
+          <div class="ag-topic">Tip exprés: 3 errores al limpiar tu piel</div>
+          <div class="ag-kind"><span class="k-dot" style="background:#CDB7E6"></span>Imagen</div>
         </div>
         <span class="ag-st st-pub">✓ Publicado</span>
       </div>
@@ -808,8 +812,8 @@
       <div class="ag-row today">
         <div class="ag-date"><span class="dow">Mié</span><span class="dnum">15</span></div>
         <div class="ag-body">
-          <div class="ag-topic">Nueva: smash doble con cheddar</div>
-          <div class="ag-kind"><span class="k-dot" style="background:#6B3E26"></span>Video de producto</div>
+          <div class="ag-topic">La historia de Marta, clienta desde 2023</div>
+          <div class="ag-kind"><span class="k-dot" style="background:#39415A"></span>Video UGC</div>
         </div>
         <span class="ag-st st-gen"><span class="pulse"></span><span>Generando<span class="st-txt-l"> video…</span></span></span>
       </div>
@@ -817,8 +821,8 @@
       <div class="ag-row">
         <div class="ag-date"><span class="dow">Jue</span><span class="dnum">16</span></div>
         <div class="ag-body">
-          <div class="ag-topic">Reseña real: “no vuelvo a otro lado”</div>
-          <div class="ag-kind"><span class="k-dot" style="background:#39415A"></span>Video UGC</div>
+          <div class="ag-topic">Pregunta frecuente: ¿cada cuánto conviene venir?</div>
+          <div class="ag-kind"><span class="k-dot" style="background:#CDB7E6"></span>Imagen</div>
         </div>
         <span class="ag-st st-wa">En tu WhatsApp</span>
       </div>
@@ -826,8 +830,8 @@
       <div class="ag-row">
         <div class="ag-date"><span class="dow">Vie</span><span class="dnum">17</span></div>
         <div class="ag-body">
-          <div class="ag-topic">Combo finde: muzza + fainá</div>
-          <div class="ag-kind"><span class="k-dot" style="background:#E8A54B"></span>Imagen</div>
+          <div class="ag-topic">Conocé al equipo: quién te atiende hoy</div>
+          <div class="ag-kind"><span class="k-dot" style="background:#F0B45C"></span>Imagen</div>
         </div>
         <span class="ag-st st-agd">Agendado</span>
       </div>
@@ -835,7 +839,7 @@
       <div class="ag-row">
         <div class="ag-date"><span class="dow">Sáb</span><span class="dnum">18</span></div>
         <div class="ag-body">
-          <div class="ag-topic">Se viene el Día del Amigo: reservá tu mesa</div>
+          <div class="ag-topic">Beneficio del finde para clientas nuevas</div>
           <div class="ag-kind"><span class="k-dot" style="background:#9CC184"></span>Imagen</div>
         </div>
         <span class="ag-st st-agd">Agendado</span>
@@ -849,16 +853,16 @@
   <div class="wrap">
     <div class="reveal">
       <span class="eyebrow">Imágenes generadas</span>
-      <h2>Piezas que abren el apetito.</h2>
+      <h2>Piezas que parecen de un estudio de diseño.</h2>
       <p class="lead">Estética limpia y consistente, tu logo integrado en la escena y —cuando hay promo— tus precios exactos, tomados de tu catálogo.</p>
     </div>
     <div class="gal-grid">
 
       <article class="post reveal">
-        <div class="post-top"><span class="av" style="background:linear-gradient(45deg,#FF8FB1,#D93654)"></span><b>heladerialucca</b><span class="dots">···</span></div>
-        <div class="post-img g-ice"><span class="gen-chip">Imagen · IA</span>
-          <svg viewBox="0 0 120 160"><path d="M60 152 L36 90 L84 90 Z" fill="#E8A85C"/><path d="M44 96 L60 140 L76 96" fill="none" stroke="#D18F3F" stroke-width="2" opacity=".5"/><circle cx="46" cy="74" r="21" fill="#FF8FB1"/><circle cx="74" cy="74" r="21" fill="#FFC7D6"/><circle cx="60" cy="54" r="23" fill="#FFF3F6"/><circle cx="60" cy="30" r="7" fill="#D93654"/></svg>
-          <div class="post-headline">2X1 EN<br>CUCURUCHOS</div>
+        <div class="post-top"><span class="av" style="background:linear-gradient(45deg,#CDB7E6,#6D5A94)"></span><b>lumen.estetica</b><span class="dots">···</span></div>
+        <div class="post-img g-lilac"><span class="gen-chip">Imagen · IA</span>
+          <svg viewBox="0 0 120 160"><rect x="44" y="58" width="32" height="66" rx="9" fill="#FFFDFB"/><rect x="50" y="40" width="20" height="18" rx="4" fill="#8E7AB5"/><rect x="56" y="28" width="8" height="14" rx="3" fill="#6D5A94"/><rect x="50" y="86" width="20" height="20" rx="4" fill="#E5DAF3"/><path d="M96 92 C102 102 102 110 96 113 C90 110 90 102 96 92 Z" fill="#B79BDB"/></svg>
+          <div class="post-headline lilac-ink">5 MITOS DEL<br>SKINCARE</div>
         </div>
         <div class="post-acts">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7.5-4.6-9.7-9A5.4 5.4 0 0 1 12 6.6 5.4 5.4 0 0 1 21.7 12c-2.2 4.4-9.7 9-9.7 9Z"/></svg>
@@ -866,14 +870,14 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></svg>
           <svg class="save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-5 7 5Z"/></svg>
         </div>
-        <div class="post-cap"><b>heladerialucca</b> El plan del martes ya está decidido 🍦 Hasta las 22h.</div>
+        <div class="post-cap"><b>lumen.estetica</b> Los desmentimos uno por uno. Guardá este post ✨</div>
       </article>
 
       <article class="post reveal">
         <div class="post-top"><span class="av" style="background:linear-gradient(45deg,#F0B45C,#6B3E26)"></span><b>burga.ok</b><span class="dots">···</span></div>
-        <div class="post-img g-burger"><span class="gen-chip">Imagen · IA</span>
+        <div class="post-img g-burger"><span class="gen-chip">Detrás de escena</span>
           <svg viewBox="0 0 140 120"><path d="M22 54 Q70 10 118 54 L118 62 L22 62 Z" fill="#F0B45C"/><ellipse cx="52" cy="36" rx="3.4" ry="2.2" fill="#FFEFD2"/><ellipse cx="72" cy="30" rx="3.4" ry="2.2" fill="#FFEFD2"/><ellipse cx="92" cy="38" rx="3.4" ry="2.2" fill="#FFEFD2"/><rect x="20" y="62" width="100" height="7" rx="3.5" fill="#7FBF6A"/><rect x="24" y="69" width="92" height="9" rx="4" fill="#FFC94D"/><rect x="22" y="78" width="96" height="14" rx="7" fill="#6B3E26"/><rect x="24" y="92" width="92" height="16" rx="8" fill="#E8A85C"/></svg>
-          <div class="post-headline">NUEVA<br>SMASH DOBLE</div>
+          <div class="post-headline">DETRÁS DEL<br>MOSTRADOR</div>
         </div>
         <div class="post-acts">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7.5-4.6-9.7-9A5.4 5.4 0 0 1 12 6.6 5.4 5.4 0 0 1 21.7 12c-2.2 4.4-9.7 9-9.7 9Z"/></svg>
@@ -881,7 +885,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></svg>
           <svg class="save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-5 7 5Z"/></svg>
         </div>
-        <div class="post-cap"><b>burga.ok</b> Doble smash, cheddar fundido, pan brioche. Desde hoy 🍔</div>
+        <div class="post-cap"><b>burga.ok</b> Así se arma la smash a las 11 AM. Sin secretos 🍔</div>
       </article>
 
       <article class="post reveal">
@@ -901,9 +905,9 @@
 
       <article class="post reveal">
         <div class="post-top"><span class="av" style="background:linear-gradient(45deg,#9CC184,#5E9A48)"></span><b>verdepilates</b><span class="dots">···</span></div>
-        <div class="post-img g-green"><span class="gen-chip">Imagen · IA</span>
+        <div class="post-img g-green"><span class="gen-chip">Tip · IA</span>
           <svg viewBox="0 0 140 140"><circle cx="52" cy="62" r="34" fill="#9CC184" opacity=".8"/><circle cx="88" cy="76" r="30" fill="#7BAF63" opacity=".75"/><circle cx="66" cy="96" r="22" fill="#5E9A48" opacity=".7"/></svg>
-          <div class="post-headline green-ink">ÚLTIMA SEMANA<br>2 CLASES DE REGALO</div>
+          <div class="post-headline green-ink">3 POSTURAS PARA<br>TU ESPALDA</div>
         </div>
         <div class="post-acts">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7.5-4.6-9.7-9A5.4 5.4 0 0 1 12 6.6 5.4 5.4 0 0 1 21.7 12c-2.2 4.4-9.7 9-9.7 9Z"/></svg>
@@ -929,12 +933,12 @@
     <div class="vid-grid">
 
       <div class="vid reveal">
-        <div class="vid-scene g-burger kenburns">
-          <svg viewBox="0 0 140 120"><path d="M22 54 Q70 10 118 54 L118 62 L22 62 Z" fill="#F0B45C"/><rect x="20" y="62" width="100" height="7" rx="3.5" fill="#7FBF6A"/><rect x="24" y="69" width="92" height="9" rx="4" fill="#FFC94D"/><rect x="22" y="78" width="96" height="14" rx="7" fill="#6B3E26"/><rect x="24" y="92" width="92" height="16" rx="8" fill="#E8A85C"/></svg>
+        <div class="vid-scene g-lilac kenburns">
+          <svg viewBox="0 0 120 160"><rect x="44" y="58" width="32" height="66" rx="9" fill="#FFFDFB"/><rect x="50" y="40" width="20" height="18" rx="4" fill="#8E7AB5"/><rect x="56" y="28" width="8" height="14" rx="3" fill="#6D5A94"/><rect x="50" y="86" width="20" height="20" rx="4" fill="#E5DAF3"/><path d="M96 92 C102 102 102 110 96 113 C90 110 90 102 96 92 Z" fill="#B79BDB"/></svg>
         </div>
         <span class="vid-chip">Producto · 0:08</span>
         <span class="play"><svg viewBox="0 0 24 24" fill="#111"><path d="M8 5v14l11-7L8 5Z"/></svg></span>
-        <div class="vid-foot"><div class="vid-cap">Push-in lento sobre la smash doble. Premium, sin cámara.</div></div>
+        <div class="vid-foot"><div class="vid-cap">Push-in lento sobre el sérum. Premium, sin cámara.</div></div>
       </div>
 
       <div class="vid reveal">
@@ -942,14 +946,14 @@
         <span class="vid-chip"><span class="rec"></span>UGC · 0:09</span>
         <span class="avatar-ugc" aria-hidden="true"></span>
         <div class="vid-foot">
-          <div class="vid-cap" id="ugc-cap">“Probé el helado de oreo y…”</div>
+          <div class="vid-cap" id="ugc-cap">“Arranqué pilates hace un mes…”</div>
           <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
         </div>
       </div>
 
       <div class="vid reveal">
-        <div class="vid-scene g-pizza vid-blur">
-          <svg viewBox="0 0 140 140"><circle cx="70" cy="70" r="48" fill="#F2C879"/><circle cx="70" cy="70" r="40" fill="#E8A54B"/><circle cx="56" cy="58" r="7" fill="#C1372B"/><circle cx="84" cy="64" r="7" fill="#C1372B"/><circle cx="66" cy="86" r="7" fill="#C1372B"/></svg>
+        <div class="vid-scene g-burger vid-blur">
+          <svg viewBox="0 0 140 120"><path d="M22 54 Q70 10 118 54 L118 62 L22 62 Z" fill="#F0B45C"/><rect x="20" y="62" width="100" height="7" rx="3.5" fill="#7FBF6A"/><rect x="24" y="69" width="92" height="9" rx="4" fill="#FFC94D"/><rect x="22" y="78" width="96" height="14" rx="7" fill="#6B3E26"/><rect x="24" y="92" width="92" height="16" rx="8" fill="#E8A85C"/></svg>
         </div>
         <span class="vid-chip">Generando…</span>
         <div class="prog-wrap">
@@ -993,13 +997,13 @@
       <div class="chat-body">
         <span class="chat-note">hoy</span>
         <div class="bub">
-          <div class="b-img g-ice">
-            <svg viewBox="0 0 120 160"><path d="M60 152 L36 90 L84 90 Z" fill="#E8A85C"/><circle cx="46" cy="74" r="21" fill="#FF8FB1"/><circle cx="74" cy="74" r="21" fill="#FFC7D6"/><circle cx="60" cy="54" r="23" fill="#FFF3F6"/><circle cx="60" cy="30" r="7" fill="#D93654"/></svg>
-            <span class="bh">2X1 EN CUCURUCHOS</span>
+          <div class="b-img g-green">
+            <svg viewBox="0 0 140 140"><circle cx="52" cy="62" r="34" fill="#9CC184" opacity=".8"/><circle cx="88" cy="76" r="30" fill="#7BAF63" opacity=".75"/><circle cx="66" cy="96" r="22" fill="#5E9A48" opacity=".7"/></svg>
+            <span class="bh" style="color:#2F4A22;text-shadow:none">3 POSTURAS PARA TU ESPALDA</span>
           </div>
-          📣 <b>Heladería Lucca</b><br>
-          El plan del martes ya está decidido 🍦 2x1 en cucuruchos hasta las 22h. Te esperamos.<br>
-          <span style="color:#5B7FD4;font-size:.72rem">#heladería #promo #2x1</span>
+          📣 <b>Verde Pilates</b><br>
+          Tu espalda te lo va a agradecer 🧘 Guardá este post para después del trabajo.<br>
+          <span style="color:#5B7FD4;font-size:.72rem">#pilates #bienestar #tips</span>
           <span class="b-time">18:47</span>
           <div class="bub-btns">
             <span class="bub-btn">✓ Aprobar</span>
@@ -1024,7 +1028,7 @@
       <div class="feat reveal">
         <span class="f-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 7V6a6 6 0 0 1 12 0v1"/><path d="M4 7h16l-1.3 12.1a2 2 0 0 1-2 1.9H7.3a2 2 0 0 1-2-1.9L4 7Z"/></svg></span>
         <h3>Catálogo con precios reales</h3>
-        <p>Cargá tus productos o subí una foto de tu carta: las promos usan tus precios exactos, nunca inventados.</p>
+        <p>Cargá tus productos o servicios —o subí una foto de tu carta o lista de precios— y cuando hay promo se usan tus precios exactos, nunca inventados.</p>
       </div>
       <div class="feat reveal">
         <span class="f-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.4l-5.3 2.7 1-5.8L3.5 9.2l5.9-.9Z"/></svg></span>
@@ -1068,12 +1072,12 @@
         <blockquote>“Antes le dedicaba los domingos a armar los posts de la semana. Ahora apruebo tres por WhatsApp mientras cierro la caja.”</blockquote>
         <div class="testi-who">
           <span class="av" style="background:linear-gradient(45deg,#FF8FB1,#D93654)">SL</span>
-          <div><b>Sofía L.</b><span>Heladería · Junín</span></div>
+          <div><b>Sofía L.</b><span>Centro de estética · Junín</span></div>
         </div>
       </div>
       <div class="testi reveal">
         <span class="stars" aria-label="5 estrellas">★★★★★</span>
-        <blockquote>“El video del lanzamiento lo hizo Postia: guión, voz, todo. Nadie me cree que no contratamos una productora.”</blockquote>
+        <blockquote>“El video UGC con la reseña de un cliente lo hizo Postia: guión, voz, todo. Nadie me cree que no contratamos una productora.”</blockquote>
         <div class="testi-who">
           <span class="av" style="background:linear-gradient(45deg,#F0B45C,#6B3E26)">NB</span>
           <div><b>Nico B.</b><span>Hamburguesería · CABA</span></div>
@@ -1178,6 +1182,8 @@
         <b>Contacto</b>
         <a href="mailto:hola@postia.ar">hola@postia.ar</a>
         <a href="https://app.postia.ar/dashboard">Ingresar a la app</a>
+        <a href="/privacidad">Política de privacidad</a>
+        <a href="/eliminacion-datos">Eliminación de datos</a>
       </div>
     </div>
     <div class="foot-base">
@@ -1217,18 +1223,18 @@
 
   var variants = [
     {
-      brand:"Heladería Lucca", handle:"@heladerialucca",
-      idea:"2x1 en cucuruchos para levantar el martes",
-      capT:"El plan del martes ya está decidido 🍦",
-      cap:"2x1 en cucuruchos hasta las 22h. Te esperamos.",
-      tags:"#heladería #promo #2x1", scene:"a"
+      brand:"Verde Pilates", handle:"@verdepilates",
+      idea:"Tip: 3 posturas para descontracturar la espalda",
+      capT:"Tu espalda te lo va a agradecer 🧘",
+      cap:"Guardá este post para después del trabajo.",
+      tags:"#pilates #bienestar #tips", scene:"a"
     },
     {
       brand:"BURGA", handle:"@burga.ok",
-      idea:"Lanzamiento: smash doble con cheddar",
-      capT:"Doble smash, cero vueltas 🍔",
-      cap:"Cheddar fundido y pan brioche. Desde hoy en el local.",
-      tags:"#burger #smash #lanzamiento", scene:"b"
+      idea:"Detrás de escena: así se arma la smash de las 11",
+      capT:"Sin secretos 🍔",
+      cap:"Así se prepara la doble antes de abrir el local.",
+      tags:"#burger #detrasdeescena #food", scene:"b"
     }
   ];
   var el = function(id){ return document.getElementById(id); };
@@ -1291,9 +1297,9 @@
 
   /* ---- UGC caption rotation ---- */
   var caps = [
-    "“Probé el helado de oreo y…”",
-    "“…no pienso volver a otro lado.”",
-    "“El 2x1 de los martes es LEY.”"
+    "“Arranqué pilates hace un mes…”",
+    "“…y la espalda no me molesta más.”",
+    "“Los turnos los saco por Instagram.”"
   ];
   var capEl = document.getElementById("ugc-cap"), ci = 0;
   if (capEl) setInterval(function(){

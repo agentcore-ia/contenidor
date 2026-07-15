@@ -35,6 +35,25 @@ async function landingHtml() {
   return landingCache;
 }
 
+// Paginas legales (las pide la verificacion de app de Meta). Son documentos
+// HTML completos y se sirven en cualquier host.
+const legalCache = new Map();
+function legalPage(file) {
+  return async (_req, res) => {
+    try {
+      if (!legalCache.has(file)) legalCache.set(file, await readFile(resolve('landing', file), 'utf8'));
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-store');
+      res.send(legalCache.get(file));
+    } catch (error) {
+      console.warn(`[legal] no se pudo servir ${file}:`, error.message);
+      res.status(404).send('No encontrado');
+    }
+  };
+}
+app.get('/privacidad', legalPage('privacidad.html'));
+app.get('/eliminacion-datos', legalPage('eliminacion-datos.html'));
+
 app.get('/', async (req, res) => {
   const host = String(req.headers['x-forwarded-host'] || req.hostname || '').toLowerCase();
   if (host === 'postia.ar' || host === 'www.postia.ar') {

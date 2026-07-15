@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="index, follow">
+<title>Eliminación de datos — Postia</title>
+<style>
+  :root{
+    --bg:#FBFBF9; --surface:#FFFFFF; --ink:#0B0B0C; --muted:#6B6B70;
+    --line:rgba(11,11,12,.09);
+    --font-sans:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI Variable Display","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --font-mono:ui-monospace,"SF Mono","Cascadia Code","Segoe UI Mono",Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{--bg:#0B0B0D;--surface:#151517;--ink:#F5F5F7;--muted:#9A9AA1;--line:rgba(245,245,247,.11)}
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font-sans);font-size:16.5px;line-height:1.7;-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  .wrap{max-width:720px;margin:0 auto;padding:0 22px}
+  header{border-bottom:1px solid var(--line);padding:18px 0}
+  header .wrap{display:flex;align-items:center;gap:9px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:1.08rem;text-decoration:none}
+  .brand-dot{width:22px;height:22px;border-radius:7px;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-size:.72rem;font-weight:900}
+  header a.back{margin-left:auto;font-size:.85rem;color:var(--muted);text-decoration:none}
+  main{padding:56px 0 80px}
+  .eyebrow{font-family:var(--font-mono);font-size:.7rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+  h1{font-size:clamp(1.9rem,5vw,2.6rem);font-weight:800;letter-spacing:-.03em;line-height:1.1;margin:10px 0 30px}
+  p,li{color:var(--muted)}
+  p{margin-bottom:14px}
+  p b,li b{color:var(--ink);font-weight:600}
+  ol{margin:0 0 14px 22px}
+  li{margin-bottom:12px}
+  .card{border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:20px 22px;margin:18px 0}
+  footer{border-top:1px solid var(--line);padding:26px 0;color:var(--muted);font-size:.82rem}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="https://postia.ar"><span class="brand-dot">P</span>Postia</a>
+    <a class="back" href="https://postia.ar">← Volver a postia.ar</a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <span class="eyebrow">Legal</span>
+    <h1>Instrucciones de eliminación de datos</h1>
+
+    <p>Si usaste Postia (incluida la conexión de tu cuenta de Instagram o de WhatsApp) y querés eliminar tus datos, tenés estas opciones:</p>
+
+    <div class="card">
+      <ol>
+        <li><b>Desconectar Instagram o WhatsApp:</b> desde el panel en <a href="https://app.postia.ar/dashboard">app.postia.ar</a>, sección <b>Marca → Integraciones</b>, tocá “Desconectar”. Esto elimina de inmediato los tokens de acceso de tu cuenta.</li>
+        <li><b>Eliminar tu cuenta y todos tus datos:</b> envianos un email a <a href="mailto:hola@postia.ar">hola@postia.ar</a> <b>desde el email con el que te registraste</b>, con el asunto <b>“Eliminar mi cuenta”</b>. Eliminaremos tu cuenta, tus marcas, tu catálogo, el contenido generado y todos los tokens asociados.</li>
+      </ol>
+      <p style="margin-bottom:0">Procesamos todas las solicitudes dentro de los <b>30 días</b> y te confirmamos por email cuando la eliminación esté completa.</p>
+    </div>
+
+    <p>También podés revocar el acceso de Postia desde tu propia cuenta de Instagram o Facebook (Configuración → Seguridad → Apps y sitios web); en ese caso los tokens quedan invalidados automáticamente.</p>
+
+    <p>Más información en nuestra <a href="https://postia.ar/privacidad">Política de privacidad</a>.</p>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">© 2026 Postia · <a href="https://postia.ar">postia.ar</a> · <a href="mailto:hola@postia.ar">hola@postia.ar</a></div>
+</footer>
+</body>
+</html>
