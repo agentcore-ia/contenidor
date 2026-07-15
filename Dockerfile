@@ -11,6 +11,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY server.js ./
 COPY src ./src
+COPY landing ./landing
 
 EXPOSE 80
 
