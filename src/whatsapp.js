@@ -14,6 +14,10 @@ import { AppError } from './errors.js';
 //   WHATSAPP_TEMPLATE_LANG      template language code (e.g. es_AR, default es)
 //   WHATSAPP_VERIFY_TOKEN       shared secret for the webhook verification handshake
 //   WHATSAPP_APP_SECRET         (optional) Meta app secret to verify webhook signatures
+//   WHATSAPP_FREEFORM           (test mode) '1' to send free-form interactive
+//                               messages instead of templates — no approved
+//                               template needed, but only works inside the 24h
+//                               window (the recipient must have messaged us first)
 
 const GRAPH = 'https://graph.facebook.com/v21.0';
 
@@ -24,9 +28,14 @@ function templateNameVideo() { return process.env.WHATSAPP_TEMPLATE_NAME_VIDEO |
 function templateLang() { return process.env.WHATSAPP_TEMPLATE_LANG || 'es'; }
 export function verifyToken() { return process.env.WHATSAPP_VERIFY_TOKEN || ''; }
 function appSecret() { return process.env.WHATSAPP_APP_SECRET || process.env.INSTAGRAM_APP_SECRET || ''; }
+function freeformMode() {
+  const v = String(process.env.WHATSAPP_FREEFORM || '').toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes';
+}
 
 export function whatsappConfigured() {
-  return Boolean(phoneNumberId() && accessToken() && templateName());
+  // En modo de prueba (freeform) no hace falta plantilla aprobada.
+  return Boolean(phoneNumberId() && accessToken() && (templateName() || freeformMode()));
 }
 
 // Digits only, no '+' — the Cloud API wants the full number with country code.
@@ -59,6 +68,12 @@ export async function sendApprovalRequest({ to, imageUrl, videoUrl, bodyText, po
   const recipient = normalizeNumber(to);
   if (!recipient) throw new AppError('Numero de WhatsApp invalido', 400, 'WA_BAD_NUMBER');
 
+  // Modo de prueba: sin plantilla, mensaje interactivo (solo dentro de la
+  // ventana de 24h — el destinatario tuvo que escribirnos primero).
+  if (freeformMode()) {
+    return sendApprovalInteractive({ recipient, imageUrl, videoUrl, bodyText, postId });
+  }
+
   // Solo mandamos video si hay URL de video Y una plantilla con header de video
   // aprobada; si no, caemos a la imagen (que el post de video igual tiene).
   const useVideo = Boolean(videoUrl && templateNameVideo());
@@ -81,6 +96,34 @@ export async function sendApprovalRequest({ to, imageUrl, videoUrl, bodyText, po
         { type: 'button', sub_type: 'quick_reply', index: '0', parameters: [{ type: 'payload', payload: `approve:${postId}` }] },
         { type: 'button', sub_type: 'quick_reply', index: '1', parameters: [{ type: 'payload', payload: `reject:${postId}` }] }
       ]
+    }
+  });
+}
+
+// Free-form interactive approval (test mode). Sends an image/video header, the
+// copy, and two reply buttons whose ids carry the post id + action. Works only
+// inside the 24h customer-service window (the recipient messaged us first), so
+// it's meant for quick testing before templates are approved.
+async function sendApprovalInteractive({ recipient, imageUrl, videoUrl, bodyText, postId }) {
+  const useVideo = Boolean(videoUrl);
+  if (!useVideo && !imageUrl) throw new AppError('El post no tiene imagen ni video', 400, 'WA_NO_MEDIA');
+
+  return postMessage({
+    messaging_product: 'whatsapp',
+    to: recipient,
+    type: 'interactive',
+    interactive: {
+      type: 'button',
+      header: useVideo
+        ? { type: 'video', video: { link: videoUrl } }
+        : { type: 'image', image: { link: imageUrl } },
+      body: { text: (bodyText || '').slice(0, 1000) || '-' },
+      action: {
+        buttons: [
+          { type: 'reply', reply: { id: `approve:${postId}`, title: 'Aprobar' } },
+          { type: 'reply', reply: { id: `reject:${postId}`, title: 'Rechazar' } }
+        ]
+      }
     }
   });
 }
