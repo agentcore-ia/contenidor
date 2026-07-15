@@ -261,18 +261,28 @@ export async function applyWhatsappDecision({ action, postId, from }) {
     return { ok: false, reason: 'already_posted' };
   }
 
-  const status = action === 'approve' ? 'approved' : 'rejected';
-  await setGeneratedPostStatus(postId, status);
-
-  if (from) {
-    await sendText(
-      from,
-      action === 'approve'
-        ? '✅ Aprobado. Se publicara en su fecha programada.'
-        : '❌ Rechazado. No se va a publicar.'
-    );
+  if (action === 'reject') {
+    await setGeneratedPostStatus(postId, 'rejected');
+    if (from) await sendText(from, '❌ Rechazado. No se va a publicar.');
+    return { ok: true, status: 'rejected' };
   }
-  return { ok: true, status };
+
+  // Aprobar -> publicar al instante en Instagram (si la marca lo tiene conectado).
+  await setGeneratedPostStatus(postId, 'approved');
+  const brand = await getBrandById(post.brand_id);
+  if (!brand?.ig_access_token) {
+    if (from) await sendText(from, '✅ Aprobado. (Instagram no esta conectado para esta marca: quedo aprobado pero no se publico. Conecta IG en Marca para publicar.)');
+    return { ok: true, status: 'approved', published: false, reason: 'ig_not_connected' };
+  }
+  try {
+    const result = await publishPost(post, brand);
+    if (from) await sendText(from, '✅ Aprobado y publicado en Instagram. 🎉');
+    return { ok: true, status: 'posted', published: true, ig_media_id: result.ig_media_id };
+  } catch (error) {
+    await markPostPublishError(post.id, error.message);
+    if (from) await sendText(from, `✅ Aprobado, pero no se pudo publicar en Instagram: ${error.message}`);
+    return { ok: true, status: 'approved', published: false, error: error.message };
+  }
 }
 
 export async function generateAndRenderPost(calendarId, opts = {}) {
