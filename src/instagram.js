@@ -185,13 +185,17 @@ export async function connectFromCode(code) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function createMediaContainer({ igUserId, token, imageUrl, caption }) {
-  const body = new URLSearchParams({ image_url: imageUrl, access_token: token });
+async function createMediaContainer({ igUserId, token, imageUrl, caption, mediaType, isCarouselItem, children }) {
+  const body = new URLSearchParams({ access_token: token });
+  if (imageUrl) body.set('image_url', imageUrl);
   if (caption) body.set('caption', caption);
+  if (mediaType) body.set('media_type', mediaType);
+  if (isCarouselItem) body.set('is_carousel_item', 'true');
+  if (children?.length) body.set('children', children.join(','));
   const res = await fetch(`${GRAPH}/${igUserId}/media`, { method: 'POST', body });
   const json = await res.json().catch(() => ({}));
   if (!res.ok || !json.id) {
-    throw new AppError(`Instagram rechazo la imagen: ${json.error?.message || res.status}`, 502, 'IG_PUBLISH_FAILED');
+    throw new AppError(`Instagram rechazo el contenido: ${json.error?.message || res.status}`, 502, 'IG_PUBLISH_FAILED');
   }
   return json.id;
 }
@@ -222,9 +226,10 @@ async function publishMediaContainer({ igUserId, token, creationId }) {
   return json.id;
 }
 
-// Publishes a single image + caption to the brand's connected account.
+// Publishes to the brand's connected account. Routes by contentType:
+//   image/video-post -> single photo post, story -> STORIES, carousel -> CAROUSEL.
 // Returns the published Instagram media id.
-export async function publishToInstagram({ brand, imageUrl, caption }) {
+export async function publishToInstagram({ brand, imageUrl, caption, contentType = 'image', imageUrls = [] }) {
   if (!brand?.ig_user_id || !brand?.ig_access_token) {
     throw new AppError('Esta marca no tiene Instagram conectado', 400, 'IG_NOT_CONNECTED');
   }
@@ -232,6 +237,31 @@ export async function publishToInstagram({ brand, imageUrl, caption }) {
 
   const igUserId = brand.ig_user_id;
   const token = brand.ig_access_token;
+
+  // Historia: media_type STORIES (no lleva caption).
+  if (contentType === 'story') {
+    const creationId = await createMediaContainer({ igUserId, token, imageUrl, mediaType: 'STORIES' });
+    await waitForContainerReady({ creationId, token });
+    return publishMediaContainer({ igUserId, token, creationId });
+  }
+
+  // Carrusel: un contenedor por placa y luego el contenedor padre CAROUSEL.
+  const slides = contentType === 'carousel' && Array.isArray(imageUrls) && imageUrls.length >= 2
+    ? imageUrls
+    : null;
+  if (slides) {
+    const children = [];
+    for (const url of slides.slice(0, 10)) {
+      const childId = await createMediaContainer({ igUserId, token, imageUrl: url, isCarouselItem: true });
+      await waitForContainerReady({ creationId: childId, token });
+      children.push(childId);
+    }
+    const parentId = await createMediaContainer({ igUserId, token, caption, mediaType: 'CAROUSEL', children });
+    await waitForContainerReady({ creationId: parentId, token });
+    return publishMediaContainer({ igUserId, token, creationId: parentId });
+  }
+
+  // Post simple de feed (default; tambien la portada de posts de video).
   const creationId = await createMediaContainer({ igUserId, token, imageUrl, caption });
   await waitForContainerReady({ creationId, token });
   return publishMediaContainer({ igUserId, token, creationId });

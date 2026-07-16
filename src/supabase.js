@@ -134,6 +134,7 @@ export async function createGeneratedPost({ content, generation, templateId }) {
     image_subline: generation.content.image_subline || null,
     visual_direction: generation.content.visual_direction,
     background_idea: generation.content.background_idea,
+    slides: generation.content.slides?.length ? generation.content.slides : null,
     status: 'generated',
     model: generation.model,
     raw_generation: generation.raw
@@ -152,8 +153,8 @@ export async function createGeneratedPost({ content, generation, templateId }) {
   return data;
 }
 
-export async function uploadPostImage(postId, imageBuffer) {
-  const filePath = `generated-posts/${postId}.png`;
+export async function uploadPostImage(postId, imageBuffer, { suffix = '' } = {}) {
+  const filePath = `generated-posts/${postId}${suffix ? `-${suffix}` : ''}.png`;
 
   const { error } = await supabase.storage
     .from('post-assets')
@@ -175,13 +176,38 @@ export async function uploadPostImage(postId, imageBuffer) {
     throw new AppError('Supabase Storage did not return a public URL', 502, 'STORAGE_PUBLIC_URL_FAILED');
   }
 
-  await upsertPostAsset({
-    postId,
-    filePath,
-    imageUrl: data.publicUrl
-  });
+  // Solo la imagen principal (sin sufijo) se registra como asset del post; las
+  // placas extra de un carrusel viven en image_urls.
+  if (!suffix) {
+    await upsertPostAsset({
+      postId,
+      filePath,
+      imageUrl: data.publicUrl
+    });
+  }
 
   return data.publicUrl;
+}
+
+// Guarda las imagenes de un carrusel: portada en image_url + todas en image_urls.
+export async function updateGeneratedPostImages(postId, { imageUrl, imageUrls }) {
+  const { data, error } = await supabase
+    .from('generated_posts')
+    .update({
+      image_url: imageUrl,
+      image_urls: imageUrls?.length ? imageUrls : null,
+      status: 'needs_review',
+      render_error: null
+    })
+    .eq('id', postId)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw wrapSupabaseError('Could not update generated_posts images', error);
+  }
+
+  return data;
 }
 
 // Sube el buffer de un video generado y devuelve su URL publica.

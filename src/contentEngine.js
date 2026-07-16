@@ -24,6 +24,7 @@ import {
   setPostRenderError,
   updateBrandFields,
   updateGeneratedPostImageUrl,
+  updateGeneratedPostImages,
   uploadPostImage
 } from './supabase.js';
 import { fetchRemoteImageBytes, generateContentIdeas, generateImageArtDirection, generatePostContent, generatePostImageAsset } from './openai.js';
@@ -63,8 +64,9 @@ export async function generatePostForCalendar(calendarId) {
   });
 }
 
-async function renderAiPostImage(post, opts = {}) {
-  const brand = await getBrandById(post.brand_id);
+// Junta una sola vez los insumos visuales de la marca (referencias + logo)
+// para reutilizarlos en todas las piezas de un mismo post (ej. placas de carrusel).
+async function gatherBrandVisualAssets(brand) {
   const referenceRows = await getBrandReferenceImages(brand.id);
 
   // A single bad reference (e.g. a link to an Instagram post page instead of
@@ -80,7 +82,7 @@ async function renderAiPostImage(post, opts = {}) {
       referenceBuffers.push(result.value);
     } else {
       console.warn(
-        `[renderAiPostImage] skipping invalid brand reference image "${referenceRows[index]?.title}" (${referenceRows[index]?.image_url}): ${result.reason?.message}`
+        `[render] skipping invalid brand reference image "${referenceRows[index]?.title}" (${referenceRows[index]?.image_url}): ${result.reason?.message}`
       );
     }
   });
@@ -91,9 +93,16 @@ async function renderAiPostImage(post, opts = {}) {
     try {
       logoBuffer = await fetchRemoteImageBytes(brand.logo_url);
     } catch (error) {
-      console.warn(`[renderAiPostImage] skipping brand logo (${brand.logo_url}): ${error.message}`);
+      console.warn(`[render] skipping brand logo (${brand.logo_url}): ${error.message}`);
     }
   }
+
+  return { referenceBuffers, logoBuffer };
+}
+
+async function renderAiPostImage(post, opts = {}) {
+  const brand = await getBrandById(post.brand_id);
+  const { referenceBuffers, logoBuffer } = await gatherBrandVisualAssets(brand);
 
   // Art-direct this specific piece (typography/colour/layout) before generating.
   const artDirection = await generateImageArtDirection({ post, brand });
@@ -102,7 +111,46 @@ async function renderAiPostImage(post, opts = {}) {
   return asset.buffer;
 }
 
+// Renderiza un carrusel: una imagen por placa (portada = placa 1) con el mismo
+// sistema visual, subidas en orden. image_url queda como portada.
+async function renderCarouselImages(post, opts = {}) {
+  const brand = await getBrandById(post.brand_id);
+  const { referenceBuffers, logoBuffer } = await gatherBrandVisualAssets(brand);
+
+  const slides = Array.isArray(post.slides) && post.slides.length
+    ? post.slides
+    : [{ headline: post.image_headline || post.hook, body: post.image_subline || '' }];
+
+  // Una sola direccion de arte para TODO el carrusel: es lo que mantiene las
+  // placas como paginas del mismo sistema editorial.
+  const artDirection = await generateImageArtDirection({ post, brand });
+
+  const urls = [];
+  for (let i = 0; i < slides.length; i += 1) {
+    const slide = slides[i];
+    const slidePost = { ...post, image_headline: slide.headline, image_subline: slide.body };
+    const asset = await generatePostImageAsset(slidePost, {
+      brand,
+      referenceBuffers,
+      artDirection,
+      logoBuffer,
+      quality: opts.imageQuality,
+      format: 'carousel',
+      slideInfo: { index: i, total: slides.length }
+    });
+    const url = await uploadPostImage(post.id, asset.buffer, { suffix: i === 0 ? '' : `s${i + 1}` });
+    urls.push(url);
+    console.log(`[render:carousel] ${post.id} placa ${i + 1}/${slides.length} lista`);
+  }
+
+  return updateGeneratedPostImages(post.id, { imageUrl: urls[0], imageUrls: urls });
+}
+
 export async function renderAndStorePost(post, opts = {}) {
+  if (post.template_id === AI_TEMPLATE_ID && post.content_type === 'carousel') {
+    return renderCarouselImages(post, opts);
+  }
+
   const imageBuffer = post.template_id === AI_TEMPLATE_ID
     ? await renderAiPostImage(post, opts)
     : await renderPostImage(post);
@@ -375,7 +423,9 @@ export async function publishPost(post, brand) {
   const mediaId = await publishToInstagram({
     brand,
     imageUrl: post.image_url,
-    caption: post.caption_instagram || ''
+    caption: post.caption_instagram || '',
+    contentType: post.content_type || 'image',
+    imageUrls: Array.isArray(post.image_urls) ? post.image_urls : []
   });
   await markCalendarPosted(post.calendar?.id || post.calendar_id);
   const updated = await markPostPublished(post.id, mediaId);

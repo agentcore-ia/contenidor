@@ -1017,6 +1017,48 @@ td.actions { white-space: nowrap; text-align: right; }
   box-shadow: var(--shadow-2);
 }
 
+/* Historia: mas angosta para respetar el 9:16 en el modal */
+.modal-image-story {
+  max-width: 260px;
+}
+
+/* Tira de placas de un carrusel en el modal del post */
+.carousel-strip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 18px;
+}
+.carousel-slide {
+  position: relative;
+  flex: 0 0 auto;
+  width: 190px;
+}
+.carousel-slide img {
+  width: 100%;
+  display: block;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-strong);
+}
+.carousel-n {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+/* Historia en la card del feed: recorte vertical */
+.igp-media-story img {
+  aspect-ratio: 9 / 16;
+  object-fit: cover;
+}
+
 /* ============================================================
    Toasts
    ============================================================ */

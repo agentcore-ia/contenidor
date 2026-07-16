@@ -574,7 +574,7 @@ function videoEngineOptions(selected) {
   return VIDEO_ENGINE_OPTS.map(([v, l]) => `<option value="${v}" ${v === sel ? 'selected' : ''}>${l}</option>`).join('');
 }
 
-const CONTENT_TYPE_LABEL = { product_video: '🎬 Video producto', ugc_video: '🗣️ Video UGC' };
+const CONTENT_TYPE_LABEL = { product_video: '🎬 Video producto', ugc_video: '🗣️ Video UGC', story: '📱 Historia', carousel: '🎠 Carrusel' };
 function ctypeChip(type) {
   const label = CONTENT_TYPE_LABEL[type];
   return label ? `<span class="ctype-chip">${label}</span>` : '';
@@ -640,8 +640,11 @@ function postCard(post) {
       <span class="igp-play-badge">▶ Video</span>
     </div>`;
   } else if (post.image_url) {
-    media = `<div class="igp-media" onclick="showPost('${post.id}')">
+    const slideCount = Array.isArray(post.image_urls) ? post.image_urls.length : 0;
+    media = `<div class="igp-media ${post.content_type === 'story' ? 'igp-media-story' : ''}" onclick="showPost('${post.id}')">
       <img src="${esc(post.image_url)}" alt="" loading="lazy" />
+      ${slideCount > 1 ? `<span class="igp-play-badge">🎠 ${slideCount} placas</span>` : ''}
+      ${post.content_type === 'story' ? '<span class="igp-play-badge">📱 Historia</span>' : ''}
       ${processingVideo ? '<span class="igp-video-processing">🎬 Generando video...</span>' : ''}
     </div>`;
   } else {
@@ -718,8 +721,12 @@ window.showPost = async function showPost(id) {
   try {
     const data = await api(`/api/posts/${id}`);
     const post = data.post;
-    modal(`<h3>Post</h3>
-      ${post.image_url ? `<img class="modal-image" src="${esc(post.image_url)}" alt="" />` : ''}
+    const slideUrls = Array.isArray(post.image_urls) ? post.image_urls : [];
+    const mediaBlock = slideUrls.length > 1
+      ? `<div class="carousel-strip">${slideUrls.map((u, i) => `<div class="carousel-slide"><img src="${esc(u)}" alt="" /><span class="carousel-n">${i + 1}/${slideUrls.length}</span></div>`).join('')}</div>`
+      : (post.image_url ? `<img class="modal-image ${post.content_type === 'story' ? 'modal-image-story' : ''}" src="${esc(post.image_url)}" alt="" />` : '');
+    modal(`<h3>Post ${ctypeChip(post.content_type)}</h3>
+      ${mediaBlock}
       ${post.render_error ? `<div class="empty" style="border-color:#7a2b2b;color:#ffb4b4">Error al generar imagen: ${esc(post.render_error)}</div>` : (!post.image_url ? `<div class="empty">Imagen aun no generada. Toca "Regenerar render" o espera a que termine.</div>` : '')}
       ${post.image_url ? `<section class="video-section">
         <div class="video-head">
@@ -1004,7 +1011,7 @@ function agendaItem(item) {
   const post = item.generated_post_id ? S.calPosts?.get(item.generated_post_id) : null;
   const thumb = post?.image_url
     ? `<img class="ag-thumb" src="${esc(post.image_url)}" alt="" />`
-    : `<span class="ag-thumb ag-thumb-empty">${item.content_type === 'ugc_video' ? '🗣️' : item.content_type === 'product_video' ? '🎬' : ICON.image}</span>`;
+    : `<span class="ag-thumb ag-thumb-empty">${item.content_type === 'ugc_video' ? '🗣️' : item.content_type === 'product_video' ? '🎬' : item.content_type === 'story' ? '📱' : item.content_type === 'carousel' ? '🎠' : ICON.image}</span>`;
   return `<div class="agenda-item ${item.publish_date === today ? 'is-today' : ''}">
     ${thumb}
     <div class="ag-main" onclick="calItemModal('${item.id}')">

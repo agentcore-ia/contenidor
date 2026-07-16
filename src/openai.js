@@ -20,7 +20,8 @@ const postGenerationSchema = {
     'caption_x',
     'caption_linkedin',
     'visual_direction',
-    'background_idea'
+    'background_idea',
+    'slides'
   ],
   properties: {
     hook: { type: 'string' },
@@ -32,12 +33,25 @@ const postGenerationSchema = {
     caption_x: { type: 'string' },
     caption_linkedin: { type: 'string' },
     visual_direction: { type: 'string' },
-    background_idea: { type: 'string' }
+    background_idea: { type: 'string' },
+    // Solo para carruseles: 3-5 placas. Para el resto vuelve vacio.
+    slides: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['headline', 'body'],
+        properties: {
+          headline: { type: 'string' },
+          body: { type: 'string' }
+        }
+      }
+    }
   }
 };
 
 // Fields that may legitimately come back empty from the model.
-const OPTIONAL_EMPTY_FIELDS = new Set(['image_subline']);
+const OPTIONAL_EMPTY_FIELDS = new Set(['image_subline', 'slides']);
 
 function createOpenAIClient() {
   assertRequiredEnv('OPENAI_API_KEY');
@@ -63,7 +77,7 @@ function parseGenerationOutput(response) {
 }
 
 function validateGeneratedPostContent(content) {
-  const requiredFields = Object.keys(postGenerationSchema.properties);
+  const requiredFields = Object.keys(postGenerationSchema.properties).filter((f) => f !== 'slides');
   const missing = requiredFields.filter(
     (field) => !OPTIONAL_EMPTY_FIELDS.has(field) && !String(content?.[field] ?? '').trim()
   );
@@ -72,9 +86,19 @@ function validateGeneratedPostContent(content) {
     throw new AppError(`OpenAI response is missing: ${missing.join(', ')}`, 502, 'OPENAI_INVALID_CONTENT');
   }
 
-  return Object.fromEntries(
+  const result = Object.fromEntries(
     requiredFields.map((field) => [field, String(content[field] ?? '').trim()])
   );
+
+  // Placas de carrusel: array de {headline, body} saneado (vacio si no aplica).
+  result.slides = Array.isArray(content?.slides)
+    ? content.slides
+        .map((s) => ({ headline: String(s?.headline ?? '').trim(), body: String(s?.body ?? '').trim() }))
+        .filter((s) => s.headline || s.body)
+        .slice(0, 6)
+    : [];
+
+  return result;
 }
 
 // Renders the brand's product/service catalog as a prompt block. Returns ''
@@ -90,6 +114,31 @@ function catalogBlock(products) {
 Catalogo de productos/servicios REALES de la marca (nombres y precios exactos):
 ${compactJson(rows)}
 `;
+}
+
+// Reglas de copy especificas de cada formato. La pieza no es "la misma idea en
+// otro tamano": cada formato de Instagram pide una escritura distinta.
+function formatRules(contentType) {
+  if (contentType === 'carousel') {
+    return `
+FORMATO: CARRUSEL (3 a 5 placas que se deslizan).
+- Genera "slides": entre 3 y 5 placas. Cada placa: "headline" (max 8 palabras, con garra) y "body" (max 18 palabras que desarrollan ese punto).
+- La placa 1 es la PORTADA: un gancho irresistible que obliga a deslizar (promete el valor: "5 errores que...", "Guia rapida para..."). Su headline debe coincidir con "image_headline".
+- Las placas del medio desarrollan UN punto cada una, con progresion clara (1→2→3...).
+- La ULTIMA placa cierra con sintesis + el CTA (seguinos / guarda este post / veni a probarlo).
+- El caption acompana y remata, no repite las placas.`;
+  }
+  if (contentType === 'story') {
+    return `
+FORMATO: HISTORIA (vertical 9:16, dura 24 horas, la ve tu audiencia actual).
+- Tono cercano, informal y directo, como hablandole a un cliente habitual. Urgencia y espontaneidad valen ("solo por hoy", "quedan 3").
+- "image_headline": max 7 palabras, estilo sticker/anotacion de historia, no titular publicitario de vidriera.
+- "image_subline": solo si suma; muy corta.
+- Caption Instagram: 1 linea breve (las historias casi no llevan texto fuera de la imagen). Sin hashtags o maximo 1.
+- "slides": devolvela VACIA.`;
+  }
+  return `
+- "slides": devolvela VACIA (este formato no lleva placas).`;
 }
 
 export async function generatePostContent({ brand, category, calendar, products = [] }) {
@@ -116,9 +165,11 @@ Tema de calendario:
 ${compactJson({
   topic: calendar.topic,
   angle: calendar.angle,
-  publish_date: calendar.publish_date
+  publish_date: calendar.publish_date,
+  content_type: calendar.content_type || 'image'
 })}
-${catalogBlock(products)}
+${catalogBlock(products)}${formatRules(calendar.content_type)}
+
 Reglas:${products.length ? `
 - Si el tema promociona un producto/servicio del catalogo, usa su nombre EXACTO y su precio EXACTO tal como figura. Jamas inventes ni redondees precios, y no menciones precios de items que no esten en el catalogo.` : ''}
 - Hook maximo 14 palabras.
@@ -189,7 +240,7 @@ function ideasSchema(categorySlugs) {
             },
             content_type: {
               type: 'string',
-              enum: ['image', 'product_video', 'ugc_video']
+              enum: ['image', 'story', 'carousel', 'product_video', 'ugc_video']
             }
           }
         }
@@ -232,7 +283,12 @@ Reglas:
 - VARIEDAD OBLIGATORIA (lo mas importante): cada idea debe abordar un PILAR distinto. Mezcla entre: mostrar un producto, tip/educacion, detras de escena, comunidad/clientes, momento de consumo/antojo, fecha o estacionalidad, prueba social/testimonio, curiosidad del rubro. NO uses el mismo gancho ni la misma estructura dos veces. Que se sientan 7 posts claramente diferentes, no variaciones del mismo.${products.length ? `
 - La marca tiene catalogo, pero NO repitas el mismo producto/promo en mas de 2 de las ${count} ideas. Si el catalogo tiene pocos productos, la mayoria de las ideas deben ir por OTROS angulos (no la misma oferta repetida con otras palabras). Cuando menciones un producto usa su nombre y precio exactos; jamas inventes.` : ''}
 - Cada idea es un tema concreto y accionable, no un titulo generico.
-- "content_type": el formato de cada idea. La MAYORIA deben ser "image" (post normal). Marca 1 o 2 de cada 7 como video: "product_video" para mostrar el producto en movimiento (ideal cuando el foco es el producto en si), o "ugc_video" para un testimonial estilo persona hablando (ideal para recomendaciones, resenas, generar confianza). No pongas mas de 2-3 videos en total.
+- "content_type": el FORMATO de cada idea. Pensa como un social media manager senior: cada formato de Instagram tiene un PROPOSITO distinto y pide contenido distinto — nunca es la misma idea en otro tamano. Asigna cada idea al formato donde mejor funciona:
+  * "image" (post de feed, 4:5) = LA VIDRIERA. Piezas esteticas que construyen marca y quedan en el perfil: producto hero, anuncio importante, frase/insight de marca, foto del local o del equipo. Es lo que ve un cliente nuevo al entrar al perfil.
+  * "carousel" (carrusel de 3 a 5 placas) = VALOR Y GUARDADOS. El formato con mas alcance y guardados de Instagram. Contenido educativo o narrativo que se desliza placa a placa: tips ("5 errores al..."), guia paso a paso, mitos vs verdades, antes/despues, comparativa, mini historia con final. La idea DEBE ser naturalmente secuencial/enumerable; si no se puede partir en placas, no es carrusel.
+  * "story" (historia vertical 9:16, dura 24hs) = CERCANIA Y URGENCIA. Efimera, informal, para la audiencia que YA te sigue: detras de escena del dia, promo relampago valida solo hoy, pregunta o encuesta a la audiencia, recordatorio de horarios/turnos, "quedan pocos", humor interno del rubro. NUNCA una pieza "de vidriera" — eso va al feed.
+  * "product_video" = video corto del producto en movimiento (cuando el foco es el producto en si). "ugc_video" = testimonial de una persona hablando a camara (recomendaciones, resenas, confianza).
+- MEZCLA OBLIGATORIA de formatos: de cada 7 ideas, aproximadamente 2-3 "image", 1-2 "carousel", 1-2 "story" y 1 video. Nunca entregues un lote de un solo formato.
 - "topic": el tema puntual del post, maximo 16 palabras.
 - "angle": el enfoque o insight con el que se aborda, maximo 20 palabras.
 - "category_slug": elegí la categoria que mejor calce, de la lista provista.
@@ -272,7 +328,7 @@ Reglas:
   const parsed = parseGenerationOutput(response);
   const ideas = Array.isArray(parsed?.ideas) ? parsed.ideas : [];
 
-  const VALID_TYPES = new Set(['image', 'product_video', 'ugc_video']);
+  const VALID_TYPES = new Set(['image', 'story', 'carousel', 'product_video', 'ugc_video']);
   const cleaned = ideas
     .map((idea) => ({
       topic: String(idea?.topic ?? '').trim(),
@@ -568,7 +624,35 @@ function clampWords(text, maxWords) {
   return words.slice(0, maxWords).join(' ');
 }
 
-function aiPosterPrompt(post, brand, referenceCount, artDirection = '', hasLogo = false) {
+// Bloque de instrucciones especifico del formato (historia / placa de carrusel).
+function formatBlock(format, slideInfo) {
+  if (format === 'story') {
+    return `
+
+THIS PIECE IS AN INSTAGRAM STORY (vertical 9:16, full-screen on a phone, lives 24 hours):
+- Compose for full-screen vertical: the subject fills the frame with presence; bolder and more immediate than a feed post.
+- SAFE ZONES: keep all text and critical elements away from the top ~15% and bottom ~20% of the frame (Instagram UI overlays live there).
+- The vibe is closer and more spontaneous than the feed: think sticker-like, hand-placed text energy — still designed and on-brand, never sloppy.
+- One strong message, readable in under 2 seconds.`;
+  }
+  if (format === 'carousel' && slideInfo) {
+    const { index, total } = slideInfo;
+    const role = index === 0
+      ? 'This is the COVER slide: photo-forward and irresistible — its job is to make people swipe. The headline is the hero.'
+      : (index === total - 1
+        ? 'This is the FINAL slide: a clean closing composition where the headline (synthesis/CTA copy) is the protagonist over a calmer visual.'
+        : 'This is a CONTENT slide: text-forward — the headline and supporting line carry the value; the visual supports without competing.');
+    return `
+
+THIS PIECE IS SLIDE ${index + 1} OF ${total} IN AN INSTAGRAM CAROUSEL:
+- ${role}
+- VISUAL CONTINUITY IS NON-NEGOTIABLE: every slide of this carousel shares the same palette, typography system, background family and composition grid, like pages of one editorial spread. Design this slide as part of that system.
+- Optional subtle continuity device: a small "${index + 1}/${total}" marker or a consistent corner accent, only if it fits the account's style.`;
+  }
+  return '';
+}
+
+function aiPosterPrompt(post, brand, referenceCount, artDirection = '', hasLogo = false, extraBlock = '') {
   const manual = brand?.brand_manual || {};
   const designRules = Array.isArray(manual.design_rules) ? manual.design_rules : [];
   const colors = manual.colors && typeof manual.colors === 'object' ? manual.colors : {};
@@ -601,7 +685,7 @@ function aiPosterPrompt(post, brand, referenceCount, artDirection = '', hasLogo 
 - Legibility via a soft dark warm gradient rising from the bottom edge (subtle, never muddy).
 - Typography: modern sans, strong weight for the headline, light weight for the subline.`;
 
-  const base = `Art-direct and design a finished, ready-to-publish vertical Instagram creative for ${brand?.name || 'the brand'}. You are acting as a senior art director at a top advertising studio: the result must look like a deliberately DESIGNED piece — layered, balanced, editorial — never like a photo with text pasted on top.
+  const base = `Art-direct and design a finished, ready-to-publish vertical Instagram creative for ${brand?.name || 'the brand'}. You are acting as a senior art director at a top advertising studio: the result must look like a deliberately DESIGNED piece — layered, balanced, editorial — never like a photo with text pasted on top.${extraBlock}
 
 THE PHOTOGRAPH IS THE PROTAGONIST. Build a gorgeous, appetizing, professional hero image first (following the visual direction below), then integrate the copy into the composition as a designed layer.
 
@@ -718,12 +802,18 @@ Reglas: coherente con el ADN de la cuenta y su densidad visual; jerarquia clara 
   }
 }
 
-export async function generatePostImageAsset(post, { brand, referenceBuffers = [], artDirection = '', logoBuffer = null, quality: qualityOverride } = {}) {
+// 1024x1824 = 9:16 aprox (0.561 vs 0.5625) con ambas dimensiones multiplo de 16.
+const STORY_IMAGE_SIZE = '1024x1824';
+
+export async function generatePostImageAsset(post, { brand, referenceBuffers = [], artDirection = '', logoBuffer = null, quality: qualityOverride, format = null, slideInfo = null } = {}) {
   const client = createOpenAIClient();
   const model = process.env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL;
-  const size = process.env.OPENAI_IMAGE_SIZE || DEFAULT_IMAGE_SIZE;
+  const pieceFormat = format || post?.content_type || 'image';
+  const size = pieceFormat === 'story'
+    ? (process.env.OPENAI_IMAGE_SIZE_STORY || STORY_IMAGE_SIZE)
+    : (process.env.OPENAI_IMAGE_SIZE || DEFAULT_IMAGE_SIZE);
   const quality = qualityOverride || brand?.image_quality || process.env.OPENAI_IMAGE_QUALITY || 'high';
-  const prompt = aiPosterPrompt(post, brand, referenceBuffers.length, artDirection, Boolean(logoBuffer));
+  const prompt = aiPosterPrompt(post, brand, referenceBuffers.length, artDirection, Boolean(logoBuffer), formatBlock(pieceFormat, slideInfo));
 
   // The logo always goes LAST so the prompt can point at "the last image".
   const allBuffers = logoBuffer ? [...referenceBuffers, logoBuffer] : referenceBuffers;
