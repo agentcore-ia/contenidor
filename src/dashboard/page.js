@@ -640,13 +640,25 @@ function postCard(post) {
       <span class="igp-play-badge">▶ Video</span>
     </div>`;
   } else if (post.image_url) {
-    const slideCount = Array.isArray(post.image_urls) ? post.image_urls.length : 0;
-    media = `<div class="igp-media ${post.content_type === 'story' ? 'igp-media-story' : ''}" onclick="showPost('${post.id}')">
-      <img src="${esc(post.image_url)}" alt="" loading="lazy" />
-      ${slideCount > 1 ? `<span class="igp-play-badge">🎠 ${slideCount} placas</span>` : ''}
-      ${post.content_type === 'story' ? '<span class="igp-play-badge">📱 Historia</span>' : ''}
-      ${processingVideo ? '<span class="igp-video-processing">🎬 Generando video...</span>' : ''}
-    </div>`;
+    const slideUrls = Array.isArray(post.image_urls) ? post.image_urls : [];
+    if (slideUrls.length > 1) {
+      // Carrusel navegable como en Instagram: swipe/flechas + contador + puntos.
+      media = `<div class="igp-media igc" id="igc-${post.id}">
+        <div class="igc-track" onscroll="igcScroll('${post.id}')">
+          ${slideUrls.map((u) => `<img src="${esc(u)}" alt="" loading="lazy" onclick="showPost('${post.id}')" />`).join('')}
+        </div>
+        <span class="igc-counter" id="igc-cnt-${post.id}">1/${slideUrls.length}</span>
+        <button class="igc-nav igc-prev" hidden onclick="igcNav(event,'${post.id}',-1)" aria-label="Anterior">‹</button>
+        <button class="igc-nav igc-next" onclick="igcNav(event,'${post.id}',1)" aria-label="Siguiente">›</button>
+        <div class="igc-dots" id="igc-dots-${post.id}">${slideUrls.map((_, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('')}</div>
+      </div>`;
+    } else {
+      media = `<div class="igp-media ${post.content_type === 'story' ? 'igp-media-story' : ''}" onclick="showPost('${post.id}')">
+        <img src="${esc(post.image_url)}" alt="" loading="lazy" />
+        ${post.content_type === 'story' ? '<span class="igp-play-badge">📱 Historia</span>' : ''}
+        ${processingVideo ? '<span class="igp-video-processing">🎬 Generando video...</span>' : ''}
+      </div>`;
+    }
   } else {
     media = `<div class="igp-media igp-media-empty" onclick="showPost('${post.id}')">
       ${post.render_error ? `<span class="pc-render-error">Error al generar la imagen</span>` : `<span class="pc-generating">Generando imagen...</span>`}
@@ -719,6 +731,29 @@ function postCard(post) {
     </div>
   </article>`;
 }
+
+// --- Carrusel estilo Instagram en la card ---
+window.igcNav = function igcNav(ev, id, dir) {
+  ev.stopPropagation();
+  const track = document.querySelector(`#igc-${CSS.escape(id)} .igc-track`);
+  if (track) track.scrollBy({ left: dir * track.clientWidth, behavior: 'smooth' });
+};
+
+window.igcScroll = function igcScroll(id) {
+  const wrap = byId(`igc-${id}`);
+  if (!wrap) return;
+  const track = wrap.querySelector('.igc-track');
+  const total = track.children.length;
+  const idx = Math.min(total - 1, Math.max(0, Math.round(track.scrollLeft / track.clientWidth)));
+  const counter = byId(`igc-cnt-${id}`);
+  if (counter) counter.textContent = `${idx + 1}/${total}`;
+  const dots = byId(`igc-dots-${id}`);
+  if (dots) [...dots.children].forEach((d, i) => d.classList.toggle('on', i === idx));
+  const prev = wrap.querySelector('.igc-prev');
+  const next = wrap.querySelector('.igc-next');
+  if (prev) prev.hidden = idx === 0;
+  if (next) next.hidden = idx === total - 1;
+};
 
 window.sendWhatsapp = async function sendWhatsapp(id) {
   toast('Enviando a WhatsApp...');

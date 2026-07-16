@@ -1060,6 +1060,97 @@ td.actions { white-space: nowrap; text-align: right; }
 }
 
 /* ============================================================
+   Carrusel estilo Instagram dentro de la card
+   ============================================================ */
+.igc {
+  position: relative;
+}
+.igc-track {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.igc-track::-webkit-scrollbar {
+  display: none;
+}
+.igc-track img {
+  flex: 0 0 100%;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: block;
+  cursor: pointer;
+}
+.igc-counter {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-variant-numeric: tabular-nums;
+}
+.igc-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255, 255, 255, 0.94);
+  color: #111;
+  font-size: 19px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+  padding: 0 0 2px;
+}
+.igc-nav:hover {
+  background: #fff;
+}
+.igc-prev {
+  left: 10px;
+}
+.igc-next {
+  right: 10px;
+}
+.igc-nav[hidden] {
+  display: none;
+}
+.igc-dots {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  gap: 4px;
+}
+.igc-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+  transition: background 0.2s, transform 0.2s;
+}
+.igc-dots i.on {
+  background: #fff;
+  transform: scale(1.15);
+}
+
+/* ============================================================
    Card de HISTORIA — replica una story real de Instagram
    ============================================================ */
 .igs .igs-frame {
