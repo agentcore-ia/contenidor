@@ -76,10 +76,14 @@ function parseGenerationOutput(response) {
   }
 }
 
-function validateGeneratedPostContent(content) {
+function validateGeneratedPostContent(content, { contentType = 'image' } = {}) {
   const requiredFields = Object.keys(postGenerationSchema.properties).filter((f) => f !== 'slides');
+  // Las historias no llevan caption (el mensaje vive dentro de la imagen).
+  const optionalForFormat = contentType === 'story'
+    ? new Set([...OPTIONAL_EMPTY_FIELDS, 'caption_instagram', 'caption_x', 'caption_linkedin'])
+    : OPTIONAL_EMPTY_FIELDS;
   const missing = requiredFields.filter(
-    (field) => !OPTIONAL_EMPTY_FIELDS.has(field) && !String(content?.[field] ?? '').trim()
+    (field) => !optionalForFormat.has(field) && !String(content?.[field] ?? '').trim()
   );
 
   if (missing.length) {
@@ -134,7 +138,7 @@ FORMATO: HISTORIA (vertical 9:16, dura 24 horas, la ve tu audiencia actual).
 - Tono cercano, informal y directo, como hablandole a un cliente habitual. Urgencia y espontaneidad valen ("solo por hoy", "quedan 3").
 - "image_headline": max 7 palabras, estilo sticker/anotacion de historia, no titular publicitario de vidriera.
 - "image_subline": solo si suma; muy corta.
-- Caption Instagram: 1 linea breve (las historias casi no llevan texto fuera de la imagen). Sin hashtags o maximo 1.
+- Las historias NO llevan caption: devolve "caption_instagram", "caption_x" y "caption_linkedin" VACIAS. Todo el mensaje vive DENTRO de la imagen.
 - "slides": devolvela VACIA.`;
   }
   return `
@@ -212,11 +216,16 @@ Reglas:${products.length ? `
     throw new AppError(`OpenAI generation failed: ${error.message}`, 502, 'OPENAI_FAILED');
   }
 
-  return {
-    model,
-    content: validateGeneratedPostContent(parseGenerationOutput(response)),
-    raw: response
-  };
+  const content = validateGeneratedPostContent(parseGenerationOutput(response), { contentType: calendar.content_type || 'image' });
+
+  // Refuerzo duro: una historia jamas sale con caption, la devuelva o no el modelo.
+  if (calendar.content_type === 'story') {
+    content.caption_instagram = '';
+    content.caption_x = '';
+    content.caption_linkedin = '';
+  }
+
+  return { model, content, raw: response };
 }
 
 function ideasSchema(categorySlugs) {
@@ -697,17 +706,55 @@ function clampWords(text, maxWords) {
   return words.slice(0, maxWords).join(' ');
 }
 
-// Bloque de instrucciones especifico del formato (historia / placa de carrusel).
-function formatBlock(format, slideInfo) {
-  if (format === 'story') {
-    return `
+// Prompt propio de las HISTORIAS: nada de poster editorial. Una historia real
+// se siente tomada con el celular en el momento, con texto tipo sticker nativo.
+function storyPrompt(post, brand, referenceCount, hasLogo) {
+  const manual = brand?.brand_manual || {};
+  const colors = manual.colors && typeof manual.colors === 'object' ? manual.colors : {};
+  const colorLine = Object.entries(colors).map(([name, value]) => `${name} ${value}`).join(', ');
+  const headline = clampWords(post.image_headline || post.hook, 10);
+  const subline = clampWords(post.image_subline || '', 14);
 
-THIS PIECE IS AN INSTAGRAM STORY (vertical 9:16, full-screen on a phone, lives 24 hours):
-- Compose for full-screen vertical: the subject fills the frame with presence; bolder and more immediate than a feed post.
-- SAFE ZONES: keep all text and critical elements away from the top ~15% and bottom ~20% of the frame (Instagram UI overlays live there).
-- The vibe is closer and more spontaneous than the feed: think sticker-like, hand-placed text energy — still designed and on-brand, never sloppy.
-- One strong message, readable in under 2 seconds.`;
+  const base = `Create a real INSTAGRAM STORY for ${brand?.name || 'the brand'}, exactly as the business owner would post it from their phone right now. This is NOT a feed post, NOT an ad, NOT an editorial poster — if it looks art-directed, it is wrong.
+
+THE STORY LOOK (non-negotiable):
+- Vertical 9:16 full-bleed, feels shot on a phone in the moment: handheld framing, natural ambient light, a believable everyday scene from inside the business (the counter, the prep area, hands working, a shelf being restocked, the door opening). Slight imperfection reads as authentic; polished studio perfection reads as fake.
+- Close and immediate: the viewer should feel "this is happening TODAY at this place", not "this is a campaign".
+- Scene: ${post.visual_direction || 'a candid, in-the-moment scene of the business day'}. ${post.background_idea || ''}
+
+TEXT ON THE STORY (exact text — render verbatim or omit, never paraphrase or respell):
+- Main line: "${headline}"${subline ? `\n- Support line: "${subline}"` : ''}
+- Render it like NATIVE Instagram story text: a chunky sticker-style block or bold casual type placed by hand over the photo — a solid or semi-transparent color strip behind the text is very story-like. A slight tilt or asymmetric placement is welcome. NO magazine typography, NO designed lockups, NO subtle elegant serif.
+- SAFE ZONES: keep all text out of the top ~15% and bottom ~20% of the frame (Instagram UI lives there).
+- One message, readable in 2 seconds.
+
+Brand flavor (light touch):
+- Palette hints: ${colorLine || "the account's natural colors"}. Voice: ${manual.voice || 'cercano e informal'}.
+${hasLogo ? '- The LAST reference image is the brand logo: it may appear naturally inside the scene (on a uniform, bag, cup, signage) only if believable — never pasted as a watermark.' : '- Do not add any logo or watermark.'}
+
+Hard constraints:
+- NO call-to-action buttons or fake UI (no "Ver más", no arrows, no poll/link stickers — the real app adds those).
+- NO invented text, prices or offers beyond the exact lines above. If the text cannot render cleanly, prefer the text-free version.
+- All rendered text crisp and correctly spelled.`;
+
+  const customInstructions = String(manual.image_instructions ?? '').trim();
+  const withCustom = customInstructions
+    ? `${base}
+
+Additional instructions from the brand owner (HIGHEST priority):
+${customInstructions}`
+    : base;
+
+  if (referenceCount > 0) {
+    return `${withCustom}
+
+You are given ${referenceCount} reference image(s) from this account's real feed${hasLogo ? ' (plus the brand logo as the FINAL image)' : ''}. They tell you the business's WORLD — its products, spaces, people and palette. Match that world, NOT the polish: this story is the candid, behind-the-scenes cousin of that feed.`;
   }
+  return withCustom;
+}
+
+// Bloque de instrucciones especifico del formato (placa de carrusel).
+function formatBlock(format, slideInfo) {
   if (format === 'carousel' && slideInfo) {
     const { index, total } = slideInfo;
     const role = index === 0
@@ -886,7 +933,11 @@ export async function generatePostImageAsset(post, { brand, referenceBuffers = [
     ? (process.env.OPENAI_IMAGE_SIZE_STORY || STORY_IMAGE_SIZE)
     : (process.env.OPENAI_IMAGE_SIZE || DEFAULT_IMAGE_SIZE);
   const quality = qualityOverride || brand?.image_quality || process.env.OPENAI_IMAGE_QUALITY || 'high';
-  const prompt = aiPosterPrompt(post, brand, referenceBuffers.length, artDirection, Boolean(logoBuffer), formatBlock(pieceFormat, slideInfo));
+  // Las historias usan su propio prompt (look "tomado con el celular", texto
+  // sticker); el resto usa el poster editorial con direccion de arte.
+  const prompt = pieceFormat === 'story'
+    ? storyPrompt(post, brand, referenceBuffers.length, Boolean(logoBuffer))
+    : aiPosterPrompt(post, brand, referenceBuffers.length, artDirection, Boolean(logoBuffer), formatBlock(pieceFormat, slideInfo));
 
   // The logo always goes LAST so the prompt can point at "the last image".
   const allBuffers = logoBuffer ? [...referenceBuffers, logoBuffer] : referenceBuffers;

@@ -105,7 +105,9 @@ async function renderAiPostImage(post, opts = {}) {
   const { referenceBuffers, logoBuffer } = await gatherBrandVisualAssets(brand);
 
   // Art-direct this specific piece (typography/colour/layout) before generating.
-  const artDirection = await generateImageArtDirection({ post, brand });
+  // Las historias NO llevan direccion de arte editorial: usan su propio prompt
+  // espontaneo (el look "de vidriera" es justo lo que una historia no debe tener).
+  const artDirection = post.content_type === 'story' ? '' : await generateImageArtDirection({ post, brand });
 
   const asset = await generatePostImageAsset(post, { brand, referenceBuffers, artDirection, logoBuffer, quality: opts.imageQuality });
   return asset.buffer;

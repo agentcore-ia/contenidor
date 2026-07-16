@@ -669,6 +669,31 @@ function postCard(post) {
       <button class="btn btn-sm btn-danger" onclick="rejectPost('${post.id}')">Rechazar</button>`;
   }
 
+  // Las historias se muestran como una historia real de Instagram: 9:16 con
+  // barra de progreso, avatar arriba, sin iconos de feed y sin caption.
+  if (post.content_type === 'story') {
+    const storyMedia = post.image_url
+      ? `<img src="${esc(post.image_url)}" alt="" loading="lazy" />`
+      : `<div class="igs-empty">${post.render_error ? '<span class="pc-render-error">Error al generar la imagen</span>' : '<span class="pc-generating">Generando historia...</span>'}</div>`;
+    return `<article class="card post-card igs">
+      <div class="igs-frame" onclick="showPost('${post.id}')">
+        <div class="igs-progress"><i class="on"></i><i></i><i></i></div>
+        <div class="igs-head">
+          ${avatar}
+          <span class="igs-user">${esc(username)}</span>
+          <span class="igs-time">${esc(date)}</span>
+          ${statusBadge(post.status)}
+        </div>
+        ${storyMedia}
+        <span class="igs-chip">📱 Historia · 24 hs</span>
+      </div>
+      <div class="pc-actions">
+        <div class="pc-primary">${actions}</div>
+        <button class="btn btn-sm btn-plain" onclick="showPost('${post.id}')">Ver detalle</button>
+      </div>
+    </article>`;
+  }
+
   return `<article class="card post-card igp">
     <div class="igp-head">
       ${avatar}
