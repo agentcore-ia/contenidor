@@ -288,7 +288,10 @@ Reglas:
   * "carousel" (carrusel de 3 a 5 placas) = VALOR Y GUARDADOS. El formato con mas alcance y guardados de Instagram. Contenido educativo o narrativo que se desliza placa a placa: tips ("5 errores al..."), guia paso a paso, mitos vs verdades, antes/despues, comparativa, mini historia con final. La idea DEBE ser naturalmente secuencial/enumerable; si no se puede partir en placas, no es carrusel.
   * "story" (historia vertical 9:16, dura 24hs) = CERCANIA Y URGENCIA. Efimera, informal, para la audiencia que YA te sigue: detras de escena del dia, promo relampago valida solo hoy, pregunta o encuesta a la audiencia, recordatorio de horarios/turnos, "quedan pocos", humor interno del rubro. NUNCA una pieza "de vidriera" — eso va al feed.
   * "product_video" = video corto del producto en movimiento (cuando el foco es el producto en si). "ugc_video" = testimonial de una persona hablando a camara (recomendaciones, resenas, confianza).
-- MEZCLA OBLIGATORIA de formatos: de cada 7 ideas, aproximadamente 2-3 "image", 1-2 "carousel", 1-2 "story" y 1 video. Nunca entregues un lote de un solo formato.
+- ESTRUCTURA DEL PLAN (asi trabaja un social media manager real): la historia NO reemplaza al post del dia — lo ACOMPANA. Cada dia del plan lleva UN post de feed + UNA historia el mismo dia.
+  * CANTIDADES EXACTAS: de las ${count} ideas, EXACTAMENTE ${Math.ceil(count / 2)} son posts de FEED y EXACTAMENTE ${Math.floor(count / 2)} son "story". Los posts de feed van variados entre si: mayoria "image", 1-2 "carousel" y 0-1 video por lote. Cada post de feed ocupa un dia.
+  * La otra mitad son "story": la historia N acompana al post de feed N en su MISMO dia. Puede complementarlo (detras de escena de esa promo, recordatorio "hoy sale esto", encuesta relacionada al tip del carrusel) o ser un momento del dia a dia del negocio — pero siempre con logica de dupla dia a dia.
+  * ORDEN DE SALIDA OBLIGATORIO: primero TODOS los posts de feed en orden de dia (dia 1, dia 2, dia 3...), y despues TODAS las historias en el MISMO orden de dias (historia del dia 1, del dia 2...). No los intercales.
 - "topic": el tema puntual del post, maximo 16 palabras.
 - "angle": el enfoque o insight con el que se aborda, maximo 20 palabras.
 - "category_slug": elegí la categoria que mejor calce, de la lista provista.
@@ -342,7 +345,77 @@ Reglas:
     throw new AppError('OpenAI returned no usable ideas', 502, 'OPENAI_IDEAS_EMPTY');
   }
 
-  return { model, ideas: cleaned, raw: response };
+  // GARANTIA DURA de la dupla diaria (post de feed + historia el mismo dia):
+  // si el modelo devolvio menos historias que posts de feed, una segunda
+  // llamada genera las historias companeras que faltan, una por dia restante.
+  const feedIdeas = cleaned.filter((i) => i.content_type !== 'story');
+  const storyIdeas = cleaned.filter((i) => i.content_type === 'story');
+  if (feedIdeas.length && storyIdeas.length < feedIdeas.length) {
+    const uncovered = feedIdeas.slice(storyIdeas.length);
+    try {
+      const extras = await generateCompanionStories({ client, model, brand, categorySlugs, feedIdeas: uncovered });
+      storyIdeas.push(...extras);
+    } catch (error) {
+      console.warn('[generateContentIdeas] no se pudieron generar historias companeras:', error.message);
+    }
+  }
+
+  // Orden final: primero los posts de feed (en orden de dia), despues las
+  // historias en el mismo orden — el scheduler aparea historia N con dia N.
+  return { model, ideas: [...feedIdeas, ...storyIdeas], raw: response };
+}
+
+// Genera UNA historia companera por cada post de feed dado (mismo dia), para
+// completar la dupla diaria cuando el lote principal trajo menos historias.
+async function generateCompanionStories({ client, model, brand, categorySlugs, feedIdeas }) {
+  const schema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['stories'],
+    properties: {
+      stories: {
+        type: 'array',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['topic', 'angle', 'category_slug'],
+          properties: {
+            topic: { type: 'string' },
+            angle: { type: 'string' },
+            category_slug: { type: 'string', enum: categorySlugs }
+          }
+        }
+      }
+    }
+  };
+
+  const prompt = `Sos el social media manager de ${brand.name}. Estos son los posts de FEED ya planificados, en orden de dia:
+${compactJson(feedIdeas.map((f, i) => ({ dia: i + 1, formato: f.content_type, topic: f.topic, angle: f.angle })))}
+
+Genera EXACTAMENTE ${feedIdeas.length} HISTORIAS de Instagram (formato vertical, dura 24hs, la ve tu audiencia actual): una por dia, en el MISMO orden. La historia del dia N acompana al post del dia N: puede complementarlo (detras de escena de ese contenido, recordatorio "hoy publicamos esto", encuesta o pregunta relacionada) o ser un momento cotidiano del negocio ese dia. Tono cercano e informal, NUNCA una pieza "de vidriera". "topic" max 14 palabras, "angle" max 18 palabras. Todas distintas entre si.`;
+
+  const response = await client.responses.create({
+    model,
+    input: [
+      { role: 'system', content: 'Sos social media manager. Proponés historias de Instagram cercanas, efimeras y concretas.' },
+      { role: 'user', content: prompt }
+    ],
+    text: {
+      format: { type: 'json_schema', name: 'capta_companion_stories', strict: true, schema }
+    }
+  });
+
+  const parsed = parseGenerationOutput(response);
+  const stories = Array.isArray(parsed?.stories) ? parsed.stories : [];
+  return stories
+    .map((s) => ({
+      topic: String(s?.topic ?? '').trim(),
+      angle: String(s?.angle ?? '').trim(),
+      category_slug: String(s?.category_slug ?? '').trim(),
+      content_type: 'story'
+    }))
+    .filter((s) => s.topic && categorySlugs.includes(s.category_slug))
+    .slice(0, feedIdeas.length);
 }
 
 const brandAnalysisSchema = {

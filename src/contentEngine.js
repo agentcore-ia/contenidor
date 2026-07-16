@@ -370,8 +370,12 @@ export async function generateCalendarIdeas({ brandId = null, count = 7 } = {}) 
   let cursor = latestDate && latestDate >= today ? addDays(latestDate, 1) : today;
 
   const seenTopics = new Set(existingTopics.map((topic) => topic.toLowerCase()));
-  const rows = [];
 
+  // Las historias NO ocupan un dia propio del calendario: acompanan al post de
+  // feed de ese dia (dia = 1 post de feed + 1 historia). Solo los posts de feed
+  // (imagen/carrusel/video) avanzan el cursor de fechas.
+  const feedIdeas = [];
+  const storyIdeas = [];
   for (const idea of generation.ideas) {
     const topicKey = idea.topic.toLowerCase();
     if (seenTopics.has(topicKey)) continue;
@@ -380,6 +384,14 @@ export async function generateCalendarIdeas({ brandId = null, count = 7 } = {}) 
     const category = categoryBySlug.get(idea.category_slug);
     if (!category) continue;
 
+    (idea.content_type === 'story' ? storyIdeas : feedIdeas).push({ idea, category });
+  }
+
+  const rows = [];
+  const feedDates = [];
+
+  for (const { idea, category } of feedIdeas) {
+    feedDates.push(cursor);
     rows.push({
       brand_id: brand.id,
       category_id: category.id,
@@ -389,9 +401,29 @@ export async function generateCalendarIdeas({ brandId = null, count = 7 } = {}) 
       content_type: idea.content_type || 'image',
       status: 'pending'
     });
-
     cursor = addDays(cursor, 1);
   }
+
+  storyIdeas.forEach(({ idea, category }, index) => {
+    // La historia N acompana al post N (mismo dia). Si sobran historias van al
+    // ultimo dia; si el lote no trajo posts de feed, recien ahi ocupan dias.
+    let date;
+    if (feedDates.length) {
+      date = feedDates[Math.min(index, feedDates.length - 1)];
+    } else {
+      date = cursor;
+      cursor = addDays(cursor, 1);
+    }
+    rows.push({
+      brand_id: brand.id,
+      category_id: category.id,
+      publish_date: date,
+      topic: idea.topic,
+      angle: idea.angle || null,
+      content_type: 'story',
+      status: 'pending'
+    });
+  });
 
   const inserted = await insertCalendarIdeas(rows);
 
