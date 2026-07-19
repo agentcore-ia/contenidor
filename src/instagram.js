@@ -171,7 +171,9 @@ export async function connectFromCode(code) {
   assertConfigured();
   const short = await exchangeCodeForToken(code);
   const long = await exchangeForLongLivedToken(short.token);
-  const profile = await fetchProfile(short.userId, long.token);
+  // /me resuelve el perfil con el token; consultar /{user_id} con el id
+  // app-scoped del token corto falla con "Unsupported get request".
+  const profile = await fetchMe(long.token);
   return {
     ig_user_id: profile.igUserId,
     ig_username: profile.username,
