@@ -513,6 +513,20 @@ export async function generateUgcScript({ post, brand, products = [], seconds } 
   const minWords = targetWords - 2;
   const maxWords = targetWords + 3;
 
+  // Cada guion se genera en una llamada independiente, asi que el modelo no
+  // sabe como empezaron los anteriores y repite siempre la misma formula
+  // (todas preguntas, todos con "posta"). Se sortea el tipo de arranque aca.
+  const OPENERS = [
+    'una pregunta directa a camara ("¿Viste cuando...?")',
+    'una confesion personal ("Yo era de las que...")',
+    'una opinion tajante, sin pregunta ("Esto no lo dice nadie:")',
+    'una mini escena en pasado ("Estaba por salir cuando...")',
+    'una negacion rotunda ("No pensaba volver a...")',
+    'un numero o dato concreto ("Tres semanas me tomo darme cuenta de que...")',
+    'una comparacion ("Probe como diez lugares antes de este.")'
+  ];
+  const opener = OPENERS[Math.floor(Math.random() * OPENERS.length)];
+
   const prompt = `Sos guionista de UGC viral para Instagram. Para un video de ${clipSeconds} segundos (testimonial casero, filmado con el celular) de ${brand?.name || 'la marca'}, devolve DOS cosas: el guion hablado y una descripcion visual exacta del producto que la persona sostiene y muestra a camara.
 
 Marca: ${brand?.name || ''}
@@ -523,12 +537,13 @@ Mensaje: ${post?.caption_instagram || post?.body || ''}
 ${products.length ? `Catalogo (nombres/precios exactos):\n${compactJson(products.map((p) => ({ name: p.name, description: p.description || undefined, price: p.price || undefined })))}` : ''}
 
 "script" (lo que la persona DICE a camara):
-- LARGO OBLIGATORIO: entre ${minWords} y ${maxWords} palabras. Es lo que entra hablado en ${clipSeconds} segundos. Si escribis menos, el video termina con la persona muda mirando a camara: el guion TIENE que llenar el clip. Conta las palabras antes de responder.
+- LARGO OBLIGATORIO: entre ${minWords} y ${maxWords} palabras. Es lo que entra hablado en ${clipSeconds} segundos. Si escribis menos, el video termina con la persona muda mirando a camara: el guion TIENE que llenar el clip. Conta las palabras del guion antes de responder y, si te quedaste corto, sumá un detalle concreto mas (no relleno) hasta llegar al rango.
 - ESTRUCTURA VIRAL EN 3 TIEMPOS, sin respiro entre ellos:
-  1) GANCHO (primeras 5-6 palabras): tiene que frenar el scroll. Una opinion fuerte, un error comun que todos cometen, una confesion, un "no me lo van a creer", una pregunta directa a camara. NUNCA arranques con un saludo ("hola chicos", "buenas") ni con el nombre de la marca.
+  1) GANCHO (primeras 5-6 palabras): tiene que frenar el scroll. **Para ESTE guion el arranque debe ser ${opener}** — respetalo, no uses otro tipo de apertura. NUNCA arranques con un saludo ("hola chicos", "buenas") ni con el nombre de la marca.
   2) EL GIRO: que le paso, con UN detalle concreto y creible (un momento, un numero, una comparacion). Aca aparece el producto.
+- NOMBRAR LA MARCA ES OBLIGATORIO: el guion tiene que decir "${brand?.name || 'la marca'}" en voz alta, UNA vez, dentro del giro, como el lugar donde paso la experiencia ("...arranque en ${brand?.name || 'la marca'}...", "...fui a ${brand?.name || 'la marca'} y..."). Sin el nombre el video le sirve a cualquier competidor del rubro, no a esta marca. Que suene natural, no forzado, y nunca al principio como si fuera un anuncio.
   3) REMATE: cierre corto y con filo — una frase con gracia, una exageracion divertida o una recomendacion directa.
-- TONO: rioplatense hablado, informal y con energia de reel, como se lo contarias a un amigo por audio. Podes usar contracciones y alguna muletilla natural ("posta", "te juro", "en serio"), pero UNA sola por guion y nunca al principio: variá el arranque en cada video, que dos guiones distintos jamas empiecen con la misma palabra. Ritmo rapido, frases cortas.
+- TONO: rioplatense hablado, informal y con energia de reel, como se lo contarias a un amigo por audio. Podes usar contracciones y como maximo UNA muletilla por guion, nunca al principio. VARIEDAD OBLIGATORIA entre videos: elegí al azar el tipo de arranque (una pregunta a camara, una confesion, una opinion tajante, una escena "estaba haciendo X cuando...", un dato) y tambien la muletilla — si usaste "posta" en un guion, en el siguiente usa otra ("te juro", "en serio", "mira") o ninguna. Dos guiones distintos jamas empiezan con la misma palabra ni cierran con la misma muletilla. Ritmo rapido, frases cortas.
 - PROHIBIDO: tono de locutor o publicidad, "descubri nuestra propuesta", "la mejor calidad", "no te lo pierdas", "ven y viví la experiencia", adjetivos vacios, acotaciones tipo "[escena]", emojis, hashtags.
 - Coherente con la voz de la marca. No inventes precios ni promos fuera del catalogo.
 - Ejemplo del NIVEL de escritura buscado (es solo el estilo, no lo copies): "Estuve dos años comprando el cafe de la esquina y era pesimo. Un dia probe este flat white y te juro que me arruinó los otros para siempre. Ahora vengo todos los dias, es un problema."
