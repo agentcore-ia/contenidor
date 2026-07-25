@@ -53,6 +53,63 @@ function legalPage(file) {
 }
 app.get('/privacidad', legalPage('privacidad.html'));
 app.get('/eliminacion-datos', legalPage('eliminacion-datos.html'));
+app.get('/terminos', legalPage('terminos.html'));
+
+// Imagen de preview al compartir el link (WhatsApp, X, LinkedIn).
+let ogCache = null;
+app.get('/og.png', async (_req, res) => {
+  try {
+    if (!ogCache) ogCache = await readFile(resolve('landing/og.png'));
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(ogCache);
+  } catch (error) {
+    console.warn('[og] no se pudo servir:', error.message);
+    res.sendStatus(404);
+  }
+});
+
+// --- Demo publica de la landing (sin cuenta) --------------------------------
+// Cada llamada cuesta tokens, asi que se limita por IP y por dia. Va fuera de
+// /api a proposito: ese prefijo exige sesion.
+const demoHits = new Map();
+let demoDay = new Date().toISOString().slice(0, 10);
+let demoDayCount = 0;
+const DEMO_PER_IP = Number(process.env.DEMO_LIMIT_PER_IP || 5);
+const DEMO_PER_DAY = Number(process.env.DEMO_LIMIT_PER_DAY || 300);
+
+function demoRateLimit(req) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (today !== demoDay) { demoDay = today; demoDayCount = 0; demoHits.clear(); }
+  if (demoDayCount >= DEMO_PER_DAY) return 'La demo alcanzo su limite de hoy. Crea tu cuenta para seguir generando.';
+
+  const ip = String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim();
+  const entry = demoHits.get(ip) || { count: 0, since: Date.now() };
+  if (Date.now() - entry.since > 3600_000) { entry.count = 0; entry.since = Date.now(); }
+  if (entry.count >= DEMO_PER_IP) return 'Probaste la demo varias veces. Crea tu cuenta gratis para generar sin limite.';
+
+  entry.count += 1;
+  demoHits.set(ip, entry);
+  demoDayCount += 1;
+  return null;
+}
+
+app.post('/demo/ideas', async (req, res) => {
+  try {
+    const limited = demoRateLimit(req);
+    if (limited) return res.status(429).json({ success: false, error: limited });
+
+    const { generateDemoIdeas } = await import('./src/openai.js');
+    const result = await generateDemoIdeas(req.body?.business);
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.warn('[demo:ideas]', error.message);
+    res.status(error.statusCode && error.statusCode < 500 ? error.statusCode : 400).json({
+      success: false,
+      error: error.message || 'No pudimos generar las ideas'
+    });
+  }
+});
 
 app.get('/', async (req, res) => {
   const host = String(req.headers['x-forwarded-host'] || req.hostname || '').toLowerCase();

@@ -1,6 +1,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Postia — Dejá de pensar qué postear</title>
+<meta name="description" content="Postia crea las ideas, las imágenes y los videos de tu Instagram, y publica los que aprobás desde WhatsApp. Tu primera semana de contenido, gratis.">
+<link rel="canonical" href="https://postia.ar/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Postia">
+<meta property="og:locale" content="es_AR">
+<meta property="og:url" content="https://postia.ar/">
+<meta property="og:title" content="Postia — Dejá de pensar qué postear">
+<meta property="og:description" content="Creamos las ideas, las imágenes y los videos de tu Instagram. Vos aprobás desde WhatsApp y se publica solo. Tu primera semana gratis.">
+<meta property="og:image" content="https://postia.ar/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Postia — Dejá de pensar qué postear">
+<meta name="twitter:description" content="Creamos las ideas, las imágenes y los videos de tu Instagram. Vos aprobás desde WhatsApp.">
+<meta name="twitter:image" content="https://postia.ar/og.png">
+<meta name="theme-color" content="#FBFBF9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B0B0D" media="(prefers-color-scheme: dark)">
+<script defer data-domain="postia.ar" src="https://plausible.io/js/script.tagged-events.js"></script>
 <style>
   /* ============ TOKENS ============ */
   :root{
@@ -116,6 +134,81 @@
   .hero-cta{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
   .hero-note{font-size:.84rem;color:var(--muted);margin-top:18px;display:flex;align-items:center;gap:7px}
   .hero-note .ok-dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
+
+  /* --- La oferta --- */
+  .offer{
+    display:flex;gap:12px;align-items:flex-start;
+    border:1px solid var(--line);border-left:3px solid var(--ok);
+    border-radius:14px;background:var(--surface);
+    padding:14px 16px;margin-bottom:24px;max-width:34em;
+    box-shadow:var(--shadow);
+  }
+  .offer-main b{display:block;font-size:1rem;letter-spacing:-.01em;margin-bottom:3px}
+  .offer-main span{font-size:.88rem;color:var(--muted);line-height:1.5}
+
+  /* --- Demo en vivo --- */
+  .try{max-width:34em;margin-bottom:22px}
+  .try-label{
+    display:block;font-size:.82rem;font-weight:600;margin-bottom:8px;letter-spacing:-.01em;
+  }
+  .try-row{display:flex;gap:8px;flex-wrap:wrap}
+  .try-row input{
+    flex:1 1 15em;min-width:0;font:inherit;font-size:.95rem;
+    padding:12px 16px;border-radius:999px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink);
+  }
+  .try-row input:focus{outline:2px solid var(--ink);outline-offset:1px}
+  .try-row .btn{flex:none}
+  .try-row .btn[disabled]{opacity:.55;cursor:progress}
+  .try-hint{font-size:.78rem;color:var(--muted);margin-top:8px}
+  .try-out{
+    max-width:34em;margin-bottom:24px;border:1px solid var(--line);border-radius:18px;
+    background:var(--surface);box-shadow:var(--shadow);overflow:hidden;
+  }
+  .try-out[hidden]{display:none}
+  .try-head{
+    padding:12px 16px;border-bottom:1px solid var(--line);
+    font-family:var(--font-mono);font-size:.64rem;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);
+  }
+  .try-head b{color:var(--ink);font-family:var(--font-sans);font-size:.86rem;letter-spacing:-.01em;text-transform:none;display:block;margin-top:3px}
+  .try-idea{display:flex;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line);align-items:flex-start}
+  .try-idea:last-of-type{border-bottom:0}
+  .try-fmt{
+    flex:none;font-family:var(--font-mono);font-size:.56rem;letter-spacing:.1em;text-transform:uppercase;
+    border:1px solid var(--line);border-radius:999px;padding:4px 9px;color:var(--muted);margin-top:2px;
+  }
+  .try-body .t{font-size:.92rem;font-weight:600;letter-spacing:-.01em;line-height:1.35}
+  .try-body .w{font-size:.8rem;color:var(--muted);margin-top:2px}
+  .try-foot{padding:13px 16px;background:color-mix(in srgb,var(--ink) 4%,transparent);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .try-foot span{font-size:.82rem;color:var(--muted);flex:1 1 12em}
+  .try-err{padding:14px 16px;font-size:.88rem;color:var(--muted)}
+  @media (prefers-reduced-motion:no-preference){
+    .try-out{animation:tryIn .5s cubic-bezier(.2,.7,.2,1)}
+    @keyframes tryIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  }
+  .try-load{display:flex;align-items:center;gap:10px;padding:16px;font-size:.88rem;color:var(--muted)}
+  .try-spin{
+    width:15px;height:15px;border-radius:50%;flex:none;
+    border:2px solid var(--line);border-top-color:var(--ink);animation:spin .7s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* --- WhatsApp flotante --- */
+  .wa-float{
+    position:fixed;right:18px;bottom:18px;z-index:60;
+    display:flex;align-items:center;gap:9px;
+    background:#25D366;color:#fff;text-decoration:none;
+    border-radius:999px;padding:12px 18px;font-weight:600;font-size:.9rem;
+    box-shadow:0 6px 24px -6px rgba(37,211,102,.6);
+    transition:transform .18s ease;
+  }
+  .wa-float:hover{transform:translateY(-2px)}
+  .wa-float[hidden]{display:none}
+  .wa-float svg{width:19px;height:19px;flex:none}
+  @media (max-width:560px){
+    .wa-float{padding:13px;right:14px;bottom:14px}
+    .wa-float span{display:none}
+  }
 
   /* --- Phone demo --- */
   .demo-zone{display:flex;gap:clamp(18px,2.5vw,30px);justify-content:center;align-items:center}
@@ -497,6 +590,53 @@
   }
   .stat p{color:var(--muted);font-size:.95rem;max-width:22em}
 
+  /* ============ PRECIOS ============ */
+  .anchor-line{
+    display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+    border:1px solid var(--line);border-radius:16px;background:var(--surface);
+    padding:16px 20px;margin-top:28px;box-shadow:var(--shadow);max-width:44em;
+  }
+  .anchor-line .a-old{font-size:.95rem;color:var(--muted);text-decoration:line-through}
+  .anchor-line .a-arrow{color:var(--muted)}
+  .anchor-line .a-new{font-size:1.02rem;font-weight:700;letter-spacing:-.01em}
+  .price-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:34px}
+  @media (max-width:900px){.price-grid{grid-template-columns:1fr;max-width:26em}}
+  .plan{
+    border:1px solid var(--line);border-radius:20px;background:var(--surface);
+    padding:26px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px;position:relative;
+  }
+  .plan.featured{border-color:var(--ink);box-shadow:var(--shadow-lg)}
+  .plan-tag{
+    position:absolute;top:-11px;left:26px;background:var(--pill-bg);color:var(--pill-ink);
+    font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    border-radius:999px;padding:4px 11px;
+  }
+  .plan h3{font-size:1.02rem;font-weight:700;letter-spacing:-.02em}
+  .plan .price{font-size:2.1rem;font-weight:800;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+  .plan .price small{font-size:.82rem;font-weight:500;color:var(--muted);letter-spacing:0}
+  .plan .price-note{font-size:.76rem;color:var(--muted);margin-top:-8px}
+  .plan ul{list-style:none;display:flex;flex-direction:column;gap:9px;margin-top:2px}
+  .plan li{font-size:.89rem;color:var(--muted);display:flex;gap:9px;align-items:flex-start;line-height:1.45}
+  .plan li svg{width:15px;height:15px;flex:none;margin-top:3px;color:var(--ok)}
+  .plan .btn{margin-top:auto;justify-content:center}
+  .price-foot{margin-top:26px;font-size:.86rem;color:var(--muted);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .founder{
+    display:inline-flex;align-items:center;gap:9px;margin-top:18px;
+    background:color-mix(in srgb,var(--ok) 13%,transparent);color:var(--ok);
+    border-radius:999px;padding:7px 15px;font-size:.84rem;font-weight:600;
+  }
+  .founder .pulse{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+  @media (prefers-reduced-motion:no-preference){.founder .pulse{animation:fp 1.6s ease-in-out infinite}@keyframes fp{50%{opacity:.3}}}
+
+  /* CTA suelto entre secciones */
+  .mid-cta{
+    display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;
+    border:1px solid var(--line);border-radius:20px;background:var(--surface);
+    padding:22px 26px;margin-top:40px;box-shadow:var(--shadow);
+  }
+  .mid-cta p{font-size:1rem;font-weight:600;letter-spacing:-.01em;margin:0}
+  .mid-cta span{display:block;font-size:.86rem;font-weight:400;color:var(--muted);margin-top:3px}
+
   /* ============ FAQ ============ */
   .faq-list{max-width:760px;margin-top:36px}
   details{border-bottom:1px solid var(--line)}
@@ -551,9 +691,9 @@
     <a class="brand" href="#top"><span class="brand-dot">P</span>Postia</a>
     <div class="nav-links">
       <a href="#como">Cómo funciona</a>
-      <a href="#agenda">Agenda</a>
       <a href="#ejemplos">Ejemplos</a>
       <a href="#whatsapp">WhatsApp</a>
+      <a href="#precios">Precios</a>
       <a href="#faq">Preguntas</a>
     </div>
     <a class="btn btn-solid btn-sm" href="https://app.postia.ar/dashboard" style="margin-left:auto">Probar gratis</a>
@@ -567,8 +707,29 @@
       <span class="eyebrow">Contenido en piloto automático</span>
       <h1>Dejá de pensar qué postear.</h1>
       <p class="sub">Postia piensa las ideas, diseña las imágenes, genera los videos y publica en tu Instagram. <strong>Vos solo aprobás con un toque, desde WhatsApp.</strong></p>
+
+      <div class="offer">
+        <div class="offer-main">
+          <b>Tu primera semana de contenido, gratis.</b>
+          <span>5 posts + historias creados para tu marca. Sin tarjeta. Si no te gusta, no publicás nada.</span>
+        </div>
+      </div>
+
+      <!-- Demo en vivo: el visitante ve ideas para SU negocio antes de registrarse -->
+      <form class="try" id="try-form" onsubmit="return tryDemo(event)">
+        <label class="try-label" for="try-input">Probalo ahora: ¿qué vende tu negocio?</label>
+        <div class="try-row">
+          <input id="try-input" type="text" maxlength="120" autocomplete="off"
+                 placeholder="Ej: heladería artesanal en Junín" />
+          <button class="btn btn-solid" type="submit" id="try-btn">Ver mis ideas</button>
+        </div>
+        <p class="try-hint" id="try-hint">Gratis, sin registrarte. Te mostramos 3 ideas reales en 15 segundos.</p>
+      </form>
+
+      <div class="try-out" id="try-out" hidden></div>
+
       <div class="hero-cta">
-        <a class="btn btn-solid" href="https://app.postia.ar/dashboard">Empezar gratis
+        <a class="btn btn-solid plausible-event-name=cta_hero" href="https://app.postia.ar/dashboard">Crear mi cuenta gratis
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </a>
         <a class="btn btn-ghost" href="#como">Ver cómo funciona</a>
@@ -1017,6 +1178,18 @@
   </div>
 </section>
 
+<!-- ================= CTA INTERMEDIO ================= -->
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="mid-cta reveal">
+      <p>¿Querés ver tu primera semana?<span>La generamos gratis para tu marca. Sin tarjeta.</span></p>
+      <a class="btn btn-solid plausible-event-name=cta_mid" href="https://app.postia.ar/dashboard">Empezar gratis
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
+  </div>
+</section>
+
 <!-- ================= FEATURES ================= -->
 <section>
   <div class="wrap">
@@ -1098,9 +1271,73 @@
 <!-- ================= STATS ================= -->
 <section class="stats">
   <div class="wrap stats-grid">
-    <div class="stat reveal"><b>30+</b><p>posts por mes, con imágenes y videos, generados y agendados solos.</p></div>
+    <div class="stat reveal"><b>Todos los días</b><p>tu cuenta activa, con posts, carruseles e historias, sin que lo pienses.</p></div>
     <div class="stat reveal"><b>2 min</b><p>por día de tu tiempo. Lo que tardás en tocar “Aprobar” en WhatsApp.</p></div>
     <div class="stat reveal"><b>1</b><p>sola herramienta para todo el circuito: idea → diseño → video → aprobación → publicación.</p></div>
+  </div>
+</section>
+
+<!-- ================= PRECIOS ================= -->
+<section id="precios">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="eyebrow">Precios</span>
+      <h2>Cuesta menos que<br>un solo día de agencia.</h2>
+      <p class="lead">Elegí el plan por lo que necesitás publicar. Podés empezar gratis y cambiar o cancelar cuando quieras.</p>
+      <div class="anchor-line">
+        <span class="a-old">Community manager: $400.000+ por mes</span>
+        <span class="a-arrow">→</span>
+        <span class="a-new">Postia: desde US$15 por mes</span>
+      </div>
+      <div class="founder"><span class="pulse"></span>Precio fundador: 50% de descuento de por vida para los primeros 20 negocios</div>
+    </div>
+
+    <div class="price-grid">
+      <div class="plan reveal">
+        <h3>Emprendedor</h3>
+        <div class="price">US$15 <small>/ mes</small></div>
+        <p class="price-note">Se cobra en pesos al cambio del día</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 12 5 5L20 7"/></svg>1 marca</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 12 5 5L20 7"/></svg>15 piezas por mes (posts e historias)</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 12 5 5L20 7"/></svg>Aprobación por WhatsApp</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 12 5 5L20 7"/></svg>Publicación automática en Instagram</li>
+        </ul>
+        <a class="btn btn-ghost plausible-event-name=cta_plan_starter" href="https://app.postia.ar/dashboard">Empezar gratis</a>
+      </div>
+
+      <div class="plan featured reveal">
+        <span class="plan-tag">El más elegido</span>
+        <h3>Negocio</h3>
+        <div class="price">US$39 <small>/ mes</small></div>
+        <p class="price-note">Se cobra en pesos al cambio del día</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 12 5 5L20 7"/></svg>1 marca · <b>30 piezas por mes</b></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 12 5 5L20 7"/></svg>Carruseles e historias incluidos</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 12 5 5L20 7"/></svg><b>4 videos</b> por mes (producto o UGC)</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 12 5 5L20 7"/></svg>Catálogo con tus precios reales</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 12 5 5L20 7"/></svg>Tu logo integrado en las piezas</li>
+        </ul>
+        <a class="btn btn-solid plausible-event-name=cta_plan_business" href="https://app.postia.ar/dashboard">Empezar gratis</a>
+      </div>
+
+      <div class="plan reveal">
+        <h3>Agencia</h3>
+        <div class="price">US$99 <small>/ mes</small></div>
+        <p class="price-note">Se cobra en pesos al cambio del día</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 12 5 5L20 7"/></svg><b>Hasta 5 marcas</b></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 12 5 5L20 7"/></svg>Piezas sin límite práctico</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 12 5 5L20 7"/></svg>10 videos por mes</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 12 5 5L20 7"/></svg>Soporte prioritario por WhatsApp</li>
+        </ul>
+        <a class="btn btn-ghost plausible-event-name=cta_plan_agency" href="https://app.postia.ar/dashboard">Hablar con nosotros</a>
+      </div>
+    </div>
+
+    <p class="price-foot reveal">
+      Pagás con tarjeta o MercadoPago · Sin permanencia, cancelás cuando quieras · ¿Necesitás más videos? Se compran por separado.
+    </p>
   </div>
 </section>
 
@@ -1112,6 +1349,14 @@
       <h2>Lo que todos preguntan<br>antes de empezar.</h2>
     </div>
     <div class="faq-list reveal">
+      <details>
+        <summary>¿Qué incluye la primera semana gratis?<span class="plus">+</span></summary>
+        <p class="ans">Creás tu cuenta, contás de qué se trata tu negocio y Postia arma tu primera semana: 5 posts con sus imágenes, más las historias que los acompañan. No pedimos tarjeta y no se publica nada sin que lo apruebes. Si no te gusta lo que ves, no aprobás y listo.</p>
+      </details>
+      <details>
+        <summary>¿Cuánto cuesta después?<span class="plus">+</span></summary>
+        <p class="ans">Los planes arrancan en US$15 por mes (se cobran en pesos al cambio del día) y el más elegido es el de US$39, que incluye 30 piezas y 4 videos mensuales. Podés cambiar de plan o cancelar cuando quieras, sin permanencia. Mirá el detalle en <a href="#precios">precios</a>.</p>
+      </details>
       <details>
         <summary>¿Tengo que saber de diseño o de marketing?<span class="plus">+</span></summary>
         <p class="ans">No. Contale a Postia de tu negocio (o conectá tu Instagram) y el sistema arma tu identidad visual, tu calendario y tus piezas. Tu única tarea es aprobar o rechazar.</p>
@@ -1163,6 +1408,26 @@
   </div>
 </section>
 
+<!-- Botón flotante de WhatsApp -->
+<a class="wa-float plausible-event-name=cta_whatsapp" id="wa-float" hidden href="#" target="_blank" rel="noopener">
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.9-1.4A10 10 0 1 0 12 2Zm5.1 14.1c-.2.6-1.2 1.2-1.7 1.2-.4 0-1 .1-3.2-.9-2.7-1.2-4.4-4-4.5-4.2-.1-.2-1-1.4-1-2.7s.6-1.9.9-2.2c.2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.3 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.2.1.4.1.5-.1l.8-.9c.2-.2.3-.2.5-.1l2 .9c.2.1.4.2.4.3.1.2.1.7-.1 1.4Z"/></svg>
+  <span>Escribinos</span>
+</a>
+<script>
+  /* ↓↓↓ PONÉ ACÁ TU NÚMERO DE WHATSAPP (solo dígitos, con código de país).
+     Ejemplo: "5492346684702". Mientras esté vacío, el botón no se muestra. ↓↓↓ */
+  var WA_NUMERO = "";
+
+  (function(){
+    if (!WA_NUMERO) return;
+    var wa = document.getElementById("wa-float");
+    if (!wa) return;
+    wa.href = "https://wa.me/" + WA_NUMERO + "?text=" +
+      encodeURIComponent("Hola! Quiero probar Postia para mi negocio");
+    wa.hidden = false;
+  })();
+</script>
+
 <!-- ================= FOOTER ================= -->
 <footer>
   <div class="wrap">
@@ -1182,6 +1447,7 @@
         <b>Contacto</b>
         <a href="mailto:hola@postia.ar">hola@postia.ar</a>
         <a href="https://app.postia.ar/dashboard">Ingresar a la app</a>
+        <a href="/terminos">Términos y condiciones</a>
         <a href="/privacidad">Política de privacidad</a>
         <a href="/eliminacion-datos">Eliminación de datos</a>
       </div>
@@ -1197,6 +1463,67 @@
 (function(){
   "use strict";
   var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---- Demo en vivo: 3 ideas para el negocio del visitante ---- */
+  var FMT = { image: "Post de feed", carousel: "Carrusel", story: "Historia" };
+  var esc = function(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c];
+    });
+  };
+
+  window.tryDemo = function tryDemo(ev){
+    ev.preventDefault();
+    var input = document.getElementById("try-input");
+    var out = document.getElementById("try-out");
+    var btn = document.getElementById("try-btn");
+    var business = (input.value || "").trim();
+
+    if (business.length < 3) {
+      input.focus();
+      document.getElementById("try-hint").textContent = "Contanos en pocas palabras qué vendés (ej: heladería artesanal en Junín).";
+      return false;
+    }
+
+    btn.disabled = true;
+    out.hidden = false;
+    out.innerHTML = '<div class="try-load"><span class="try-spin"></span>Pensando ideas para tu negocio…</div>';
+
+    fetch("/demo/ideas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ business: business })
+    })
+      .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
+      .then(function(res){
+        if (!res.ok || !res.data.success) {
+          out.innerHTML = '<div class="try-err">' + esc(res.data.error || "No pudimos generar las ideas. Probá de nuevo en un momento.") + '</div>';
+          return;
+        }
+        var d = res.data;
+        var rows = (d.ideas || []).map(function(i){
+          return '<div class="try-idea">'
+            + '<span class="try-fmt">' + esc(FMT[i.format] || "Post") + '</span>'
+            + '<div class="try-body"><div class="t">' + esc(i.topic) + '</div>'
+            + (i.why ? '<div class="w">' + esc(i.why) + '</div>' : '')
+            + '</div></div>';
+        }).join("");
+
+        out.innerHTML =
+          '<div class="try-head">Tu plan de contenido<b>' + esc(d.rubro || business) + '</b></div>'
+          + rows
+          + '<div class="try-foot"><span>Esto es una muestra. En tu cuenta se generan las imágenes y los videos, y se publican solos.</span>'
+          + '<a class="btn btn-solid btn-sm plausible-event-name=cta_demo" href="https://app.postia.ar/dashboard">Generar mi semana gratis</a></div>';
+
+        if (window.plausible) window.plausible("demo_ideas_ok");
+      })
+      .catch(function(){
+        out.innerHTML = '<div class="try-err">No pudimos conectarnos. Revisá tu conexión y probá de nuevo.</div>';
+      })
+      .finally(function(){ btn.disabled = false; });
+
+    return false;
+  };
 
   /* ---- marquee clone ---- */
   var track = document.getElementById("mq-track");

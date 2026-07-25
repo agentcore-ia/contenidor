@@ -993,6 +993,73 @@ export async function generatePostImageAsset(post, { brand, referenceBuffers = [
   };
 }
 
+// --- Demo publica de la landing --------------------------------------------
+// Genera 3 ideas para un negocio descripto en una linea, sin tocar la base ni
+// requerir cuenta. Es el gancho de postia.ar: el visitante ve el producto
+// trabajando sobre SU negocio antes de registrarse.
+const demoIdeasSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['rubro', 'ideas'],
+  properties: {
+    rubro: { type: 'string' },
+    ideas: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['format', 'topic', 'why'],
+        properties: {
+          format: { type: 'string', enum: ['image', 'carousel', 'story'] },
+          topic: { type: 'string' },
+          why: { type: 'string' }
+        }
+      }
+    }
+  }
+};
+
+export async function generateDemoIdeas(business) {
+  const client = createOpenAIClient();
+  const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
+  const clean = String(business || '').trim().slice(0, 300);
+  if (!clean) throw new AppError('Contanos que vende tu negocio', 400, 'DEMO_NO_INPUT');
+
+  const prompt = `Sos social media manager senior. Un negocio te describe lo que hace en una linea y le mostras 3 ideas de contenido para Instagram, una de cada formato, para que vea que entendes su rubro.
+
+Negocio: "${clean}"
+
+Reglas:
+- "rubro": en 2-4 palabras, el rubro que detectas (ej: "Heladeria artesanal", "Estudio de pilates"). Si el texto no describe un negocio real, devolve rubro "generico" igual y proponé ideas sensatas.
+- Exactamente 3 ideas, en este orden de formato: "image" (post de feed / vidriera), "carousel" (contenido de valor que se guarda: tips, guia, mitos) y "story" (cercania o urgencia del dia a dia).
+- "topic": el tema concreto del contenido, maximo 12 palabras, especifico de ESE negocio (nada generico tipo "mostra tu producto").
+- "why": en maximo 12 palabras, por que ese contenido funciona para ese negocio.
+- Español rioplatense, sin emojis, sin hashtags, sin comillas.
+- Responde solo el JSON.`;
+
+  const response = await client.responses.create({
+    model,
+    input: [
+      { role: 'system', content: 'Sos social media manager. Proponés ideas concretas y especificas del rubro.' },
+      { role: 'user', content: prompt }
+    ],
+    text: { format: { type: 'json_schema', name: 'postia_demo_ideas', strict: true, schema: demoIdeasSchema } }
+  });
+
+  const parsed = parseGenerationOutput(response);
+  const ideas = (Array.isArray(parsed?.ideas) ? parsed.ideas : [])
+    .map((i) => ({
+      format: ['image', 'carousel', 'story'].includes(i?.format) ? i.format : 'image',
+      topic: String(i?.topic ?? '').trim(),
+      why: String(i?.why ?? '').trim()
+    }))
+    .filter((i) => i.topic)
+    .slice(0, 3);
+
+  if (!ideas.length) throw new AppError('No pudimos generar ideas, probá de nuevo', 502, 'DEMO_EMPTY');
+  return { rubro: String(parsed?.rubro ?? '').trim(), ideas };
+}
+
 const SUPPORTED_REFERENCE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
 // Fetches an image URL and validates it is actually image bytes (not an HTML
