@@ -50,7 +50,7 @@ function ugcScenePrompt(script, productVisual) {
   const product = productVisual
     ? ` The person is clearly holding and showing to camera ${productVisual}. The product MUST be exactly this and match the reference image — do not substitute a different item or a generic version.`
     : ' The person holds and shows the exact product from the reference image.';
-  return `Vertical UGC-style video: a real, relatable person talking straight to camera in a casual, authentic setting, natural lighting, handheld feel.${product} They say, in a natural spoken tone: "${script}". Lip-synced audio, warm and genuine, not corporate.`;
+  return `Vertical UGC-style video for Instagram: a real, relatable person filming themselves on a phone in a casual everyday setting, natural lighting, handheld selfie framing, slight movement.${product} They talk straight to camera with energy and personality — expressive face, natural hand gestures, the rhythm of someone telling a friend something exciting, not reading a script. They say, in Argentine Spanish: "${script}". The delivery fills the entire clip from the first frame to the last, with no silent pauses at the start or end. Lip-synced audio, authentic creator vibe, absolutely not corporate or advertorial.`;
 }
 
 // Envia el job al proveedor. Devuelve un resultado discriminado:

@@ -499,13 +499,21 @@ const ugcScriptSchema = {
 // Escribe un guion UGC corto + una descripcion visual PRECISA del producto que
 // la persona muestra a camara, para que el modelo de video no invente el
 // producto equivocado (ej. una barra de chocolate en vez de un helado).
-export async function generateUgcScript({ post, brand, products = [] }) {
+export async function generateUgcScript({ post, brand, products = [], seconds } = {}) {
   const client = createOpenAIClient();
   const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
   const manual = brand?.brand_manual || {};
   const rubro = brand?.analysis?.rubro || '';
 
-  const prompt = `Sos guionista de UGC. Para un video corto (5-12s, testimonial casero) de ${brand?.name || 'la marca'}, devolve DOS cosas: el guion hablado y una descripcion visual exacta del producto que la persona sostiene y muestra a camara.
+  // El guion se calibra al largo real del clip: hablando natural en español
+  // entran ~3 palabras por segundo. Si el guion queda corto, el video termina
+  // con la persona muda; por eso el rango es explicito y obligatorio.
+  const clipSeconds = Number(seconds || process.env.UGC_SECONDS || 10);
+  const targetWords = Math.round(clipSeconds * 3);
+  const minWords = targetWords - 2;
+  const maxWords = targetWords + 3;
+
+  const prompt = `Sos guionista de UGC viral para Instagram. Para un video de ${clipSeconds} segundos (testimonial casero, filmado con el celular) de ${brand?.name || 'la marca'}, devolve DOS cosas: el guion hablado y una descripcion visual exacta del producto que la persona sostiene y muestra a camara.
 
 Marca: ${brand?.name || ''}
 Rubro / que vende: ${rubro || brand?.description || 'no especificado'}
@@ -515,9 +523,15 @@ Mensaje: ${post?.caption_instagram || post?.body || ''}
 ${products.length ? `Catalogo (nombres/precios exactos):\n${compactJson(products.map((p) => ({ name: p.name, description: p.description || undefined, price: p.price || undefined })))}` : ''}
 
 "script" (lo que la persona DICE a camara):
-- Hablado y natural. Nada de acotaciones, "[escena]", emojis ni hashtags.
-- Maximo 2-3 frases, decible en 5-12s. Un gancho fuerte al inicio.
+- LARGO OBLIGATORIO: entre ${minWords} y ${maxWords} palabras. Es lo que entra hablado en ${clipSeconds} segundos. Si escribis menos, el video termina con la persona muda mirando a camara: el guion TIENE que llenar el clip. Conta las palabras antes de responder.
+- ESTRUCTURA VIRAL EN 3 TIEMPOS, sin respiro entre ellos:
+  1) GANCHO (primeras 5-6 palabras): tiene que frenar el scroll. Una opinion fuerte, un error comun que todos cometen, una confesion, un "no me lo van a creer", una pregunta directa a camara. NUNCA arranques con un saludo ("hola chicos", "buenas") ni con el nombre de la marca.
+  2) EL GIRO: que le paso, con UN detalle concreto y creible (un momento, un numero, una comparacion). Aca aparece el producto.
+  3) REMATE: cierre corto y con filo — una frase con gracia, una exageracion divertida o una recomendacion directa.
+- TONO: rioplatense hablado, informal y con energia de reel, como se lo contarias a un amigo por audio. Podes usar contracciones y alguna muletilla natural ("posta", "te juro", "en serio"), pero UNA sola por guion y nunca al principio: variá el arranque en cada video, que dos guiones distintos jamas empiecen con la misma palabra. Ritmo rapido, frases cortas.
+- PROHIBIDO: tono de locutor o publicidad, "descubri nuestra propuesta", "la mejor calidad", "no te lo pierdas", "ven y viví la experiencia", adjetivos vacios, acotaciones tipo "[escena]", emojis, hashtags.
 - Coherente con la voz de la marca. No inventes precios ni promos fuera del catalogo.
+- Ejemplo del NIVEL de escritura buscado (es solo el estilo, no lo copies): "Estuve dos años comprando el cafe de la esquina y era pesimo. Un dia probe este flat white y te juro que me arruinó los otros para siempre. Ahora vengo todos los dias, es un problema."
 
 "product_visual" (EN INGLES, para el modelo de video — es lo MAS importante):
 - Describi con precision el producto REAL que la persona sostiene, coherente con el RUBRO de la marca. Ej: una heladeria vende HELADO, no barras de chocolate; si el sabor es "chocolate oreo", el producto es "a cup/cone of chocolate-Oreo ice cream with crushed Oreo cookie pieces on top", NO a chocolate bar.
@@ -529,7 +543,7 @@ Devolve solo el JSON pedido.`;
   const response = await client.responses.create({
     model,
     input: [
-      { role: 'system', content: 'Sos guionista y director visual de UGC. Escribis parlamentos naturales y descripciones de producto precisas y fieles al rubro.' },
+      { role: 'system', content: 'Sos guionista de UGC viral para Instagram y director visual. Escribis parlamentos hablados, con gancho y ritmo de reel, que llenan exactamente el largo del clip, y descripciones de producto precisas y fieles al rubro.' },
       { role: 'user', content: prompt }
     ],
     text: { format: { type: 'json_schema', name: 'ugc_script', strict: true, schema: ugcScriptSchema } }
