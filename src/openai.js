@@ -516,16 +516,24 @@ export async function generateUgcScript({ post, brand, products = [], seconds } 
   // Cada guion se genera en una llamada independiente, asi que el modelo no
   // sabe como empezaron los anteriores y repite siempre la misma formula
   // (todas preguntas, todos con "posta"). Se sortea el tipo de arranque aca.
+  // Se describe el TIPO de arranque, no una frase para completar: cuando se le
+  // daban plantillas literales el modelo las pegaba tal cual y salian frases
+  // sin sentido ("Estaba por salir cuando la espalda me estaba matando").
   const OPENERS = [
-    'una pregunta directa a camara ("¿Viste cuando...?")',
-    'una confesion personal ("Yo era de las que...")',
-    'una opinion tajante, sin pregunta ("Esto no lo dice nadie:")',
-    'una mini escena en pasado ("Estaba por salir cuando...")',
-    'una negacion rotunda ("No pensaba volver a...")',
-    'un numero o dato concreto ("Tres semanas me tomo darme cuenta de que...")',
-    'una comparacion ("Probe como diez lugares antes de este.")'
+    'una pregunta directa a camara sobre un problema que la audiencia sufre',
+    'una confesion personal sobre un habito o una creencia que la persona tenia antes',
+    'una opinion tajante y discutible sobre el rubro, afirmada sin rodeos',
+    'el recuerdo de UN momento puntual en que el problema se hizo insoportable, contado como escena',
+    'la admision de que la persona estaba resignada o no pensaba volver a intentarlo',
+    'un numero concreto (cuanto tiempo, cuantas veces, cuanta plata) que hace de gancho',
+    'la comparacion con otras opciones que la persona ya habia probado sin suerte'
   ];
   const opener = OPENERS[Math.floor(Math.random() * OPENERS.length)];
+
+  // Idem con la muletilla del remate: sin sortearla, todos los guiones cierran
+  // con la misma ("posta", "te juro") y el feed del cliente suena repetido.
+  const FILLERS = ['posta', 'te juro', 'en serio', 'mira', 'de verdad', null, null];
+  const filler = FILLERS[Math.floor(Math.random() * FILLERS.length)];
 
   const prompt = `Sos guionista de UGC viral para Instagram. Para un video de ${clipSeconds} segundos (testimonial casero, filmado con el celular) de ${brand?.name || 'la marca'}, devolve DOS cosas: el guion hablado y una descripcion visual exacta del producto que la persona sostiene y muestra a camara.
 
@@ -539,13 +547,14 @@ ${products.length ? `Catalogo (nombres/precios exactos):\n${compactJson(products
 "script" (lo que la persona DICE a camara):
 - LARGO OBLIGATORIO: entre ${minWords} y ${maxWords} palabras. Es lo que entra hablado en ${clipSeconds} segundos. Si escribis menos, el video termina con la persona muda mirando a camara: el guion TIENE que llenar el clip. Conta las palabras del guion antes de responder y, si te quedaste corto, sumá un detalle concreto mas (no relleno) hasta llegar al rango.
 - ESTRUCTURA VIRAL EN 3 TIEMPOS, sin respiro entre ellos:
-  1) GANCHO (primeras 5-6 palabras): tiene que frenar el scroll. **Para ESTE guion el arranque debe ser ${opener}** — respetalo, no uses otro tipo de apertura. NUNCA arranques con un saludo ("hola chicos", "buenas") ni con el nombre de la marca.
+  1) GANCHO (primeras 5-6 palabras): tiene que frenar el scroll. **Para ESTE guion el arranque tiene que ser ${opener}.** Escribilo con tus palabras: es el TIPO de apertura, no una frase para copiar. NUNCA arranques con un saludo ("hola chicos", "buenas") ni con el nombre de la marca.
   2) EL GIRO: que le paso, con UN detalle concreto y creible (un momento, un numero, una comparacion). Aca aparece el producto.
 - NOMBRAR LA MARCA ES OBLIGATORIO: el guion tiene que decir "${brand?.name || 'la marca'}" en voz alta, UNA vez, dentro del giro, como el lugar donde paso la experiencia ("...arranque en ${brand?.name || 'la marca'}...", "...fui a ${brand?.name || 'la marca'} y..."). Sin el nombre el video le sirve a cualquier competidor del rubro, no a esta marca. Que suene natural, no forzado, y nunca al principio como si fuera un anuncio.
   3) REMATE: cierre corto y con filo — una frase con gracia, una exageracion divertida o una recomendacion directa.
-- TONO: rioplatense hablado, informal y con energia de reel, como se lo contarias a un amigo por audio. Podes usar contracciones y como maximo UNA muletilla por guion, nunca al principio. VARIEDAD OBLIGATORIA entre videos: elegí al azar el tipo de arranque (una pregunta a camara, una confesion, una opinion tajante, una escena "estaba haciendo X cuando...", un dato) y tambien la muletilla — si usaste "posta" en un guion, en el siguiente usa otra ("te juro", "en serio", "mira") o ninguna. Dos guiones distintos jamas empiezan con la misma palabra ni cierran con la misma muletilla. Ritmo rapido, frases cortas.
+- TONO: rioplatense hablado, informal y con energia de reel, como se lo contarias a un amigo por audio. Usa contracciones y hablá como en un audio de WhatsApp. ${filler ? `Para ESTE guion podes usar la muletilla "${filler}" una sola vez, y nunca al principio; no uses ninguna otra.` : 'Para ESTE guion no uses ninguna muletilla ("posta", "te juro", "en serio"): que la frase se sostenga sola.'} Ritmo rapido, frases cortas.
 - PROHIBIDO: tono de locutor o publicidad, "descubri nuestra propuesta", "la mejor calidad", "no te lo pierdas", "ven y viví la experiencia", adjetivos vacios, acotaciones tipo "[escena]", emojis, hashtags.
 - Coherente con la voz de la marca. No inventes precios ni promos fuera del catalogo.
+- CONTROL FINAL antes de responder: conta las palabras una por una. Si son menos de ${minWords}, sumá un detalle concreto; si son mas de ${maxWords}, recortá lo que menos aporte hasta entrar en el rango — pasarse hace que el video corte el remate a mitad de frase. Despues leelo en voz alta mentalmente. Cada frase tiene que ser algo que una persona real diria y que se entienda sola. Si una frase mezcla dos ideas que no encajan (ej. "estaba por salir cuando la espalda me estaba matando": "estaba por salir" pide algo que pasa de golpe, no un dolor que ya venia), reescribila entera hasta que suene natural. Los tiempos verbales tienen que cerrar y la historia tiene que tener sentido de principio a fin.
 - Ejemplo del NIVEL de escritura buscado (es solo el estilo, no lo copies): "Estuve dos años comprando el cafe de la esquina y era pesimo. Un dia probe este flat white y te juro que me arruinó los otros para siempre. Ahora vengo todos los dias, es un problema."
 
 "product_visual" (EN INGLES, para el modelo de video — es lo MAS importante):
@@ -565,9 +574,31 @@ Devolve solo el JSON pedido.`;
   });
 
   const parsed = parseGenerationOutput(response);
+  let script = String(parsed?.script || '').trim();
+
+  // Los modelos cuentan palabras mal, asi que el largo se controla aca: si el
+  // guion no entra en el clip, una segunda pasada lo recorta. Sin esto el
+  // video corta el remate a mitad de frase.
+  const words = (s) => s.split(/\s+/).filter(Boolean).length;
+  if (words(script) > maxWords) {
+    try {
+      const trim = await client.responses.create({
+        model,
+        input: [
+          { role: 'system', content: 'Acortas guiones hablados sin perder su gancho ni su gracia. Devolves solo el guion final, sin comillas ni explicaciones.' },
+          { role: 'user', content: `Acorta este guion de video a ${maxWords} palabras como maximo, sin cambiar el tono ni el estilo. Es OBLIGATORIO conservar: el gancho inicial, el nombre "${brand?.name || ''}" y un remate con filo al final. Sacá solo los adjetivos o detalles que menos aporten. Devolve unicamente el guion.\n\nGuion: "${script}"` }
+        ]
+      });
+      const shorter = String(trim.output_text || '').trim().replace(/^["“]|["”]$/g, '');
+      if (shorter && words(shorter) <= words(script)) script = shorter;
+    } catch (error) {
+      console.warn('[generateUgcScript] no se pudo recortar el guion:', error.message);
+    }
+  }
+
   return {
     model,
-    script: String(parsed?.script || '').trim(),
+    script,
     productVisual: String(parsed?.product_visual || '').trim()
   };
 }
