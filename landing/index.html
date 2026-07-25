@@ -303,6 +303,16 @@
   }
   .pub-banner .ig svg{width:10px;height:10px}
 
+  /* --- Piezas reales generadas con Postia --- */
+  .gen-scene img, .mp-img img, .post-img img, .b-img img{
+    position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  }
+  /* el precio va abajo en esta pieza: al recortar a 4:5 hay que anclar al pie */
+  .pin-bottom{object-position:bottom}
+  .vid video{
+    position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  }
+
   /* content gradients (fixed — son "imágenes generadas") */
   .g-ice{background:linear-gradient(155deg,#FFE9EE 0%,#FFD2DD 55%,#FFC0CF 100%)}
   .g-burger{background:linear-gradient(160deg,#2A1E12 0%,#4A301D 60%,#6B4423 100%)}
@@ -763,23 +773,10 @@
             <div class="gen-img">
               <div class="shimmer"></div>
               <div class="gen-scene g-green cur" id="scene-a">
-                <svg viewBox="0 0 140 140" aria-hidden="true">
-                  <circle cx="52" cy="62" r="34" fill="#9CC184" opacity=".8"/>
-                  <circle cx="88" cy="76" r="30" fill="#7BAF63" opacity=".75"/>
-                  <circle cx="66" cy="96" r="22" fill="#5E9A48" opacity=".7"/>
-                </svg>
-                <div class="gen-head" id="d-head" style="color:#2F4A22;text-shadow:none">3 POSTURAS PARA<br>TU ESPALDA</div>
+                <img src="img/verde-posturas.webp" alt="Post generado: 3 posturas para tu espalda" loading="eager" />
               </div>
               <div class="gen-scene g-burger" id="scene-b">
-                <svg viewBox="0 0 140 120" aria-hidden="true">
-                  <path d="M22 54 Q70 10 118 54 L118 62 L22 62 Z" fill="#F0B45C"/>
-                  <ellipse cx="52" cy="36" rx="3.4" ry="2.2" fill="#FFEFD2"/><ellipse cx="72" cy="30" rx="3.4" ry="2.2" fill="#FFEFD2"/><ellipse cx="92" cy="38" rx="3.4" ry="2.2" fill="#FFEFD2"/>
-                  <rect x="20" y="62" width="100" height="7" rx="3.5" fill="#7FBF6A"/>
-                  <rect x="24" y="69" width="92" height="9" rx="4" fill="#FFC94D"/>
-                  <rect x="22" y="78" width="96" height="14" rx="7" fill="#6B3E26"/>
-                  <rect x="24" y="92" width="92" height="16" rx="8" fill="#E8A85C"/>
-                </svg>
-                <div class="gen-head" id="d-head-b">DETRÁS DEL<br>MOSTRADOR</div>
+                <img src="img/burga-mostrador.webp" alt="Post generado: detrás del mostrador" loading="lazy" />
               </div>
             </div>
 
@@ -837,26 +834,22 @@
       <div class="mq-group">
 
         <div class="mini-post"><div class="mp-img g-lilac"><span class="mp-chip">Imagen · IA</span>
-          <svg viewBox="0 0 120 160"><rect x="44" y="58" width="32" height="66" rx="9" fill="#FFFDFB"/><rect x="50" y="40" width="20" height="18" rx="4" fill="#8E7AB5"/><rect x="56" y="28" width="8" height="14" rx="3" fill="#6D5A94"/><rect x="50" y="86" width="20" height="20" rx="4" fill="#E5DAF3"/><path d="M96 92 C102 102 102 110 96 113 C90 110 90 102 96 92 Z" fill="#B79BDB"/></svg>
-          <div class="mp-head lilac-ink">5 MITOS DEL<br>SKINCARE</div></div>
+          <img src="img/lumen-mitos.webp" alt="5 mitos del skincare" loading="lazy" /></div>
           <div class="mp-meta"><span class="av" style="background:linear-gradient(45deg,#CDB7E6,#6D5A94)"></span>lumen.estetica</div>
         </div>
 
         <div class="mini-post"><div class="mp-img g-burger"><span class="mp-chip">Imagen · IA</span>
-          <svg viewBox="0 0 140 120"><path d="M22 54 Q70 10 118 54 L118 62 L22 62 Z" fill="#F0B45C"/><rect x="20" y="62" width="100" height="7" rx="3.5" fill="#7FBF6A"/><rect x="24" y="69" width="92" height="9" rx="4" fill="#FFC94D"/><rect x="22" y="78" width="96" height="14" rx="7" fill="#6B3E26"/><rect x="24" y="92" width="92" height="16" rx="8" fill="#E8A85C"/></svg>
-          <div class="mp-head">DETRÁS DEL<br>MOSTRADOR</div></div>
+          <img src="img/burga-mostrador.webp" alt="Detrás del mostrador" loading="lazy" /></div>
           <div class="mp-meta"><span class="av" style="background:linear-gradient(45deg,#F0B45C,#6B3E26)"></span>burga.ok</div>
         </div>
 
         <div class="mini-post"><div class="mp-img g-coffee"><span class="mp-chip">Catálogo real</span>
-          <svg viewBox="0 0 140 140"><path d="M55 24 q7 11 0 22" stroke="#B78A5E" stroke-width="3.4" fill="none" stroke-linecap="round" opacity=".65"/><path d="M76 18 q7 12 0 24" stroke="#B78A5E" stroke-width="3.4" fill="none" stroke-linecap="round" opacity=".65"/><ellipse cx="70" cy="114" rx="46" ry="8" fill="#DCC5A5"/><rect x="35" y="56" width="70" height="52" rx="13" fill="#FFFDF8"/><ellipse cx="70" cy="60" rx="27" ry="7" fill="#6B4226"/><path d="M105 70 a15 15 0 0 1 0 26" stroke="#FFFDF8" stroke-width="9" fill="none"/></svg>
-          <div class="mp-head dark-ink">MEDIALUNAS + CAFÉ<br>$4.500</div></div>
+          <img class="pin-bottom" src="img/cafenorte-combo.webp" alt="Combo mañana: medialunas más café" loading="lazy" /></div>
           <div class="mp-meta"><span class="av" style="background:linear-gradient(45deg,#D3B890,#6B4226)"></span>cafenorte.ba</div>
         </div>
 
         <div class="mini-post"><div class="mp-img g-green"><span class="mp-chip">Imagen · IA</span>
-          <svg viewBox="0 0 140 140"><circle cx="52" cy="62" r="34" fill="#9CC184" opacity=".8"/><circle cx="88" cy="76" r="30" fill="#7BAF63" opacity=".75"/><circle cx="66" cy="96" r="22" fill="#5E9A48" opacity=".7"/></svg>
-          <div class="mp-head green-ink">3 POSTURAS PARA<br>TU ESPALDA</div></div>
+          <img src="img/verde-posturas.webp" alt="3 posturas para tu espalda" loading="lazy" /></div>
           <div class="mp-meta"><span class="av" style="background:linear-gradient(45deg,#9CC184,#5E9A48)"></span>verdepilates</div>
         </div>
 
@@ -867,8 +860,7 @@
         </div>
 
         <div class="mini-post"><div class="mp-img g-ugc"><span class="mp-chip">Video · UGC</span>
-          <svg viewBox="0 0 120 120"><circle cx="60" cy="46" r="24" fill="#E8B08A"/><path d="M20 118 Q60 76 100 118 Z" fill="#39415A"/></svg>
-          <div class="mp-head">“Lo probé y<br>no vuelvo atrás”</div></div>
+          <img src="img/burga-ugc-poster.webp" alt="Video UGC de BURGA" loading="lazy" /></div>
           <div class="mp-meta"><span class="av" style="background:linear-gradient(45deg,#39415A,#E8B08A)"></span>burga.ok</div>
         </div>
 
@@ -1022,8 +1014,7 @@
       <article class="post reveal">
         <div class="post-top"><span class="av" style="background:linear-gradient(45deg,#CDB7E6,#6D5A94)"></span><b>lumen.estetica</b><span class="dots">···</span></div>
         <div class="post-img g-lilac"><span class="gen-chip">Imagen · IA</span>
-          <svg viewBox="0 0 120 160"><rect x="44" y="58" width="32" height="66" rx="9" fill="#FFFDFB"/><rect x="50" y="40" width="20" height="18" rx="4" fill="#8E7AB5"/><rect x="56" y="28" width="8" height="14" rx="3" fill="#6D5A94"/><rect x="50" y="86" width="20" height="20" rx="4" fill="#E5DAF3"/><path d="M96 92 C102 102 102 110 96 113 C90 110 90 102 96 92 Z" fill="#B79BDB"/></svg>
-          <div class="post-headline lilac-ink">5 MITOS DEL<br>SKINCARE</div>
+          <img src="img/lumen-mitos.webp" alt="5 mitos del skincare" loading="lazy" />
         </div>
         <div class="post-acts">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7.5-4.6-9.7-9A5.4 5.4 0 0 1 12 6.6 5.4 5.4 0 0 1 21.7 12c-2.2 4.4-9.7 9-9.7 9Z"/></svg>
@@ -1037,8 +1028,7 @@
       <article class="post reveal">
         <div class="post-top"><span class="av" style="background:linear-gradient(45deg,#F0B45C,#6B3E26)"></span><b>burga.ok</b><span class="dots">···</span></div>
         <div class="post-img g-burger"><span class="gen-chip">Detrás de escena</span>
-          <svg viewBox="0 0 140 120"><path d="M22 54 Q70 10 118 54 L118 62 L22 62 Z" fill="#F0B45C"/><ellipse cx="52" cy="36" rx="3.4" ry="2.2" fill="#FFEFD2"/><ellipse cx="72" cy="30" rx="3.4" ry="2.2" fill="#FFEFD2"/><ellipse cx="92" cy="38" rx="3.4" ry="2.2" fill="#FFEFD2"/><rect x="20" y="62" width="100" height="7" rx="3.5" fill="#7FBF6A"/><rect x="24" y="69" width="92" height="9" rx="4" fill="#FFC94D"/><rect x="22" y="78" width="96" height="14" rx="7" fill="#6B3E26"/><rect x="24" y="92" width="92" height="16" rx="8" fill="#E8A85C"/></svg>
-          <div class="post-headline">DETRÁS DEL<br>MOSTRADOR</div>
+          <img src="img/burga-mostrador.webp" alt="Detrás del mostrador" loading="lazy" />
         </div>
         <div class="post-acts">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7.5-4.6-9.7-9A5.4 5.4 0 0 1 12 6.6 5.4 5.4 0 0 1 21.7 12c-2.2 4.4-9.7 9-9.7 9Z"/></svg>
@@ -1052,8 +1042,7 @@
       <article class="post reveal">
         <div class="post-top"><span class="av" style="background:linear-gradient(45deg,#D3B890,#6B4226)"></span><b>cafenorte.ba</b><span class="dots">···</span></div>
         <div class="post-img g-coffee"><span class="gen-chip">Precio del catálogo</span>
-          <svg viewBox="0 0 140 140"><path d="M55 24 q7 11 0 22" stroke="#B78A5E" stroke-width="3.4" fill="none" stroke-linecap="round" opacity=".65"/><path d="M76 18 q7 12 0 24" stroke="#B78A5E" stroke-width="3.4" fill="none" stroke-linecap="round" opacity=".65"/><ellipse cx="70" cy="114" rx="46" ry="8" fill="#DCC5A5"/><rect x="35" y="56" width="70" height="52" rx="13" fill="#FFFDF8"/><ellipse cx="70" cy="60" rx="27" ry="7" fill="#6B4226"/><path d="M105 70 a15 15 0 0 1 0 26" stroke="#FFFDF8" stroke-width="9" fill="none"/></svg>
-          <div class="post-headline dark-ink">COMBO MAÑANA<span class="price">Medialunas + café · $4.500</span></div>
+          <img class="pin-bottom" src="img/cafenorte-combo.webp" alt="Combo mañana: medialunas más café, $4.500" loading="lazy" />
         </div>
         <div class="post-acts">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7.5-4.6-9.7-9A5.4 5.4 0 0 1 12 6.6 5.4 5.4 0 0 1 21.7 12c-2.2 4.4-9.7 9-9.7 9Z"/></svg>
@@ -1067,8 +1056,7 @@
       <article class="post reveal">
         <div class="post-top"><span class="av" style="background:linear-gradient(45deg,#9CC184,#5E9A48)"></span><b>verdepilates</b><span class="dots">···</span></div>
         <div class="post-img g-green"><span class="gen-chip">Tip · IA</span>
-          <svg viewBox="0 0 140 140"><circle cx="52" cy="62" r="34" fill="#9CC184" opacity=".8"/><circle cx="88" cy="76" r="30" fill="#7BAF63" opacity=".75"/><circle cx="66" cy="96" r="22" fill="#5E9A48" opacity=".7"/></svg>
-          <div class="post-headline green-ink">3 POSTURAS PARA<br>TU ESPALDA</div>
+          <img src="img/verde-posturas.webp" alt="3 posturas para tu espalda" loading="lazy" />
         </div>
         <div class="post-acts">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7.5-4.6-9.7-9A5.4 5.4 0 0 1 12 6.6 5.4 5.4 0 0 1 21.7 12c-2.2 4.4-9.7 9-9.7 9Z"/></svg>
@@ -1094,31 +1082,32 @@
     <div class="vid-grid">
 
       <div class="vid reveal">
-        <div class="vid-scene g-lilac kenburns">
-          <svg viewBox="0 0 120 160"><rect x="44" y="58" width="32" height="66" rx="9" fill="#FFFDFB"/><rect x="50" y="40" width="20" height="18" rx="4" fill="#8E7AB5"/><rect x="56" y="28" width="8" height="14" rx="3" fill="#6D5A94"/><rect x="50" y="86" width="20" height="20" rx="4" fill="#E5DAF3"/><path d="M96 92 C102 102 102 110 96 113 C90 110 90 102 96 92 Z" fill="#B79BDB"/></svg>
+        <video src="img/verde-ugc.mp4" poster="img/verde-ugc-poster.webp"
+               autoplay muted loop playsinline preload="metadata"></video>
+        <span class="vid-chip"><span class="rec"></span>UGC · 0:10</span>
+        <div class="vid-foot">
+          <div class="vid-cap">“Ya me había resignado con la espalda. Fui a Verde Pilates…”</div>
+          <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
         </div>
-        <span class="vid-chip">Producto · 0:08</span>
-        <span class="play"><svg viewBox="0 0 24 24" fill="#111"><path d="M8 5v14l11-7L8 5Z"/></svg></span>
-        <div class="vid-foot"><div class="vid-cap">Push-in lento sobre el sérum. Premium, sin cámara.</div></div>
       </div>
 
       <div class="vid reveal">
-        <div class="vid-scene g-ugc"></div>
-        <span class="vid-chip"><span class="rec"></span>UGC · 0:09</span>
-        <span class="avatar-ugc" aria-hidden="true"></span>
+        <video src="img/burga-ugc.mp4" poster="img/burga-ugc-poster.webp"
+               autoplay muted loop playsinline preload="metadata"></video>
+        <span class="vid-chip"><span class="rec"></span>UGC · 0:10</span>
         <div class="vid-foot">
-          <div class="vid-cap" id="ugc-cap">“Arranqué pilates hace un mes…”</div>
+          <div class="vid-cap">“Probé burgers por todos lados y siempre me faltaba algo…”</div>
           <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
         </div>
       </div>
 
       <div class="vid reveal">
         <div class="vid-scene g-burger vid-blur">
-          <svg viewBox="0 0 140 120"><path d="M22 54 Q70 10 118 54 L118 62 L22 62 Z" fill="#F0B45C"/><rect x="20" y="62" width="100" height="7" rx="3.5" fill="#7FBF6A"/><rect x="24" y="69" width="92" height="9" rx="4" fill="#FFC94D"/><rect x="22" y="78" width="96" height="14" rx="7" fill="#6B3E26"/><rect x="24" y="92" width="92" height="16" rx="8" fill="#E8A85C"/></svg>
+          <img src="img/burga-mostrador.webp" alt="" loading="lazy" />
         </div>
         <span class="vid-chip">Generando…</span>
         <div class="prog-wrap">
-          <div class="prog-lbl"><span>VIDEO UGC · GUIÓN LISTO</span><span>~40s</span></div>
+          <div class="prog-lbl"><span>VIDEO DE PRODUCTO · GUIÓN LISTO</span><span>~40s</span></div>
           <div class="prog"><i></i></div>
         </div>
       </div>
@@ -1159,8 +1148,7 @@
         <span class="chat-note">hoy</span>
         <div class="bub">
           <div class="b-img g-green">
-            <svg viewBox="0 0 140 140"><circle cx="52" cy="62" r="34" fill="#9CC184" opacity=".8"/><circle cx="88" cy="76" r="30" fill="#7BAF63" opacity=".75"/><circle cx="66" cy="96" r="22" fill="#5E9A48" opacity=".7"/></svg>
-            <span class="bh" style="color:#2F4A22;text-shadow:none">3 POSTURAS PARA TU ESPALDA</span>
+            <img src="img/verde-posturas.webp" alt="3 posturas para tu espalda" loading="lazy" />
           </div>
           📣 <b>Verde Pilates</b><br>
           Tu espalda te lo va a agradecer 🧘 Guardá este post para después del trabajo.<br>
