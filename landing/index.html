@@ -312,6 +312,26 @@
   .vid video{
     position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
   }
+  /* Boton de sonido: los navegadores solo dejan autoplay en silencio,
+     asi que el audio se activa con un toque, como en Instagram. */
+  .vid-sound{
+    position:absolute;top:12px;right:12px;z-index:4;
+    width:34px;height:34px;border-radius:50%;border:0;cursor:pointer;
+    background:rgba(0,0,0,.55);color:#fff;display:grid;place-items:center;
+    backdrop-filter:blur(4px);transition:background .18s ease,transform .18s ease;
+  }
+  .vid-sound:hover{background:rgba(0,0,0,.75);transform:scale(1.06)}
+  .vid-sound svg{width:17px;height:17px;pointer-events:none}
+  .vid-sound .on-ico{display:none}
+  .vid-sound[data-on="1"] .on-ico{display:block}
+  .vid-sound[data-on="1"] .off-ico{display:none}
+  .vid-hint{
+    position:absolute;top:12px;right:54px;z-index:4;
+    background:rgba(0,0,0,.55);color:#fff;border-radius:999px;
+    padding:6px 11px;font-size:.68rem;font-weight:600;white-space:nowrap;
+    backdrop-filter:blur(4px);pointer-events:none;transition:opacity .3s ease;
+  }
+  .vid-hint[hidden]{display:none}
 
   /* content gradients (fixed — son "imágenes generadas") */
   .g-ice{background:linear-gradient(155deg,#FFE9EE 0%,#FFD2DD 55%,#FFC0CF 100%)}
@@ -1191,6 +1211,11 @@
         <video src="img/verde-ugc.mp4" poster="img/verde-ugc-poster.webp"
                autoplay muted loop playsinline preload="metadata"></video>
         <span class="vid-chip"><span class="rec"></span>UGC · 0:10</span>
+        <span class="vid-hint">Con sonido →</span>
+        <button class="vid-sound" type="button" data-on="0" aria-label="Activar sonido" onclick="toggleSound(this)">
+          <svg class="off-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="m22 9-6 6M16 9l6 6"/></svg>
+          <svg class="on-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+        </button>
         <div class="vid-foot">
           <div class="vid-cap">“Ya me había resignado con la espalda. Fui a Verde Pilates…”</div>
           <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
@@ -1201,6 +1226,10 @@
         <video src="img/burga-ugc.mp4" poster="img/burga-ugc-poster.webp"
                autoplay muted loop playsinline preload="metadata"></video>
         <span class="vid-chip"><span class="rec"></span>UGC · 0:10</span>
+        <button class="vid-sound" type="button" data-on="0" aria-label="Activar sonido" onclick="toggleSound(this)">
+          <svg class="off-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="m22 9-6 6M16 9l6 6"/></svg>
+          <svg class="on-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+        </button>
         <div class="vid-foot">
           <div class="vid-cap">“Probé burgers por todos lados y siempre me faltaba algo…”</div>
           <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
@@ -1557,6 +1586,36 @@
 (function(){
   "use strict";
   var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---- Sonido de los videos ----
+     El autoplay solo esta permitido en silencio, asi que el audio se activa
+     con un toque. Suena de a uno: al encender uno se apagan los demas. */
+  window.toggleSound = function toggleSound(btn){
+    var card = btn.closest(".vid");
+    var video = card.querySelector("video");
+    var encender = video.muted;
+
+    document.querySelectorAll(".vid video").forEach(function(v){
+      v.muted = true;
+      var b = v.closest(".vid").querySelector(".vid-sound");
+      if (b) { b.dataset.on = "0"; b.setAttribute("aria-label", "Activar sonido"); }
+    });
+
+    if (encender) {
+      video.muted = false;
+      video.volume = 1;
+      if (video.paused) video.play().catch(function(){});
+      btn.dataset.on = "1";
+      btn.setAttribute("aria-label", "Silenciar");
+      if (window.plausible) window.plausible("video_con_sonido");
+    }
+    document.querySelectorAll(".vid-hint").forEach(function(h){ h.hidden = true; });
+  };
+
+  /* La pista de "con sonido" solo tiene sentido hasta el primer toque */
+  setTimeout(function(){
+    document.querySelectorAll(".vid-hint").forEach(function(h){ h.hidden = true; });
+  }, 9000);
 
   /* ---- Demo en vivo: 3 ideas para el negocio del visitante ---- */
   var FMT = { image: "Post de feed", carousel: "Carrusel", story: "Historia" };
