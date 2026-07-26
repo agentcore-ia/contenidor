@@ -55,6 +55,15 @@ app.get('/privacidad', legalPage('privacidad.html'));
 app.get('/eliminacion-datos', legalPage('eliminacion-datos.html'));
 app.get('/terminos', legalPage('terminos.html'));
 
+// Piezas de muestra de la landing (imagenes y videos generados con Postia).
+// express.static resuelve tipos MIME y peticiones por rango (necesarias para
+// que los <video> se puedan reproducir y buscar).
+app.use('/img', express.static(resolve('landing/img'), {
+  maxAge: '7d',
+  index: false,
+  dotfiles: 'ignore'
+}));
+
 // Imagen de preview al compartir el link (WhatsApp, X, LinkedIn).
 let ogCache = null;
 app.get('/og.png', async (_req, res) => {
