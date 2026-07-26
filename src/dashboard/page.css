@@ -1524,7 +1524,10 @@ input[type="checkbox"].toggle {
 .cal-nav .icon-btn { width: 32px; height: 32px; border-radius: 9px; }
 .cal-month-label { font-size: 16px; font-weight: 750; letter-spacing: -0.01em; min-width: 140px; text-align: center; text-transform: capitalize; }
 
-.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+/* minmax(0, 1fr): con 1fr a secas las columnas no bajan del ancho minimo de su
+   contenido (la miniatura de 34px + el texto), la grilla se pasa del panel y
+   el domingo queda cortado. */
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 
 .cal-dow {
   padding: 10px 10px 8px;
@@ -1539,6 +1542,8 @@ input[type="checkbox"].toggle {
 
 .cal-cell {
   min-height: 112px;
+  min-width: 0;
+  container-type: inline-size;
   padding: 8px;
   border-bottom: 1px solid var(--border);
   border-right: 1px solid var(--border);
@@ -1595,6 +1600,13 @@ input[type="checkbox"].toggle {
 .cal-mini .cm-title {
   font-size: 11px; font-weight: 600; color: var(--text); line-height: 1.25;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* En columnas angostas la miniatura se come el texto: se oculta y queda
+   solo el estado + el titulo, que es lo que se lee de un vistazo. */
+@container (max-width: 124px) {
+  .cal-mini .cm-thumb { display: none; }
+  .cal-mini { padding: 6px 7px; gap: 0; }
 }
 
 .cal-mini.st-pending { background: var(--warn-bg); border-color: rgba(217,119,6,0.18); }
