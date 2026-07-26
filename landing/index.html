@@ -552,15 +552,18 @@
      del hero: es como se ven de verdad en Instagram. */
   .vid{
     position:relative;aspect-ratio:9/17.4;width:min(258px,100%);margin:0 auto;
-    padding:9px;background:#111;border-radius:40px;
+    padding:9px;background:#111;border-radius:40px;overflow:hidden;
     box-shadow:var(--shadow-lg);display:grid;place-items:center;
   }
   .vid::before{ /* isla dinamica */
     content:"";position:absolute;top:19px;left:50%;transform:translateX(-50%);
     width:64px;height:17px;border-radius:11px;background:#111;z-index:5;
   }
+  /* El alto/ancho se calculan descontando el bisel. No sirve 'auto': en un
+     elemento reemplazado (video) toma el tamano intrinseco y se desborda. */
   .vid > video, .vid > .vid-scene{
-    inset:9px;border-radius:32px;overflow:hidden;
+    inset:9px;width:calc(100% - 18px);height:calc(100% - 18px);
+    border-radius:32px;overflow:hidden;
   }
   .vid-scene{position:absolute;inset:0;display:grid;place-items:center}
   .vid-scene svg{width:44%}
