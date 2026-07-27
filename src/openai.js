@@ -17,8 +17,6 @@ const postGenerationSchema = {
     'image_headline',
     'image_subline',
     'caption_instagram',
-    'caption_x',
-    'caption_linkedin',
     'visual_direction',
     'background_idea',
     'slides'
@@ -30,8 +28,8 @@ const postGenerationSchema = {
     image_headline: { type: 'string' },
     image_subline: { type: 'string' },
     caption_instagram: { type: 'string' },
-    caption_x: { type: 'string' },
-    caption_linkedin: { type: 'string' },
+    // visual_direction y background_idea NO se muestran en la UI, pero son la
+    // materia prima del prompt de imagen: si se sacan, el creativo se degrada.
     visual_direction: { type: 'string' },
     background_idea: { type: 'string' },
     // Solo para carruseles: 3-5 placas. Para el resto vuelve vacio.
@@ -80,7 +78,7 @@ function validateGeneratedPostContent(content, { contentType = 'image' } = {}) {
   const requiredFields = Object.keys(postGenerationSchema.properties).filter((f) => f !== 'slides');
   // Las historias no llevan caption (el mensaje vive dentro de la imagen).
   const optionalForFormat = contentType === 'story'
-    ? new Set([...OPTIONAL_EMPTY_FIELDS, 'caption_instagram', 'caption_x', 'caption_linkedin'])
+    ? new Set([...OPTIONAL_EMPTY_FIELDS, 'caption_instagram'])
     : OPTIONAL_EMPTY_FIELDS;
   const missing = requiredFields.filter(
     (field) => !optionalForFormat.has(field) && !String(content?.[field] ?? '').trim()
@@ -138,7 +136,7 @@ FORMATO: HISTORIA (vertical 9:16, dura 24 horas, la ve tu audiencia actual).
 - Tono cercano, informal y directo, como hablandole a un cliente habitual. Urgencia y espontaneidad valen ("solo por hoy", "quedan 3").
 - "image_headline": max 7 palabras, estilo sticker/anotacion de historia, no titular publicitario de vidriera.
 - "image_subline": solo si suma; muy corta.
-- Las historias NO llevan caption: devolve "caption_instagram", "caption_x" y "caption_linkedin" VACIAS. Todo el mensaje vive DENTRO de la imagen.
+- Las historias NO llevan caption: devolve "caption_instagram" VACIA. Todo el mensaje vive DENTRO de la imagen.
 - "slides": devolvela VACIA.`;
   }
   return `
@@ -182,8 +180,6 @@ Reglas:${products.length ? `
 - "image_headline": el texto que va DENTRO de la imagen. Version corta y potente del mensaje, maximo 9 palabras. No es un resumen tibio: es un titular publicitario con garra.
 - "image_subline": bajada opcional para la imagen, maximo 16 palabras (1-2 lineas). Solo si suma de verdad; si el titular se sostiene solo, devolvela vacia. El desarrollo largo va al caption, nunca a la imagen.
 - Caption Instagram: 1 parrafo breve + 3 a 6 hashtags.
-- Caption X: maximo 240 caracteres.
-- Caption LinkedIn: tono mas profesional, maximo 700 caracteres.
 - No inventes features tecnicas especificas que no esten en el contexto.
 - No uses emojis.
 - Responde solo con el JSON solicitado.`;
@@ -221,8 +217,6 @@ Reglas:${products.length ? `
   // Refuerzo duro: una historia jamas sale con caption, la devuelva o no el modelo.
   if (calendar.content_type === 'story') {
     content.caption_instagram = '';
-    content.caption_x = '';
-    content.caption_linkedin = '';
   }
 
   return { model, content, raw: response };

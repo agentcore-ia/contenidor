@@ -128,8 +128,6 @@ export async function createGeneratedPost({ content, generation, templateId }) {
     body: generation.content.body,
     cta: generation.content.cta,
     caption_instagram: generation.content.caption_instagram,
-    caption_x: generation.content.caption_x,
-    caption_linkedin: generation.content.caption_linkedin,
     image_headline: generation.content.image_headline || null,
     image_subline: generation.content.image_subline || null,
     visual_direction: generation.content.visual_direction,

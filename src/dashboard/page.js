@@ -309,9 +309,7 @@ function renderOverview() {
       </div>
       <div class="creative-info">
         <div>${statusBadge(todayPost.status)}</div>
-        <h3>${esc(todayPost.hook || '')}</h3>
-        <div class="body-text">${esc(todayPost.body || '')}</div>
-        ${todayPost.cta ? `<div class="cta-line">${esc(todayPost.cta)}</div>` : ''}
+        <div class="body-text">${esc(todayPost.caption_instagram || '')}</div>
         <div class="toolbar">
           <button class="btn btn-primary" onclick="showPost('${todayPost.id}')">Editar contenido</button>
           <button class="btn" onclick="regRender('${todayPost.id}')">Regenerar imagen</button>
@@ -802,14 +800,7 @@ window.showPost = async function showPost(id) {
         <div id="post-videos"><div class="subtle">Cargando videos...</div></div>
       </section>` : ''}
       <div class="form-grid">
-        ${readOnlyField('Hook', post.hook, 2)}
-        ${readOnlyField('Body', post.body, 3)}
-        ${readOnlyField('CTA', post.cta, 2)}
-        ${readOnlyField('Instagram', post.caption_instagram, 4)}
-        ${readOnlyField('X', post.caption_x, 3)}
-        ${readOnlyField('LinkedIn', post.caption_linkedin, 4)}
-        ${readOnlyField('Visual direction', post.visual_direction, 3)}
-        ${readOnlyField('Background idea', post.background_idea, 3)}
+        ${readOnlyField('Texto del post', post.caption_instagram, 5)}
       </div>
       <div class="toolbar" style="justify-content:flex-start;margin-top:14px">
         <button class="btn btn-good" onclick="approvePost('${post.id}');closeModal()">Aprobar</button>
