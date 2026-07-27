@@ -14,8 +14,8 @@ export const PLANS = {
     id: 'trial',
     name: 'Prueba',
     priceUsd: 0,
-    // La prueba se regala a perdida (~US$3,3 por cuenta): es costo de
-    // adquisicion, no un plan. El video es US$1 de esos 3,3 y es lo que mas
+    // La prueba se regala a perdida (~US$1,8 por cuenta): es costo de
+    // adquisicion, no un plan. El video es US$1 de esos 1,8 y es lo que mas
     // convierte, por eso queda.
     posts: 12,
     videos: 1,
@@ -46,9 +46,13 @@ export const PLANS = {
     priceUsd: 99,
     // La landing promete "piezas sin limite practico". El techo real es 250:
     // son 50 piezas por marca al mes (~1,7 por dia cada una), bastante arriba
-    // del uso real de una agencia que publica a diario, y deja el costo en el
-    // peor caso en ~US$58 contra US$99. Con 500 el plan perderia plata en el
-    // tope: 500 imagenes en alta ya cuestan mas que la suscripcion.
+    // del uso real de una agencia que publica a diario.
+    //
+    // El peor caso NO son 250 imagenes sino 250 carruseles = 1250 imagenes,
+    // porque un carrusel cuenta como una pieza para el cliente pero son cinco
+    // llamadas al generador. A calidad media eso da ~US$88 + US$10 de video
+    // contra US$99: sigue en positivo, pero es el limite. No subir este numero
+    // sin poner tambien un tope de imagenes.
     posts: 250,
     videos: 10,
     brands: 5,
@@ -71,14 +75,10 @@ const num = (envKey, fallback) => {
   return Number.isFinite(value) && value >= 0 ? value : fallback;
 };
 
-// gpt-image-2, por imagen generada, segun la calidad pedida.
-export function imageCostUsd(quality = 'high') {
-  const table = {
-    low: num('COST_IMAGE_LOW', 0.02),
-    medium: num('COST_IMAGE_MEDIUM', 0.07),
-    high: num('COST_IMAGE_HIGH', 0.19)
-  };
-  return table[quality] ?? table.high;
+// gpt-image-2, por imagen generada. Todas las piezas salen en calidad media
+// (ver IMAGE_QUALITY en src/openai.js), asi que hay un solo precio.
+export function imageCostUsd() {
+  return num('COST_IMAGE_MEDIUM', 0.07);
 }
 
 // Gemini, por SEGUNDO de video. Los comentarios de src/gemini.js documentan de

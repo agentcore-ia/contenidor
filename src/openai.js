@@ -1001,14 +1001,19 @@ Reglas: coherente con el ADN de la cuenta y su densidad visual; jerarquia clara 
 // 1024x1824 = 9:16 aprox (0.561 vs 0.5625) con ambas dimensiones multiplo de 16.
 const STORY_IMAGE_SIZE = '1024x1824';
 
-export async function generatePostImageAsset(post, { brand, referenceBuffers = [], artDirection = '', logoBuffer = null, quality: qualityOverride, format = null, slideInfo = null } = {}) {
+// Todas las piezas se generan en calidad media. Alta cuesta casi el triple sin
+// una diferencia que el ojo note en un feed de Instagram, y baja se ve barata.
+// Es una sola decision de producto, no una perilla por marca.
+export const IMAGE_QUALITY = 'medium';
+
+export async function generatePostImageAsset(post, { brand, referenceBuffers = [], artDirection = '', logoBuffer = null, format = null, slideInfo = null } = {}) {
   const client = createOpenAIClient();
   const model = process.env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL;
   const pieceFormat = format || post?.content_type || 'image';
   const size = pieceFormat === 'story'
     ? (process.env.OPENAI_IMAGE_SIZE_STORY || STORY_IMAGE_SIZE)
     : (process.env.OPENAI_IMAGE_SIZE || DEFAULT_IMAGE_SIZE);
-  const quality = qualityOverride || brand?.image_quality || process.env.OPENAI_IMAGE_QUALITY || 'high';
+  const quality = IMAGE_QUALITY;
   // Las historias usan su propio prompt (look "tomado con el celular", texto
   // sticker); el resto usa el poster editorial con direccion de arte.
   const prompt = pieceFormat === 'story'

@@ -19,6 +19,7 @@ import {
 import { extractMenuProducts } from './openai.js';
 import { AppError } from './errors.js';
 import { planStatus } from './usage.js';
+import { adminOverview, isAdmin, requireAdmin } from './admin.js';
 import { PLANS } from './plans.js';
 import { applyWhatsappDecision, refreshBrandResults, generateAndRenderPost, generateCalendarIdeas, generatePostForCalendar, publishPost, renderPostInBackground, runDailyAutomation, sendApprovalForPost } from './contentEngine.js';
 import { buildAuthUrl, connectFromCode, connectWithToken, instagramConfigured, verifyState } from './instagram.js';
@@ -38,6 +39,7 @@ function isValidTemplateId(tid) {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DASHBOARD_DIR = resolve(__dirname, 'dashboard');
+const ADMIN_DIR = resolve(__dirname, 'admin');
 
 const CAL_STATUSES = ['pending', 'generated', 'needs_review', 'approved', 'posted', 'rejected', 'skipped'];
 
@@ -56,9 +58,9 @@ function wrap(fn) {
   };
 }
 
-function staticFile(filename, contentType) {
+function staticFile(filename, contentType, dir = DASHBOARD_DIR) {
   return async (_req, res) => {
-    const body = await readFile(resolve(DASHBOARD_DIR, filename), 'utf8');
+    const body = await readFile(resolve(dir, filename), 'utf8');
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'no-store');
     res.send(body);
@@ -69,6 +71,12 @@ export function registerDashboardRoutes(app) {
   app.get('/dashboard', wrap(staticFile('page.html', 'text/html; charset=utf-8')));
   app.get('/dashboard/page.css', wrap(staticFile('page.css', 'text/css; charset=utf-8')));
   app.get('/dashboard/page.js', wrap(staticFile('page.js', 'application/javascript; charset=utf-8')));
+
+  // Panel de operador. El HTML es publico (no dice nada); los datos que lo
+  // llenan pasan por requireAdmin.
+  app.get('/admin', wrap(staticFile('page.html', 'text/html; charset=utf-8', ADMIN_DIR)));
+  app.get('/admin/page.css', wrap(staticFile('page.css', 'text/css; charset=utf-8', ADMIN_DIR)));
+  app.get('/admin/page.js', wrap(staticFile('page.js', 'application/javascript; charset=utf-8', ADMIN_DIR)));
 
   // --- Auth (public) ---
   app.post('/auth/signup', wrap(async (req, res) => {
@@ -167,7 +175,6 @@ export function registerDashboardRoutes(app) {
     const { data: cal } = await supabase.from('content_calendar').select('id').eq('id', calendarId).eq('brand_id', brand.id).maybeSingle();
     if (!cal) throw new AppError('Item de calendario no encontrado', 404);
     const opts = {};
-    if (['high', 'medium', 'low'].includes(req.body?.image_quality)) opts.imageQuality = req.body.image_quality;
     if (['omni', 'veo_lite', 'veo_fast', 'veo'].includes(req.body?.video_engine)) opts.videoEngine = req.body.video_engine;
     const post = await generateAndRenderPost(calendarId, opts);
     res.json({ success: true, post_id: post.id, status: post.status, rendering: true });
@@ -459,6 +466,17 @@ export function registerDashboardRoutes(app) {
     res.json({ success: true, video });
   }));
 
+  // --- Panel de operador ---
+  app.get('/api/admin/overview', requireAdmin, wrap(async (req, res) => {
+    const days = Math.min(Math.max(Number(req.query.days) || 30, 7), 90);
+    res.json({ success: true, ...(await adminOverview({ days })) });
+  }));
+
+  // Le dice al front si esta cuenta ve el panel, para no mostrar un link muerto.
+  app.get('/api/admin/whoami', wrap(async (req, res) => {
+    res.json({ success: true, admin: isAdmin(req.user), email: req.user?.email || null });
+  }));
+
   // Plan, consumo del mes y costo estimado de la marca.
   app.get('/api/plan', wrap(async (req, res) => {
     const brand = await requireBrand(req);
@@ -557,7 +575,6 @@ export function registerDashboardRoutes(app) {
     }
     if (typeof req.body?.logo_url === 'string') updates.logo_url = req.body.logo_url.trim() || null;
     if (['omni', 'veo_lite', 'veo_fast', 'veo'].includes(req.body?.video_engine)) updates.video_engine = req.body.video_engine;
-    if (['high', 'medium', 'low'].includes(req.body?.image_quality)) updates.image_quality = req.body.image_quality;
     if (typeof req.body?.default_template_id === 'string') {
       if (!isValidTemplateId(req.body.default_template_id)) throw new AppError(`Template ${req.body.default_template_id} no existe`, 400);
       updates.default_template_id = req.body.default_template_id;

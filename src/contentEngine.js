@@ -119,9 +119,8 @@ async function renderAiPostImage(post, opts = {}) {
   // espontaneo (el look "de vidriera" es justo lo que una historia no debe tener).
   const artDirection = post.content_type === 'story' ? '' : await generateImageArtDirection({ post, brand });
 
-  const quality = opts.imageQuality || brand.image_quality || process.env.OPENAI_IMAGE_QUALITY || 'high';
-  const asset = await generatePostImageAsset(post, { brand, referenceBuffers, artDirection, logoBuffer, quality: opts.imageQuality });
-  await recordImageUsage({ brandId: brand.id, postId: post.id, quality, images: 1 });
+  const asset = await generatePostImageAsset(post, { brand, referenceBuffers, artDirection, logoBuffer });
+  await recordImageUsage({ brandId: brand.id, postId: post.id, images: 1 });
   return asset.buffer;
 }
 
@@ -140,7 +139,6 @@ async function renderCarouselImages(post, opts = {}) {
   // que describa el tratamiento sin citar el texto de la portada — si lo cita,
   // el modelo de imagen escribe ese titular en todas las placas.
   const artDirection = await generateImageArtDirection({ post, brand, sistema: true });
-  const carouselQuality = opts.imageQuality || brand.image_quality || process.env.OPENAI_IMAGE_QUALITY || 'high';
 
   const urls = [];
   for (let i = 0; i < slides.length; i += 1) {
@@ -151,11 +149,10 @@ async function renderCarouselImages(post, opts = {}) {
       referenceBuffers,
       artDirection,
       logoBuffer,
-      quality: opts.imageQuality,
       format: 'carousel',
       slideInfo: { index: i, total: slides.length }
     });
-    await recordImageUsage({ brandId: brand.id, postId: post.id, quality: carouselQuality, images: 1 });
+    await recordImageUsage({ brandId: brand.id, postId: post.id, images: 1 });
     const url = await uploadPostImage(post.id, asset.buffer, { suffix: i === 0 ? '' : `s${i + 1}` });
     urls.push(url);
     console.log(`[render:carousel] ${post.id} placa ${i + 1}/${slides.length} lista`);

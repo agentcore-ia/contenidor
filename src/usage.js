@@ -41,13 +41,13 @@ export async function recordUsage({ brandId, kind, quantity = 1, costUsd = 0, pr
   return null;
 }
 
-export async function recordImageUsage({ brandId, postId, quality, images = 1 }) {
+export async function recordImageUsage({ brandId, postId, images = 1 }) {
   return recordUsage({
     brandId,
     postId,
     kind: 'image',
     quantity: images,
-    costUsd: imageCostUsd(quality) * images,
+    costUsd: imageCostUsd() * images,
     provider: 'openai',
     model: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2'
   });

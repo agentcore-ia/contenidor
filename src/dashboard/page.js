@@ -1164,23 +1164,15 @@ window.openGenerateModal = function openGenerateModal(id) {
     || (S.overview?.today_item?.id === id ? S.overview.today_item : null)
     || {};
   const brand = S.brands.find((b) => b.id === S.brandId) || {};
-  const iq = brand.image_quality || 'high';
   const ve = brand.video_engine || 'omni';
   const isVideo = item.content_type === 'product_video' || item.content_type === 'ugc_video';
   modal(`<h3>Generar contenido</h3>
     <p class="subtle" style="margin:0 0 14px">${esc(item.topic || '')}${isVideo ? ` · ${item.content_type === 'ugc_video' ? '🗣️ Video UGC' : '🎬 Video producto'}` : ''}</p>
-    <div class="form-grid">
-      <div class="form-group full"><label>Calidad de imagen</label>
-        <select id="gen-iq">
-          <option value="high" ${iq === 'high' ? 'selected' : ''}>Alta (mejor, mas cara)</option>
-          <option value="medium" ${iq === 'medium' ? 'selected' : ''}>Media (equilibrada)</option>
-          <option value="low" ${iq === 'low' ? 'selected' : ''}>Baja (mas barata)</option>
-        </select>
-      </div>
-      ${isVideo ? `<div class="form-group full"><label>Motor de video</label>
+    ${isVideo ? `<div class="form-grid">
+      <div class="form-group full"><label>Motor de video</label>
         <select id="gen-ve">${videoEngineOptions(ve)}</select>
-      </div>` : ''}
-    </div>
+      </div>
+    </div>` : ''}
     <div class="toolbar" style="justify-content:flex-start;margin-top:16px">
       <button class="btn btn-primary" onclick="confirmGenerate('${id}')">Generar</button>
       <button class="btn btn-plain" onclick="closeModal()">Cancelar</button>
@@ -1188,16 +1180,14 @@ window.openGenerateModal = function openGenerateModal(id) {
 };
 
 window.confirmGenerate = function confirmGenerate(id) {
-  const image_quality = byId('gen-iq')?.value;
   const video_engine = byId('gen-ve')?.value;
   closeModal();
-  generateCalendar(id, { image_quality, video_engine });
+  generateCalendar(id, { video_engine });
 };
 
 window.generateCalendar = async function generateCalendar(id, opts = {}) {
   try {
     const body = { calendar_id: id };
-    if (opts.image_quality) body.image_quality = opts.image_quality;
     if (opts.video_engine) body.video_engine = opts.video_engine;
     await api('/api/generate-and-render', { method: 'POST', body });
     toast('Copy generado. La imagen se crea en segundo plano (~1 min).');
@@ -1264,15 +1254,6 @@ function renderBrand() {
       <section class="settings-card">
         <div class="settings-card-head"><div><h2>Generacion de imagenes</h2><p>Control fino sobre lo que la IA pone (o no) en cada creativo.</p></div></div>
         <div class="settings-card-body form-grid">
-          <div class="form-group">
-            <label>Calidad de imagen</label>
-            <select name="image_quality">
-              <option value="high" ${(brand.image_quality || 'high') === 'high' ? 'selected' : ''}>Alta (mejor, mas cara)</option>
-              <option value="medium" ${brand.image_quality === 'medium' ? 'selected' : ''}>Media (equilibrada)</option>
-              <option value="low" ${brand.image_quality === 'low' ? 'selected' : ''}>Baja (mas barata)</option>
-            </select>
-            <div class="subtle" style="margin-top:6px">GPT Image 2. Media/baja abaratan bastante el costo por imagen.</div>
-          </div>
           <div class="form-group">
             <label>Motor de video</label>
             <select name="video_engine">${videoEngineOptions(brand.video_engine)}</select>
@@ -1533,7 +1514,6 @@ window.saveBrand = async function saveBrand(event) {
         description: fd.get('description'),
         whatsapp_number: fd.get('whatsapp_number') || '',
         logo_url: fd.get('logo_url') || '',
-        image_quality: fd.get('image_quality') || 'high',
         video_engine: fd.get('video_engine') || 'omni',
         brand_manual: manual,
       },
@@ -2622,6 +2602,18 @@ window.logout = function logout() {
   window.location.reload();
 };
 
+// El link al panel solo aparece si el backend dice que esta cuenta es
+// operadora. Se consulta una vez por sesion.
+async function checkAdmin() {
+  if (S.isAdmin !== undefined) return;
+  S.isAdmin = false;
+  try {
+    const res = await api('/api/admin/whoami');
+    S.isAdmin = Boolean(res.admin);
+  } catch { /* si falla, simplemente no se muestra el link */ }
+  if (S.isAdmin) ensureBrandBar();
+}
+
 function ensureBrandBar() {
   document.querySelector('.sidebar')?.classList.remove('hidden-auth');
   document.querySelector('.topbar-new')?.classList.remove('hidden-auth');
@@ -2641,6 +2633,7 @@ function ensureBrandBar() {
         <button class="btn btn-sm" onclick="openOnboarding()">+ Marca</button>
         <button class="btn btn-sm btn-plain" onclick="logout()">Salir</button>
       </div>
+      ${S.isAdmin ? '<a class="btn btn-sm btn-plain foot-admin" href="/admin">Panel de operacion</a>' : ''}
     </div>`;
 }
 
@@ -3156,6 +3149,7 @@ async function bootApp() {
   S.brandId = S.brands.some((brand) => brand.id === stored) ? stored : S.brands[0].id;
   localStorage.setItem(BRAND_KEY, S.brandId);
   ensureBrandBar();
+  checkAdmin();
   handleInstagramRedirect();
   await loadBootstrap();
   // Land on the section named in the URL hash (deep link / refresh in place).

@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { registerDashboardRoutes } from './src/dashboard.js';
 import { startScheduler } from './src/scheduler.js';
+import { trackLandingEvent } from './src/tracking.js';
 
 const app = express();
 const port = process.env.PORT || 80;
@@ -103,6 +104,17 @@ function demoRateLimit(req) {
   return null;
 }
 
+// Beacon de la landing. Publico y a proposito fuera de /api (ese prefijo exige
+// sesion). Siempre responde 204: no le devuelve nada al navegador.
+app.post('/t', (req, res) => {
+  res.sendStatus(204);
+  try {
+    trackLandingEvent(req, { kind: req.body?.kind });
+  } catch (error) {
+    console.warn('[tracking]', error.message);
+  }
+});
+
 app.post('/demo/ideas', async (req, res) => {
   try {
     const limited = demoRateLimit(req);
@@ -110,6 +122,7 @@ app.post('/demo/ideas', async (req, res) => {
 
     const { generateDemoIdeas } = await import('./src/openai.js');
     const result = await generateDemoIdeas(req.body?.business);
+    trackLandingEvent(req, { kind: 'demo', path: '/demo/ideas' });
     res.json({ success: true, ...result });
   } catch (error) {
     console.warn('[demo:ideas]', error.message);

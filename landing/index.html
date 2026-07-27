@@ -1802,3 +1802,26 @@
   if (capEl) capEl.style.transition = "opacity .3s";
 })();
 </script>
+
+<!-- Metricas propias. La landing y la app las sirve el mismo Express, asi que
+     /t es del mismo origen y no hace falta CORS. No usa cookies ni guarda nada
+     personal: el servidor solo retiene un hash con sal que se renueva cada dia. -->
+<script>
+(function () {
+  function send(kind) {
+    try {
+      fetch('/t', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: kind, url: location.href, referrer: document.referrer }),
+        keepalive: true
+      }).catch(function () {});
+    } catch (e) {}
+  }
+  send('view');
+  document.addEventListener('click', function (ev) {
+    var a = ev.target && ev.target.closest && ev.target.closest('a[href*="app.postia.ar"]');
+    if (a) send('signup_click');
+  }, { passive: true });
+})();
+</script>

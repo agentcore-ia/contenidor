@@ -14,7 +14,7 @@ const apply = process.argv.includes('--apply');
 
 const { data: posts, error: postsError } = await supabase
   .from('generated_posts')
-  .select('id, brand_id, image_url, image_urls, created_at, brand:brands(image_quality, video_engine)');
+  .select('id, brand_id, image_url, image_urls, created_at');
 if (postsError) throw postsError;
 
 const { data: videos, error: videosError } = await supabase
@@ -28,7 +28,6 @@ const seen = new Set((existing || []).map((row) => `${row.post_id}:${row.kind}`)
 const events = [];
 
 for (const post of posts || []) {
-  const quality = post.brand?.image_quality || 'high';
   if (!seen.has(`${post.id}:post`)) {
     events.push({
       brand_id: post.brand_id, kind: 'post', quantity: 1,
@@ -41,7 +40,7 @@ for (const post of posts || []) {
   if (images && !seen.has(`${post.id}:image`)) {
     events.push({
       brand_id: post.brand_id, kind: 'image', quantity: images,
-      cost_usd: imageCostUsd(quality) * images, provider: 'openai',
+      cost_usd: imageCostUsd() * images, provider: 'openai',
       model: 'gpt-image-2', post_id: post.id, created_at: post.created_at
     });
   }

@@ -2523,3 +2523,6 @@ input[type="checkbox"].toggle {
 .plan-cost > div span { display:block; font-size:11.5px; color:var(--muted); margin-top:1px; }
 .plan-cost > div.neg b { color:#dc2626; }
 .plan-foot { margin-top:14px; font-size:11.5px; line-height:1.5; color:var(--muted); }
+
+/* Link al panel de operacion (solo lo ve el operador) */
+.foot-admin { display:block; margin-top:8px; text-align:center; text-decoration:none; font-size:12px; }
