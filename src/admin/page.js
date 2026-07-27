@@ -32,6 +32,17 @@ async function api(path) {
   return body;
 }
 
+// Los slugs de la base no son para leer: se traducen antes de mostrarlos.
+const STATUS_LABEL = {
+  pending: 'Pendiente', generated: 'Generado', needs_review: 'Esperando revision',
+  approved: 'Aprobado', posted: 'Publicado', rejected: 'Rechazado', skipped: 'Salteado'
+};
+const TYPE_LABEL = {
+  image: 'Post simple', carousel: 'Carrusel', story: 'Historia',
+  ugc_video: 'Video UGC', product_video: 'Video de producto'
+};
+const label = (dict) => (item) => ({ ...item, name: dict[item.name] || item.name });
+
 // --- Piezas de UI ------------------------------------------------------------
 
 function kpi({ label, value, note, tone = '' }) {
@@ -189,8 +200,8 @@ function render() {
       ${kpi({ label: 'Marcas con WhatsApp', value: `${num(h.whatsapp_ready)} / ${num(b.brands)}` })}
     </div>
     <div class="grid g-2" style="margin-top:14px">
-      <div class="card"><h3>Por estado</h3>${rowsBlock(d.content.by_status)}</div>
-      <div class="card"><h3>Por formato</h3>${rowsBlock(d.content.by_type)}</div>
+      <div class="card"><h3>Por estado</h3>${rowsBlock(d.content.by_status.map(label(STATUS_LABEL)))}</div>
+      <div class="card"><h3>Por formato</h3>${rowsBlock(d.content.by_type.map(label(TYPE_LABEL)))}</div>
     </div>
 
     <h2 class="section">Salud</h2>
