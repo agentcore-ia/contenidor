@@ -134,8 +134,9 @@ FORMATO: CARRUSEL (3 a 5 placas que se deslizan).
     return `
 FORMATO: HISTORIA (vertical 9:16, dura 24 horas, la ve tu audiencia actual).
 - Tono cercano, informal y directo, como hablandole a un cliente habitual. Urgencia y espontaneidad valen ("solo por hoy", "quedan 3").
-- "image_headline": max 7 palabras, estilo sticker/anotacion de historia, no titular publicitario de vidriera.
-- "image_subline": solo si suma; muy corta.
+- ATENCION: la historia NO lleva caption, asi que el texto de la imagen es TODO el mensaje. Tiene que entenderse sin ningun contexto extra: nombra el producto o servicio del que hablas. Si la pieza sola no se entiende, no sirve.
+- "image_headline": max 9 palabras, estilo sticker/anotacion de historia, no titular publicitario de vidriera.
+- "image_subline": casi siempre hace falta, porque es la que aterriza el gancho con el dato concreto (que producto, que precio, hasta cuando). Max 12 palabras.
 - Las historias NO llevan caption: devolve "caption_instagram" VACIA. Todo el mensaje vive DENTRO de la imagen.
 - "slides": devolvela VACIA.`;
   }
@@ -178,7 +179,10 @@ Reglas:${products.length ? `
 - Body maximo 34 palabras.
 - CTA maximo 10 palabras.
 - "image_headline": el texto que va DENTRO de la imagen. Version corta y potente del mensaje, maximo 9 palabras. No es un resumen tibio: es un titular publicitario con garra.
-- "image_subline": bajada opcional para la imagen, maximo 16 palabras (1-2 lineas). Solo si suma de verdad; si el titular se sostiene solo, devolvela vacia. El desarrollo largo va al caption, nunca a la imagen.
+- **EL TITULAR TIENE QUE ENTENDERSE SOLO.** Quien lo ve scrolleando no leyo la idea, no conoce la marca y quizas no ve bien la foto. Nombra SIEMPRE el sujeto concreto (el producto, el servicio, la parte del cuerpo, el plato). Prohibido dejar pronombres colgados sin sustantivo: "¿Cambio o lo dejo asi?" no dice QUE se cambia; "¿Cambio la bateria o aguanto?" si. Igual con "esto", "eso", "lo importante": si no se entiende sin contexto, reescribilo.
+- Test rapido antes de responder: leete el titular como si nunca hubieras visto esta marca. Si te queda la pregunta "¿de que estan hablando?", falta el sustantivo.
+- "image_subline": bajada opcional para la imagen, maximo 16 palabras (1-2 lineas). Solo si suma de verdad; si el titular se sostiene solo, devolvela vacia. El desarrollo largo va al caption, nunca a la imagen. Si el titular es un gancho o una pregunta, la bajada DEBE aterrizarlo con el dato concreto.
+- PROHIBIDO el relleno publicitario vacio: "pensado para vos", "para vos", "sin vueltas", "de verdad", "lo que necesitas", "tu momento", "una experiencia unica", "calidad superior". Si una frase podria estar en el aviso de cualquier otro negocio, no sirve: cambiala por un detalle real de ESTE negocio.
 - Caption Instagram: 1 parrafo breve + 3 a 6 hashtags.
 - No inventes features tecnicas especificas que no esten en el contexto.
 - No uses emojis.
