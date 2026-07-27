@@ -15,17 +15,49 @@ function session() {
   try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch { return null; }
 }
 
-async function api(path) {
+// El access token dura poco. Si vencio se renueva con el refresh token y se
+// reintenta una vez, como hace el dashboard: sin esto el panel muere con
+// "sesion invalida" cada vez que se deja abierto un rato.
+async function refreshSession() {
   const sess = session();
-  if (!sess?.access_token) {
-    location.href = '/dashboard';
-    throw new Error('sin sesion');
-  }
+  if (!sess?.refresh_token) return false;
+  try {
+    const res = await fetch('/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: sess.refresh_token })
+    });
+    const data = await res.json();
+    if (res.ok && data.session) {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(data.session));
+      return true;
+    }
+  } catch { /* cae al redirect */ }
+  return false;
+}
+
+async function call(path) {
+  const sess = session();
   const res = await fetch(path, {
-    headers: { Authorization: `Bearer ${sess.access_token}` },
+    headers: { Authorization: `Bearer ${sess?.access_token || ''}` },
     cache: 'no-store'
   });
   const body = await res.json().catch(() => ({}));
+  return { res, body };
+}
+
+async function api(path, { retry = true } = {}) {
+  if (!session()?.access_token) {
+    location.href = '/dashboard';
+    throw new Error('sin sesion');
+  }
+
+  const { res, body } = await call(path);
+  if (res.status === 401 && retry) {
+    if (await refreshSession()) return api(path, { retry: false });
+    location.href = '/dashboard';
+    throw new Error('sesion vencida');
+  }
   if (!res.ok || body.success === false) {
     throw new Error(body.error || `Error ${res.status}`);
   }
