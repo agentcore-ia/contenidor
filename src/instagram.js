@@ -183,6 +183,37 @@ export async function connectFromCode(code) {
   };
 }
 
+// --- Resultados -------------------------------------------------------------
+
+// Trae los medios recientes de la cuenta con sus numeros publicos. Una sola
+// llamada por marca (no una por post) y devuelve un mapa por media id.
+// Usa instagram_business_basic: no requiere el permiso de insights.
+export async function fetchRecentMediaStats(brand, { limit = 50 } = {}) {
+  if (!brand?.ig_user_id || !brand?.ig_access_token) {
+    throw new AppError('Esta marca no tiene Instagram conectado', 400, 'IG_NOT_CONNECTED');
+  }
+  const params = new URLSearchParams({
+    fields: 'id,like_count,comments_count,permalink,timestamp,media_type',
+    limit: String(limit),
+    access_token: brand.ig_access_token
+  });
+  const res = await fetch(`${GRAPH}/${brand.ig_user_id}/media?${params.toString()}`);
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new AppError(`No se pudieron leer los resultados: ${json.error?.message || res.status}`, 400, 'IG_STATS_FAILED');
+  }
+  const map = new Map();
+  (json.data || []).forEach((m) => {
+    map.set(String(m.id), {
+      likes: Number(m.like_count) || 0,
+      comments: Number(m.comments_count) || 0,
+      permalink: m.permalink || null,
+      publishedAt: m.timestamp || null
+    });
+  });
+  return map;
+}
+
 // --- Publishing (2-step: create container, then publish) --------------------
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

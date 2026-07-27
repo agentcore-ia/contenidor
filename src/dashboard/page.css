@@ -2482,3 +2482,25 @@ input[type="checkbox"].toggle {
   from { opacity: 0.6; transform: translateY(40px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* --- Resultados reales de Instagram --- */
+.res-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:12px; }
+.res-kpis > div { background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:12px 14px; }
+.res-kpis b { display:block; font-size:24px; font-weight:700; letter-spacing:-.02em; }
+.res-kpis span { display:block; font-size:12px; color:var(--muted); margin-top:2px; }
+.res-sub { margin:20px 0 10px; font-size:13px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+.res-rank { display:flex; flex-direction:column; gap:8px; }
+.res-row { display:flex; align-items:center; gap:12px; padding:8px 10px; border:1px solid var(--border); border-radius:12px; text-decoration:none; color:inherit; transition:border-color .15s, background .15s; }
+.res-row[href]:hover { border-color:var(--accent); background:var(--surface-2); }
+.res-pos { width:22px; height:22px; flex:none; display:grid; place-items:center; border-radius:999px; background:var(--surface-2); font-size:12px; font-weight:700; }
+.res-thumb { width:44px; height:44px; flex:none; border-radius:9px; object-fit:cover; background:var(--surface-2); }
+.res-text { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.res-text b { font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.res-text small { font-size:11px; color:var(--muted); }
+.res-nums { flex:none; font-size:12px; font-weight:600; color:var(--muted); white-space:nowrap; }
+.igp-iconbar-real { justify-content:space-between; align-items:center; }
+.igp-iconbar-real span { display:flex; gap:16px; align-items:center; }
+.igp-iconbar-real i { display:inline-flex; align-items:center; gap:5px; font-style:normal; font-size:13px; font-weight:600; }
+.igp-iconbar-real svg { width:20px; height:20px; }
+.igp-permalink { font-size:12px; font-weight:600; color:var(--accent); text-decoration:none; }
+.igp-permalink:hover { text-decoration:underline; }

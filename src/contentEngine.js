@@ -25,7 +25,8 @@ import {
   updateBrandFields,
   updateGeneratedPostImageUrl,
   updateGeneratedPostImages,
-  uploadPostImage
+  uploadPostImage,
+  supabase
 } from './supabase.js';
 import { fetchRemoteImageBytes, generateContentIdeas, generateImageArtDirection, generatePostContent, generatePostImageAsset } from './openai.js';
 import { publishToInstagram, refreshLongLivedToken } from './instagram.js';
@@ -360,12 +361,14 @@ export async function generateCalendarIdeas({ brandId = null, count = 7 } = {}) 
 
   const existingTopics = await getExistingCalendarTopics(brand.id);
   const products = await listBrandProducts(brand.id).catch(() => []);
+  const performance = await getBrandPerformance(brand.id).catch(() => null);
   const generation = await generateContentIdeas({
     brand,
     categories,
     existingTopics,
     count: safeCount,
-    products
+    products,
+    performance
   });
 
   const categoryBySlug = new Map(categories.map((category) => [category.slug, category]));
@@ -491,6 +494,86 @@ export async function publishDuePosts(brand) {
   return { due: due.length, published, failed };
 }
 
+// --- Resultados de lo publicado ---------------------------------------------
+// Trae los numeros reales de Instagram y los guarda en cada post, para poder
+// responder la pregunta que decide la renovacion: "¿esto me sirvio?".
+export async function refreshBrandResults(brand) {
+  if (!brand?.ig_access_token) return { skipped: true, reason: 'Instagram no conectado' };
+
+  const { data: posts, error } = await supabase
+    .from('generated_posts')
+    .select('id, ig_media_id')
+    .eq('brand_id', brand.id)
+    .not('ig_media_id', 'is', null);
+
+  if (error) throw new AppError(error.message, 500, 'SUPABASE_ERROR');
+  if (!posts?.length) return { updated: 0, posts: 0 };
+
+  const { fetchRecentMediaStats } = await import('./instagram.js');
+  const stats = await fetchRecentMediaStats(brand);
+
+  let updated = 0;
+  for (const post of posts) {
+    const s = stats.get(String(post.ig_media_id));
+    if (!s) continue; // publicacion vieja, fuera de los ultimos medios
+    await supabase
+      .from('generated_posts')
+      .update({
+        ig_like_count: s.likes,
+        ig_comments_count: s.comments,
+        ig_permalink: s.permalink,
+        ig_stats_at: new Date().toISOString()
+      })
+      .eq('id', post.id);
+    updated += 1;
+  }
+  return { updated, posts: posts.length };
+}
+
+// Resume lo que YA midio Instagram para esta marca, en el formato mas chico
+// posible: es lo que se le pasa al estratega para que las proximas ideas se
+// parezcan a lo que funciono y no a lo que a nadie le interesó.
+export async function getBrandPerformance(brandId) {
+  const { data, error } = await supabase
+    .from('generated_posts')
+    .select('content_type, ig_like_count, ig_comments_count, calendar:content_calendar!generated_posts_calendar_id_fkey(topic)')
+    .eq('brand_id', brandId)
+    .not('ig_stats_at', 'is', null);
+
+  if (error || !data?.length) return null;
+
+  const score = (row) => (row.ig_like_count || 0) + (row.ig_comments_count || 0);
+  const ranked = [...data].sort((a, b) => score(b) - score(a));
+  const avg = data.reduce((acc, row) => acc + score(row), 0) / data.length;
+
+  // Con menos de 4 mediciones cualquier "aprendizaje" es ruido estadistico.
+  if (data.length < 4) return null;
+
+  const byType = new Map();
+  data.forEach((row) => {
+    const key = row.content_type || 'image';
+    const g = byType.get(key) || { n: 0, sum: 0 };
+    g.n += 1; g.sum += score(row);
+    byType.set(key, g);
+  });
+
+  const slice = (rows) => rows
+    .filter((row) => row.calendar?.topic)
+    .slice(0, 3)
+    .map((row) => ({ tema: row.calendar.topic, formato: row.content_type || 'image', interacciones: score(row) }));
+
+  return {
+    medidos: data.length,
+    promedio: Math.round(avg * 10) / 10,
+    mejores: slice(ranked),
+    peores: slice([...ranked].reverse()),
+    por_formato: [...byType.entries()]
+      .filter(([, g]) => g.n >= 2)
+      .map(([formato, g]) => ({ formato, promedio: Math.round((g.sum / g.n) * 10) / 10, publicados: g.n }))
+      .sort((a, b) => b.promedio - a.promedio)
+  };
+}
+
 // Refreshes long-lived Instagram tokens that are within `withinDays` of
 // expiring. Long-lived tokens last 60 days and can be refreshed once they're
 // at least 24h old.
@@ -548,16 +631,34 @@ export async function runDailyAutomation({ brandId = null, queueTarget = 7, auto
     }
   }
 
-  if (autoPublish && brandId) {
+  if (brandId) {
+    let brand = null;
     try {
-      const brand = await getBrandById(brandId);
-      if (brand.ig_access_token && brand.auto_publish !== false) {
-        summary.publish = await publishDuePosts(brand);
-      } else {
-        summary.publish = { skipped: true, reason: brand.ig_access_token ? 'auto_publish off' : 'Instagram not connected' };
-      }
+      brand = await getBrandById(brandId);
     } catch (error) {
-      summary.errors.push({ step: 'publish_due', message: error.message, code: error.code });
+      summary.errors.push({ step: 'load_brand', message: error.message, code: error.code });
+    }
+
+    if (brand && autoPublish) {
+      try {
+        if (brand.ig_access_token && brand.auto_publish !== false) {
+          summary.publish = await publishDuePosts(brand);
+        } else {
+          summary.publish = { skipped: true, reason: brand.ig_access_token ? 'auto_publish off' : 'Instagram not connected' };
+        }
+      } catch (error) {
+        summary.errors.push({ step: 'publish_due', message: error.message, code: error.code });
+      }
+    }
+
+    // Los resultados se refrescan solos una vez por dia: si el usuario tiene que
+    // apretar un boton para verlos, no los ve nunca.
+    if (brand) {
+      try {
+        summary.results = await refreshBrandResults(brand);
+      } catch (error) {
+        summary.errors.push({ step: 'refresh_results', message: error.message, code: error.code });
+      }
     }
   }
 

@@ -103,6 +103,21 @@ function validateGeneratedPostContent(content, { contentType = 'image' } = {}) {
   return result;
 }
 
+// Lo que Instagram ya midio de esta marca. Se le pasa al estratega para que las
+// ideas nuevas se apoyen en datos propios y no solo en buenas practicas.
+function performanceBlock(performance) {
+  if (!performance) return '';
+  return `
+
+Resultados REALES de esta marca en Instagram (${performance.medidos} publicaciones medidas, promedio ${performance.promedio} interacciones):
+${compactJson({
+    mejores: performance.mejores,
+    peores: performance.peores,
+    por_formato: performance.por_formato
+  })}
+Usalos asi: repeti el ANGULO de los temas que mejor rindieron (no el tema literal, que ya se uso) y evita el tipo de contenido de los peores. Si un formato rinde bastante mas que otro, cargá el plan hacia ese formato sin romper las cantidades exactas pedidas abajo.`;
+}
+
 // Renders the brand's product/service catalog as a prompt block. Returns ''
 // when the brand has no catalog so prompts stay clean.
 function catalogBlock(products) {
@@ -256,7 +271,7 @@ function ideasSchema(categorySlugs) {
   };
 }
 
-export async function generateContentIdeas({ brand, categories, existingTopics = [], count = 7, products = [] }) {
+export async function generateContentIdeas({ brand, categories, existingTopics = [], count = 7, products = [], performance = null }) {
   const client = createOpenAIClient();
   const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
   const categorySlugs = categories.map((category) => category.slug);
@@ -284,7 +299,7 @@ ${compactJson(categories.map((category) => ({
 
 Temas ya usados o programados (NO los repitas ni generes variantes casi iguales):
 ${compactJson(existingTopics)}
-${catalogBlock(products)}
+${catalogBlock(products)}${performanceBlock(performance)}
 Reglas:
 - Le hablamos a la audiencia de esta marca, en su rubro. Ideas concretas para su negocio.
 - VARIEDAD OBLIGATORIA (lo mas importante): cada idea debe abordar un PILAR distinto. Mezcla entre: mostrar un producto, tip/educacion, detras de escena, comunidad/clientes, momento de consumo/antojo, fecha o estacionalidad, prueba social/testimonio, curiosidad del rubro. NO uses el mismo gancho ni la misma estructura dos veces. Que se sientan 7 posts claramente diferentes, no variaciones del mismo.${products.length ? `

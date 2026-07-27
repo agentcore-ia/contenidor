@@ -715,10 +715,13 @@ function postCard(post) {
       ${statusBadge(post.status)}
     </div>
     ${media}
-    <div class="igp-iconbar" aria-hidden="true">
+    ${post.ig_stats_at ? `<div class="igp-iconbar igp-iconbar-real">
+      <span><i>${IG_ICONS.heart}${post.ig_like_count || 0}</i><i>${IG_ICONS.comment}${post.ig_comments_count || 0}</i></span>
+      ${post.ig_permalink ? `<a class="igp-permalink" href="${esc(post.ig_permalink)}" target="_blank" rel="noopener">Ver en Instagram</a>` : ''}
+    </div>` : `<div class="igp-iconbar" aria-hidden="true">
       <span>${IG_ICONS.heart}${IG_ICONS.comment}${IG_ICONS.share}</span>
       ${IG_ICONS.bookmark}
-    </div>
+    </div>`}
     <div class="igp-caption" onclick="showPost('${post.id}')">
       <span class="igp-username">${esc(username)}</span> ${esc(post.caption_instagram || post.hook || '')}
     </div>
@@ -2096,6 +2099,107 @@ async function loadAnalytics() {
 
 window.setAnRange = function setAnRange(days) { S.anRange = days; renderAnalytics(); };
 
+// --- Resultados reales -------------------------------------------------------
+// Los numeros que trae Instagram de lo ya publicado. Es la unica medida honesta
+// de si el contenido sirvio: sin esto, "aprobaste 40 posts" no dice nada.
+window.refreshResults = async function refreshResults() {
+  toast('Trayendo numeros de Instagram...');
+  try {
+    const res = await api('/api/results/refresh', { method: 'POST' });
+    if (res.skipped) return toast(res.reason || 'Instagram no conectado', 'error');
+    toast(res.updated ? `${res.updated} publicaciones actualizadas` : 'Todavia no hay publicaciones con datos', 'success');
+    await loadAnalytics();
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+};
+
+function engagement(post) {
+  return (post.ig_like_count || 0) + (post.ig_comments_count || 0);
+}
+
+// Promedio por grupo (formato, categoria...) descartando grupos de una sola
+// publicacion: con n=1 el "mejor formato" es ruido, no una senal.
+function avgBy(rows, key, min = 2) {
+  const groups = new Map();
+  rows.forEach((p) => {
+    const k = key(p);
+    if (!k) return;
+    const g = groups.get(k) || { n: 0, sum: 0 };
+    g.n += 1; g.sum += engagement(p);
+    groups.set(k, g);
+  });
+  return [...groups.entries()]
+    .filter(([, g]) => g.n >= min)
+    .map(([k, g]) => ({ key: k, n: g.n, avg: g.sum / g.n }))
+    .sort((a, b) => b.avg - a.avg);
+}
+
+const CTYPE_NAME = { story: 'Historias', carousel: 'Carruseles', ugc_video: 'Videos UGC', product_video: 'Videos de producto' };
+function ctypeName(type) { return CTYPE_NAME[type] || 'Posts simples'; }
+
+function resultsSection() {
+  const published = S.posts.filter((p) => p.status === 'posted');
+  const withStats = published.filter((p) => p.ig_stats_at);
+
+  const head = `<div class="settings-card-head">
+    <div><h2>Resultados en Instagram</h2><p>Numeros reales de lo que ya publicaste.</p></div>
+    <button class="btn btn-sm" onclick="refreshResults()">Actualizar resultados</button>
+  </div>`;
+
+  if (!withStats.length) {
+    const msg = published.length
+      ? 'Toca "Actualizar resultados" para traer los likes y comentarios de tus publicaciones.'
+      : 'Cuando publiques tu primer post vas a ver aca como le fue.';
+    return `<section class="settings-card" style="margin:0 0 16px">${head}<div class="settings-card-body">${empty(msg)}</div></section>`;
+  }
+
+  const likes = withStats.reduce((acc, p) => acc + (p.ig_like_count || 0), 0);
+  const comments = withStats.reduce((acc, p) => acc + (p.ig_comments_count || 0), 0);
+  const avg = Math.round((likes + comments) / withStats.length * 10) / 10;
+  const byType = avgBy(withStats, (p) => ctypeName(p.content_type));
+  const catName = new Map(S.categories.map((c) => [c.id, c.name]));
+  const byCat = avgBy(withStats, (p) => catName.get(p.category_id));
+
+  const top = [...withStats].sort((a, b) => engagement(b) - engagement(a)).slice(0, 3);
+  const rank = top.map((p, i) => `<a class="res-row" ${p.ig_permalink ? `href="${esc(p.ig_permalink)}" target="_blank" rel="noopener"` : ''}>
+    <span class="res-pos">${i + 1}</span>
+    ${p.image_url ? `<img class="res-thumb" src="${esc(p.image_url)}" alt="" loading="lazy" />` : '<span class="res-thumb"></span>'}
+    <span class="res-text">
+      <b>${esc((p.caption_instagram || p.hook || 'Post').slice(0, 70))}</b>
+      <small>${esc(ctypeName(p.content_type))} · ${esc(fmtDate(String(p.created_at || '').slice(0, 10)))}</small>
+    </span>
+    <span class="res-nums">${p.ig_like_count || 0} ❤ · ${p.ig_comments_count || 0} 💬</span>
+  </a>`).join('');
+
+  const lessons = [];
+  if (byType.length > 1) {
+    const best = byType[0];
+    const worst = byType[byType.length - 1];
+    lessons.push(`${best.key} es lo que mejor te funciona: ${Math.round(best.avg * 10) / 10} interacciones promedio contra ${Math.round(worst.avg * 10) / 10} de ${worst.key.toLowerCase()}.`);
+  }
+  if (byCat.length > 1) lessons.push(`El tema "${byCat[0].key}" rinde ${Math.round(byCat[0].avg * 10) / 10} interacciones promedio, arriba del resto.`);
+  if (top[0] && engagement(top[0]) > avg * 2) lessons.push('Tu mejor publicacion rinde mas del doble del promedio: vale la pena repetir ese angulo.');
+  if (withStats.length >= 4) lessons.push('El motor ya usa estos numeros: las proximas ideas se apoyan en los angulos que mejor te rindieron.');
+  else lessons.push(`Con ${4 - withStats.length} publicacion${withStats.length === 3 ? '' : 'es'} medida${withStats.length === 3 ? '' : 's'} mas, el motor empieza a generar ideas en base a tus resultados.`);
+  if (published.length > withStats.length) lessons.push(`${published.length - withStats.length} publicaciones viejas quedaron fuera de los ultimos medios de Instagram y no traen numeros.`);
+
+  return `<section class="settings-card" style="margin:0 0 16px">
+    ${head}
+    <div class="settings-card-body">
+      <div class="res-kpis">
+        <div><b>${withStats.length}</b><span>publicaciones medidas</span></div>
+        <div><b>${likes}</b><span>likes</span></div>
+        <div><b>${comments}</b><span>comentarios</span></div>
+        <div><b>${avg}</b><span>interacciones por post</span></div>
+      </div>
+      <h3 class="res-sub">Lo que mejor funciono</h3>
+      <div class="res-rank">${rank}</div>
+      ${lessons.length ? `<ul class="insight-list" style="margin-top:14px">${lessons.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
+    </div>
+  </section>`;
+}
+
 function pct(part, total) { return total > 0 ? Math.round((part / total) * 100) : 0; }
 
 function renderAnalytics() {
@@ -2162,6 +2266,7 @@ function renderAnalytics() {
         ${[7, 30, 90].map((d) => `<button class="seg-opt ${S.anRange === d ? 'active' : ''}" onclick="setAnRange(${d})">${d}d</button>`).join('')}
       </div>
     `)}
+    ${resultsSection()}
     ${kpis}
     <div class="grid two" style="margin-top:16px">
       <section class="settings-card" style="margin:0">

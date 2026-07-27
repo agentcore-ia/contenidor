@@ -18,7 +18,7 @@ import {
 } from './supabase.js';
 import { extractMenuProducts } from './openai.js';
 import { AppError } from './errors.js';
-import { applyWhatsappDecision, generateAndRenderPost, generateCalendarIdeas, generatePostForCalendar, publishPost, renderPostInBackground, runDailyAutomation, sendApprovalForPost } from './contentEngine.js';
+import { applyWhatsappDecision, refreshBrandResults, generateAndRenderPost, generateCalendarIdeas, generatePostForCalendar, publishPost, renderPostInBackground, runDailyAutomation, sendApprovalForPost } from './contentEngine.js';
 import { buildAuthUrl, connectFromCode, connectWithToken, instagramConfigured, verifyState } from './instagram.js';
 import { isValidSignature, parseWebhookEvents, verifyWebhook, whatsappConfigured } from './whatsapp.js';
 import { refreshPostVideo, startPostVideo, videoConfigured } from './videoEngine.js';
@@ -382,7 +382,7 @@ export function registerDashboardRoutes(app) {
     const limit = Math.min(parseInt(req.query.limit ?? '50', 10) || 50, 200);
     const { data, error } = await supabase
       .from('generated_posts')
-      .select('id, hook, body, cta, caption_instagram, image_url, image_urls, status, render_error, template_id, content_type, visual_direction, background_idea, model, created_at, calendar_id, category_id, videos:post_videos(id, kind, status, video_url)')
+      .select('id, hook, body, cta, caption_instagram, image_url, image_urls, status, render_error, ig_permalink, ig_like_count, ig_comments_count, ig_stats_at, template_id, content_type, visual_direction, background_idea, model, created_at, calendar_id, category_id, videos:post_videos(id, kind, status, video_url)')
       .eq('brand_id', brand.id)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -446,6 +446,13 @@ export function registerDashboardRoutes(app) {
     const engine = ['omni', 'veo_lite', 'veo_fast', 'veo'].includes(req.body?.engine) ? req.body.engine : null;
     const video = await startPostVideo(post, kind, engine);
     res.json({ success: true, video });
+  }));
+
+  // Trae de Instagram los numeros reales de lo ya publicado.
+  app.post('/api/results/refresh', wrap(async (req, res) => {
+    const brand = await requireBrand(req);
+    const result = await refreshBrandResults(brand);
+    res.json({ success: true, ...result });
   }));
 
   app.post('/api/posts/:id/whatsapp', wrap(async (req, res) => {
