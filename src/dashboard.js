@@ -137,6 +137,15 @@ export function registerDashboardRoutes(app) {
     }
   });
 
+  // Nada de /api se cachea. Express pone un ETag por defecto y, sin
+  // Cache-Control, el navegador aplica frescura heuristica: despues de cambiar
+  // de marca (o de usuario en la misma maquina) puede mostrar los datos de la
+  // marca anterior. En una app multi-tenant eso es filtrar datos entre cuentas.
+  app.use('/api', (_req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, private');
+    next();
+  });
+
   // Everything under /api requires a logged-in user.
   app.use('/api', authMiddleware);
 
