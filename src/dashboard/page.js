@@ -2087,12 +2087,14 @@ window.deleteCustomTemplate = async function deleteCustomTemplate(id) {
 // --- Analytics ---------------------------------------------------------------
 
 async function loadAnalytics() {
-  const [posts, categories] = await Promise.all([
+  const [posts, categories, plan] = await Promise.all([
     api('/api/posts?limit=200'),
     api('/api/categories'),
+    api('/api/plan').catch(() => null),
   ]);
   S.posts = posts.posts || [];
   S.categories = categories.categories || [];
+  S.plan = plan;
   if (!S.anRange) S.anRange = 30;
   renderAnalytics();
 }
@@ -2137,6 +2139,50 @@ function avgBy(rows, key, min = 2) {
 
 const CTYPE_NAME = { story: 'Historias', carousel: 'Carruseles', ugc_video: 'Videos UGC', product_video: 'Videos de producto' };
 function ctypeName(type) { return CTYPE_NAME[type] || 'Posts simples'; }
+
+// --- Plan y consumo ----------------------------------------------------------
+// Cada imagen y cada segundo de video cuestan plata. Esta tarjeta responde dos
+// preguntas: cuanto me queda del plan, y cuanto le estoy costando al sistema.
+function planSection() {
+  const p = S.plan;
+  if (!p) return '';
+
+  const meter = (label, used, cap) => {
+    const ratio = cap ? Math.min(100, Math.round((used / cap) * 100)) : 0;
+    const tone = ratio >= 100 ? 'over' : (ratio >= 80 ? 'warn' : '');
+    return `<div class="plan-meter ${tone}">
+      <div class="plan-meter-top"><span>${esc(label)}</span><b>${used} / ${cap}</b></div>
+      <div class="plan-track"><i style="width:${Math.max(ratio, used ? 3 : 0)}%"></i></div>
+    </div>`;
+  };
+
+  const full = p.left.posts === 0 || p.left.videos === 0;
+  const near = !full && (p.left.posts <= 3 || p.left.videos === 0);
+  const notice = full
+    ? `<div class="plan-notice over">Llegaste al tope del plan ${esc(p.plan.name)} este mes. La generacion queda pausada hasta el 1.</div>`
+    : (near ? `<div class="plan-notice warn">Te quedan ${p.left.posts} posts este mes.</div>` : '');
+
+  return `<section class="settings-card" style="margin:0 0 16px">
+    <div class="settings-card-head">
+      <div><h2>Plan y consumo</h2><p>Mes en curso, se reinicia el 1.</p></div>
+      <span class="plan-chip">${esc(p.plan.name)}${p.plan.price_usd ? ` · US$${p.plan.price_usd}/mes` : ''}</span>
+    </div>
+    <div class="settings-card-body">
+      ${notice}
+      <div class="plan-meters">
+        ${meter('Posts generados', p.used.posts, p.limits.posts)}
+        ${meter('Videos generados', p.used.videos, p.limits.videos)}
+      </div>
+      <div class="plan-cost">
+        <div><b>${p.used.images}</b><span>imagenes</span></div>
+        <div><b>${p.used.video_seconds}s</b><span>de video</span></div>
+        <div><b>US$${p.cost_usd}</b><span>costo estimado</span></div>
+        <div class="${p.margin_usd < 0 ? 'neg' : ''}"><b>US$${p.margin_usd}</b><span>margen del plan</span></div>
+      </div>
+      <p class="plan-foot">El costo es una estimacion con las tarifas de OpenAI y Google cargadas en el servidor; la cifra exacta esta en la factura de cada proveedor.</p>
+    </div>
+  </section>`;
+}
 
 function resultsSection() {
   const published = S.posts.filter((p) => p.status === 'posted');
@@ -2266,6 +2312,7 @@ function renderAnalytics() {
         ${[7, 30, 90].map((d) => `<button class="seg-opt ${S.anRange === d ? 'active' : ''}" onclick="setAnRange(${d})">${d}d</button>`).join('')}
       </div>
     `)}
+    ${planSection()}
     ${resultsSection()}
     ${kpis}
     <div class="grid two" style="margin-top:16px">

@@ -9,6 +9,7 @@ import { generateUgcScript } from './openai.js';
 import * as higgsfield from './higgsfield.js';
 import * as gemini from './gemini.js';
 import { AppError } from './errors.js';
+import { assertWithinPlan, recordVideoUsage } from './usage.js';
 
 const POLL_INTERVAL_MS = 15000;
 const POLL_TIMEOUT_MS = 15 * 60 * 1000;
@@ -184,8 +185,18 @@ export async function startPostVideo(post, kind = 'product', engine = null) {
   }
 
   const brand = await getBrandById(post.brand_id);
+  // El video es lo mas caro del sistema: el tope se chequea ANTES de mandar el
+  // job, no despues de que el proveedor ya cobro.
+  await assertWithinPlan(brand, 'video');
+
   const chosenEngine = engine || brand.video_engine || null;
   const row = await createPostVideo({ postId: post.id, brandId: brand.id, kind, jobId: null, script: null, provider: providerName() });
+  await recordVideoUsage({
+    brandId: brand.id,
+    postId: post.id,
+    engine: chosenEngine || 'omni',
+    seconds: Number(process.env.UGC_SECONDS || 10)
+  });
   runVideoJobInBackground(row, post, brand, kind, chosenEngine);
   return row;
 }

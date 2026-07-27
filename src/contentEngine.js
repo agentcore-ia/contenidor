@@ -35,6 +35,8 @@ import { renderPostImage } from './render.js';
 import { AI_TEMPLATE_ID } from './templates/index.js';
 import { addDays, todayDateString } from './dates.js';
 import { AppError } from './errors.js';
+import { assertWithinPlan, recordImageUsage, recordTextUsage, recordUsage } from './usage.js';
+import { textCostUsd } from './plans.js';
 
 function chooseTemplateId(content) {
   return (
@@ -50,6 +52,10 @@ export async function getTodayContent(brandId = null) {
 
 export async function generatePostForCalendar(calendarId) {
   const content = await getCalendarContent(calendarId);
+  // Unico punto por el que pasan TODAS las generaciones de post: el tope del
+  // plan se aplica aca y vale para el dashboard, el cron y la API por igual.
+  await assertWithinPlan(content.brand, 'post');
+
   const products = await listBrandProducts(content.brand.id).catch(() => []);
   const generation = await generatePostContent({
     brand: content.brand,
@@ -58,11 +64,14 @@ export async function generatePostForCalendar(calendarId) {
     products
   });
 
-  return createGeneratedPost({
+  const post = await createGeneratedPost({
     content,
     generation,
     templateId: chooseTemplateId(content)
   });
+
+  await recordUsage({ brandId: content.brand.id, kind: 'post', postId: post.id, costUsd: textCostUsd(1), provider: 'openai' });
+  return post;
 }
 
 // Junta una sola vez los insumos visuales de la marca (referencias + logo)
@@ -110,7 +119,9 @@ async function renderAiPostImage(post, opts = {}) {
   // espontaneo (el look "de vidriera" es justo lo que una historia no debe tener).
   const artDirection = post.content_type === 'story' ? '' : await generateImageArtDirection({ post, brand });
 
+  const quality = opts.imageQuality || brand.image_quality || process.env.OPENAI_IMAGE_QUALITY || 'high';
   const asset = await generatePostImageAsset(post, { brand, referenceBuffers, artDirection, logoBuffer, quality: opts.imageQuality });
+  await recordImageUsage({ brandId: brand.id, postId: post.id, quality, images: 1 });
   return asset.buffer;
 }
 
@@ -129,6 +140,7 @@ async function renderCarouselImages(post, opts = {}) {
   // que describa el tratamiento sin citar el texto de la portada — si lo cita,
   // el modelo de imagen escribe ese titular en todas las placas.
   const artDirection = await generateImageArtDirection({ post, brand, sistema: true });
+  const carouselQuality = opts.imageQuality || brand.image_quality || process.env.OPENAI_IMAGE_QUALITY || 'high';
 
   const urls = [];
   for (let i = 0; i < slides.length; i += 1) {
@@ -143,6 +155,7 @@ async function renderCarouselImages(post, opts = {}) {
       format: 'carousel',
       slideInfo: { index: i, total: slides.length }
     });
+    await recordImageUsage({ brandId: brand.id, postId: post.id, quality: carouselQuality, images: 1 });
     const url = await uploadPostImage(post.id, asset.buffer, { suffix: i === 0 ? '' : `s${i + 1}` });
     urls.push(url);
     console.log(`[render:carousel] ${post.id} placa ${i + 1}/${slides.length} lista`);
@@ -370,6 +383,8 @@ export async function generateCalendarIdeas({ brandId = null, count = 7 } = {}) 
     products,
     performance
   });
+
+  await recordTextUsage({ brandId: brand.id, generations: 1 });
 
   const categoryBySlug = new Map(categories.map((category) => [category.slug, category]));
   const today = todayDateString();
@@ -625,6 +640,9 @@ export async function runDailyAutomation({ brandId = null, queueTarget = 7, auto
     } catch (error) {
       if (error.code === 'TODAY_CONTENT_NOT_FOUND') {
         summary.post = { skipped: true, reason: 'No pending content for today' };
+      } else if (error.code === 'PLAN_LIMIT') {
+        // Llegar al tope del plan es un estado esperado, no una falla del cron.
+        summary.post = { skipped: true, reason: error.message };
       } else {
         summary.errors.push({ step: 'render_today', message: error.message, code: error.code });
       }

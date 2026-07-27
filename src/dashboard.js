@@ -18,6 +18,8 @@ import {
 } from './supabase.js';
 import { extractMenuProducts } from './openai.js';
 import { AppError } from './errors.js';
+import { planStatus } from './usage.js';
+import { PLANS } from './plans.js';
 import { applyWhatsappDecision, refreshBrandResults, generateAndRenderPost, generateCalendarIdeas, generatePostForCalendar, publishPost, renderPostInBackground, runDailyAutomation, sendApprovalForPost } from './contentEngine.js';
 import { buildAuthUrl, connectFromCode, connectWithToken, instagramConfigured, verifyState } from './instagram.js';
 import { isValidSignature, parseWebhookEvents, verifyWebhook, whatsappConfigured } from './whatsapp.js';
@@ -446,6 +448,12 @@ export function registerDashboardRoutes(app) {
     const engine = ['omni', 'veo_lite', 'veo_fast', 'veo'].includes(req.body?.engine) ? req.body.engine : null;
     const video = await startPostVideo(post, kind, engine);
     res.json({ success: true, video });
+  }));
+
+  // Plan, consumo del mes y costo estimado de la marca.
+  app.get('/api/plan', wrap(async (req, res) => {
+    const brand = await requireBrand(req);
+    res.json({ success: true, ...(await planStatus(brand)), plans: Object.values(PLANS) });
   }));
 
   // Trae de Instagram los numeros reales de lo ya publicado.
