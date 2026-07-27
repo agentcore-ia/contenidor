@@ -18,15 +18,17 @@ import {
 } from './supabase.js';
 import { extractMenuProducts } from './openai.js';
 import { AppError } from './errors.js';
-import { planStatus } from './usage.js';
+import { assertCanCreateBrand, planStatus } from './usage.js';
 import { adminOverview, isAdmin, requireAdmin } from './admin.js';
+import { billingConfigured, cancelSubscription, createCheckout, subscriptionFor, syncPreapproval } from './billing.js';
 import { PLANS } from './plans.js';
 import { applyWhatsappDecision, refreshBrandResults, generateAndRenderPost, generateCalendarIdeas, generatePostForCalendar, publishPost, renderPostInBackground, runDailyAutomation, sendApprovalForPost } from './contentEngine.js';
 import { buildAuthUrl, connectFromCode, connectWithToken, instagramConfigured, verifyState } from './instagram.js';
 import { isValidSignature, parseWebhookEvents, verifyWebhook, whatsappConfigured } from './whatsapp.js';
 import { refreshPostVideo, startPostVideo, videoConfigured } from './videoEngine.js';
 import { getSchedulerState } from './scheduler.js';
-import { authMiddleware, requireBrand, signUp, signIn, refreshSession } from './auth.js';
+import { authMiddleware, requireBrand, signUp, signIn, refreshSession, requestPasswordReset, resetPassword, deleteAccount } from './auth.js';
+import { byIpAndEmail, rateLimit } from './rateLimit.js';
 import { startOnboarding } from './onboarding.js';
 import { templates } from './templates/index.js';
 import { addDays, todayDateString } from './dates.js';
@@ -78,13 +80,41 @@ export function registerDashboardRoutes(app) {
   app.get('/admin/page.css', wrap(staticFile('page.css', 'text/css; charset=utf-8', ADMIN_DIR)));
   app.get('/admin/page.js', wrap(staticFile('page.js', 'application/javascript; charset=utf-8', ADMIN_DIR)));
 
-  // --- Auth (public) ---
-  app.post('/auth/signup', wrap(async (req, res) => {
+  // --- Auth (publico) ---
+  // Todo lo que crea cuentas o prueba contrasenas va limitado por IP. Sin esto,
+  // registrarse en masa es gratis para el atacante y caro para nosotros: cada
+  // cuenta de prueba consume generaciones reales que pagamos nosotros.
+  const signupLimit = rateLimit({
+    name: 'signup',
+    limit: Number(process.env.RL_SIGNUP_PER_HOUR || 3),
+    windowMs: 3600_000,
+    message: 'Se crearon varias cuentas desde esta conexion. Espera un rato y proba de nuevo.'
+  });
+
+  // El login se limita por IP+email: asi un ataque de fuerza bruta contra UNA
+  // cuenta se frena sin dejar afuera a toda una oficina que comparte salida.
+  const loginLimit = rateLimit({
+    name: 'login',
+    limit: Number(process.env.RL_LOGIN_PER_15MIN || 8),
+    windowMs: 900_000,
+    by: byIpAndEmail,
+    message: 'Demasiados intentos fallidos. Espera unos minutos y proba de nuevo.'
+  });
+
+  const resetLimit = rateLimit({
+    name: 'reset',
+    limit: Number(process.env.RL_RESET_PER_HOUR || 3),
+    windowMs: 3600_000,
+    by: byIpAndEmail,
+    message: 'Ya pediste varios mails de recuperacion. Revisa tu casilla antes de pedir otro.'
+  });
+
+  app.post('/auth/signup', signupLimit, wrap(async (req, res) => {
     const session = await signUp(req.body?.email, req.body?.password);
     res.json({ success: true, session });
   }));
 
-  app.post('/auth/login', wrap(async (req, res) => {
+  app.post('/auth/login', loginLimit, wrap(async (req, res) => {
     const session = await signIn(req.body?.email, req.body?.password);
     res.json({ success: true, session });
   }));
@@ -92,6 +122,19 @@ export function registerDashboardRoutes(app) {
   app.post('/auth/refresh', wrap(async (req, res) => {
     const session = await refreshSession(req.body?.refresh_token);
     res.json({ success: true, session });
+  }));
+
+  // Pide el mail de recuperacion. Responde igual exista o no la cuenta, para no
+  // convertir el endpoint en un detector de que mails estan registrados.
+  app.post('/auth/forgot', resetLimit, wrap(async (req, res) => {
+    const base = `${req.protocol}://${req.headers['x-forwarded-host'] || req.get('host')}`;
+    await requestPasswordReset(req.body?.email, { redirectTo: `${base}/dashboard#recuperar` });
+    res.json({ success: true, message: 'Si ese email tiene cuenta, te mandamos un link para cambiar la contrasena.' });
+  }));
+
+  app.post('/auth/reset', wrap(async (req, res) => {
+    await resetPassword(req.body?.access_token, req.body?.password);
+    res.json({ success: true });
   }));
 
   // --- Instagram OAuth callback (public: the browser is redirected here by
@@ -154,11 +197,27 @@ export function registerDashboardRoutes(app) {
     next();
   });
 
+  // --- Webhook de Mercado Pago (publico: MP le pega desde afuera) ---
+  // Se responde 200 enseguida y despues se consulta el estado real contra la
+  // API de MP. El cuerpo del webhook no se usa como fuente de verdad: la URL es
+  // publica y cualquiera puede inventar un POST diciendo "esta pago".
+  app.post('/webhooks/mercadopago', (req, res) => {
+    res.sendStatus(200);
+    const id = req.body?.data?.id || req.query?.id;
+    const type = req.body?.type || req.query?.topic;
+    if (!id || !/preapproval|subscription/i.test(String(type || ''))) return;
+
+    syncPreapproval(String(id)).catch((error) => {
+      console.error('[billing:webhook:error]', error.message);
+    });
+  });
+
   // Everything under /api requires a logged-in user.
   app.use('/api', authMiddleware);
 
   // --- Onboarding ---
   app.post('/api/onboarding', wrap(async (req, res) => {
+    await assertCanCreateBrand(req.user, { isOperator: isAdmin(req.user) });
     const brand = await startOnboarding({
       user: req.user,
       instagramUrl: req.body?.instagram_url,
@@ -464,6 +523,43 @@ export function registerDashboardRoutes(app) {
     const engine = ['omni', 'veo_lite', 'veo_fast', 'veo'].includes(req.body?.engine) ? req.body.engine : null;
     const video = await startPostVideo(post, kind, engine);
     res.json({ success: true, video });
+  }));
+
+  // Borrado de cuenta, irreversible. Es lo que promete la politica de
+  // eliminacion de datos que publicamos para Meta.
+  app.delete('/api/account', wrap(async (req, res) => {
+    if (String(req.body?.confirm || '').trim().toUpperCase() !== 'BORRAR') {
+      throw new AppError('Escribi BORRAR para confirmar', 400, 'DELETE_NOT_CONFIRMED');
+    }
+    res.json({ success: true, ...(await deleteAccount(req.user)) });
+  }));
+
+  // --- Cobro ---
+  app.get('/api/billing', wrap(async (req, res) => {
+    const brand = await requireBrand(req);
+    res.json({
+      success: true,
+      configured: billingConfigured(),
+      subscription: await subscriptionFor(brand.id),
+      plans: Object.values(PLANS).filter((plan) => plan.priceUsd > 0)
+    });
+  }));
+
+  app.post('/api/billing/checkout', wrap(async (req, res) => {
+    const brand = await requireBrand(req);
+    const base = `${req.protocol}://${req.headers['x-forwarded-host'] || req.get('host')}`;
+    const result = await createCheckout({
+      brand,
+      user: req.user,
+      planId: req.body?.plan,
+      backUrl: `${base}/dashboard#ajustes`
+    });
+    res.json({ success: true, ...result });
+  }));
+
+  app.post('/api/billing/cancel', wrap(async (req, res) => {
+    const brand = await requireBrand(req);
+    res.json({ success: true, ...(await cancelSubscription(brand)) });
   }));
 
   // --- Panel de operador ---

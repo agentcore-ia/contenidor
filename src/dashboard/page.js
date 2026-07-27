@@ -2475,8 +2475,117 @@ function settingsCuenta(brand) {
         <button type="button" class="btn btn-danger" onclick="logout()">Cerrar sesion</button>
       </div>
     </div>
+    <div class="settings-card-body" id="billing-box">
+      <div class="subtle">Cargando tu plan...</div>
+    </div>
+    <div class="settings-card-body danger-zone">
+      <div>
+        <b>Borrar mi cuenta</b>
+        <p>Se borran tus marcas, tu contenido y tus datos. No se puede deshacer.</p>
+      </div>
+      <button type="button" class="btn btn-danger" onclick="confirmDeleteAccount()">Borrar cuenta</button>
+    </div>
   </section>`;
 }
+
+// --- Plan y suscripcion ---
+async function loadBilling() {
+  const box = byId('billing-box');
+  if (!box) return;
+  try {
+    const data = await api('/api/billing');
+    box.innerHTML = billingBox(data);
+  } catch (error) {
+    box.innerHTML = `<div class="subtle">No se pudo cargar tu plan: ${esc(error.message)}</div>`;
+  }
+}
+
+function billingBox(data) {
+  const sub = data.subscription;
+  const activa = sub?.status === 'authorized';
+
+  if (!data.configured) {
+    return `<div>
+      <b>Tu plan</b>
+      <p class="subtle" style="margin:4px 0 0">Estas usando Postia sin cargo mientras terminamos de habilitar el cobro. Te avisamos antes de que empiece a facturarse.</p>
+    </div>`;
+  }
+
+  if (activa) {
+    return `<div class="billing-row">
+      <div>
+        <b>Plan ${esc(PLAN_NAME(sub.plan))} · activo</b>
+        <p class="subtle" style="margin:4px 0 0">Se renueva todos los meses. Podes cancelar cuando quieras y seguis hasta el final del periodo pago.</p>
+      </div>
+      <button type="button" class="btn" onclick="cancelPlan()">Cancelar suscripcion</button>
+    </div>`;
+  }
+
+  return `<div>
+    <b>Elegi tu plan</b>
+    <p class="subtle" style="margin:4px 0 10px">${sub ? 'Tu pago quedo pendiente en Mercado Pago.' : 'Estas en el plan de prueba.'}</p>
+    <div class="plan-picker">
+      ${data.plans.map((plan) => `<button type="button" class="plan-opt" onclick="startCheckout('${plan.id}')">
+        <b>${esc(plan.name)}</b>
+        <span>US$${plan.priceUsd} / mes</span>
+        <small>${esc(plan.blurb)}</small>
+      </button>`).join('')}
+    </div>
+  </div>`;
+}
+
+function PLAN_NAME(id) {
+  return { trial: 'Prueba', starter: 'Emprendedor', business: 'Negocio', agency: 'Agencia' }[id] || id;
+}
+
+window.startCheckout = async function startCheckout(plan) {
+  toast('Preparando el pago...');
+  try {
+    const res = await api('/api/billing/checkout', { method: 'POST', body: { plan } });
+    if (!res.checkout_url) throw new Error('Mercado Pago no devolvio el link de pago');
+    window.location.href = res.checkout_url;
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+};
+
+window.cancelPlan = async function cancelPlan() {
+  if (!window.confirm('¿Cancelar la suscripcion? Tu marca vuelve al plan de prueba.')) return;
+  try {
+    await api('/api/billing/cancel', { method: 'POST' });
+    toast('Suscripcion cancelada', 'success');
+    loadBilling();
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+};
+
+window.confirmDeleteAccount = function confirmDeleteAccount() {
+  modal(`<h3>Borrar tu cuenta</h3>
+    <p class="subtle" style="margin:0 0 14px">
+      Se borran para siempre tus ${S.brands.length} marca${S.brands.length === 1 ? '' : 's'}, todo el contenido generado
+      y la conexion con Instagram. Esto no se puede deshacer.
+    </p>
+    <div class="form-group"><label>Escribi BORRAR para confirmar</label>
+      <input id="del-confirm" autocomplete="off" placeholder="BORRAR" /></div>
+    <div class="toolbar" style="justify-content:flex-start;margin-top:16px">
+      <button class="btn btn-danger" onclick="doDeleteAccount()">Borrar mi cuenta</button>
+      <button class="btn btn-plain" onclick="closeModal()">Cancelar</button>
+    </div>`);
+};
+
+window.doDeleteAccount = async function doDeleteAccount() {
+  const confirm = byId('del-confirm')?.value;
+  try {
+    await api('/api/account', { method: 'DELETE', body: { confirm } });
+    closeModal();
+    storeSession(null);
+    localStorage.removeItem(BRAND_KEY);
+    byId('content').innerHTML = empty('Tu cuenta fue borrada. Gracias por probar Postia.');
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+};
 
 function settingsSistema(health) {
   const sys = S.system;
@@ -2530,9 +2639,55 @@ function renderSystem(health) {
     ${pageHead('Ajustes', 'Integraciones, publicacion y configuracion de tu cuenta', `<button class="btn" onclick="loadSystem()">Actualizar</button>`)}
     ${tabs}
     ${body}`;
+
+  // El plan se pide aparte para no demorar el resto de Ajustes.
+  if (S.settingsTab === 'cuenta') loadBilling();
 }
 
 // --- Auth & multi-brand boot -----------------------------------------------
+
+const AUTH_TITLES = {
+  login: ['Hola de nuevo', 'Entrá para ver tus marcas y tu contenido.'],
+  signup: ['Creá tu cuenta', 'Tu primera semana de contenido es gratis. Sin tarjeta.'],
+  forgot: ['Recuperá tu cuenta', 'Te mandamos un link para poner una contraseña nueva.'],
+  recuperar: ['Nueva contraseña', 'Elegí una contraseña y volvés a entrar.']
+};
+
+function authBody(mode) {
+  const [title, sub] = AUTH_TITLES[mode] || AUTH_TITLES.login;
+  const head = `<h2>${title}</h2><span class="subtle">${sub}</span>`;
+
+  if (mode === 'forgot') {
+    return `${head}
+      <form onsubmit="submitForgot(event)">
+        <div class="form-group"><label>Email</label><input name="email" type="email" required autocomplete="email" placeholder="tu@email.com" /></div>
+        <button class="btn btn-primary">Mandame el link</button>
+      </form>
+      <div class="auth-switch" onclick="renderLoginMode('login')">← Volver a iniciar sesión</div>`;
+  }
+
+  if (mode === 'recuperar') {
+    return `${head}
+      <form onsubmit="submitReset(event)">
+        <div class="form-group"><label>Contraseña nueva</label><input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="Mínimo 8 caracteres" /></div>
+        <button class="btn btn-primary">Guardar y entrar</button>
+      </form>
+      <div class="auth-switch" onclick="renderLoginMode('login')">← Volver a iniciar sesión</div>`;
+  }
+
+  return `${head}
+    <form onsubmit="submitAuth(event,'${mode}')">
+      <div class="form-group"><label>Email</label><input name="email" type="email" required autocomplete="email" placeholder="tu@email.com" /></div>
+      <div class="form-group"><label>Contraseña</label><input name="password" type="password" required minlength="8" autocomplete="${mode === 'login' ? 'current-password' : 'new-password'}" placeholder="Mínimo 8 caracteres" /></div>
+      <button class="btn btn-primary">${mode === 'login' ? 'Entrar' : 'Empezar gratis'}</button>
+    </form>
+    ${mode === 'login'
+      ? `<div class="auth-forgot" onclick="renderLoginMode('forgot')">¿Olvidaste tu contraseña?</div>`
+      : `<div class="auth-legal">Al crear tu cuenta aceptás los <a href="https://postia.ar/terminos" target="_blank" rel="noopener">términos</a> y la <a href="https://postia.ar/privacidad" target="_blank" rel="noopener">política de privacidad</a>.</div>`}
+    <div class="auth-switch" onclick="renderLoginMode('${mode === 'login' ? 'signup' : 'login'}')">
+      ${mode === 'login' ? '¿No tenés cuenta? <b>Creá una gratis</b>' : '¿Ya tenés cuenta? <b>Iniciá sesión</b>'}
+    </div>`;
+}
 
 function renderLogin(mode = 'login') {
   document.querySelector('.sidebar')?.classList.add('hidden-auth');
@@ -2559,17 +2714,7 @@ function renderLogin(mode = 'login') {
       <div class="auth-panel">
         <div class="auth-card">
           <a class="auth-brand-sm" href="https://postia.ar"><span class="mark">P</span>Postia</a>
-          <h2>${mode === 'login' ? 'Hola de nuevo' : 'Creá tu cuenta'}</h2>
-          <span class="subtle">${mode === 'login' ? 'Entrá para ver tus marcas y tu contenido.' : 'Tu primera semana de contenido es gratis. Sin tarjeta.'}</span>
-          <form onsubmit="submitAuth(event,'${mode}')">
-            <div class="form-group"><label>Email</label><input name="email" type="email" required autocomplete="email" placeholder="tu@email.com" /></div>
-            <div class="form-group"><label>Contraseña</label><input name="password" type="password" required minlength="8" autocomplete="${mode === 'login' ? 'current-password' : 'new-password'}" placeholder="Mínimo 8 caracteres" /></div>
-            <button class="btn btn-primary">${mode === 'login' ? 'Entrar' : 'Empezar gratis'}</button>
-          </form>
-          ${mode === 'login' ? '' : `<div class="auth-legal">Al crear tu cuenta aceptás los <a href="https://postia.ar/terminos" target="_blank" rel="noopener">términos</a> y la <a href="https://postia.ar/privacidad" target="_blank" rel="noopener">política de privacidad</a>.</div>`}
-          <div class="auth-switch" onclick="renderLoginMode('${mode === 'login' ? 'signup' : 'login'}')">
-            ${mode === 'login' ? '¿No tenés cuenta? <b>Creá una gratis</b>' : '¿Ya tenés cuenta? <b>Iniciá sesión</b>'}
-          </div>
+          ${authBody(mode)}
         </div>
       </div>
     </div>`;
@@ -2595,6 +2740,59 @@ window.submitAuth = async function submitAuth(event, mode) {
     toast(error.message, 'error');
   }
 };
+
+window.submitForgot = async function submitForgot(event) {
+  event.preventDefault();
+  const email = new FormData(event.target).get('email');
+  try {
+    const res = await fetch('/auth/forgot', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'No se pudo enviar el mail');
+    toast(data.message || 'Revisá tu casilla', 'success');
+    renderLogin('login');
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+};
+
+// El token de recuperacion viene en el fragmento de la URL que arma Supabase.
+// Se guarda en memoria y NO se deja en la barra de direcciones.
+let recoveryToken = null;
+
+window.submitReset = async function submitReset(event) {
+  event.preventDefault();
+  const password = new FormData(event.target).get('password');
+  try {
+    const res = await fetch('/auth/reset', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ access_token: recoveryToken, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'No se pudo cambiar la contraseña');
+    recoveryToken = null;
+    toast('Contraseña actualizada. Entrá con la nueva.', 'success');
+    renderLogin('login');
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+};
+
+// Detecta la vuelta del mail de recuperacion antes de arrancar la app.
+function handleRecoveryRedirect() {
+  const hash = location.hash.startsWith('#') ? location.hash.slice(1) : '';
+  const params = new URLSearchParams(hash);
+  if (params.get('type') !== 'recovery' || !params.get('access_token')) return false;
+
+  recoveryToken = params.get('access_token');
+  history.replaceState(null, '', location.pathname);
+  renderLogin('recuperar');
+  return true;
+}
 
 window.logout = function logout() {
   storeSession(null);
@@ -3180,6 +3378,10 @@ function handleInstagramRedirect() {
 
 (async function init() {
   try {
+    // La vuelta del mail de recuperacion se atiende antes que nada: el link
+    // trae su propio token y no depende de haber iniciado sesion.
+    if (handleRecoveryRedirect()) return;
+
     if (!getStoredSession()) {
       renderLogin();
       return;

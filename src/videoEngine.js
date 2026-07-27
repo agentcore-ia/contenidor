@@ -169,6 +169,8 @@ function runVideoJobInBackground(row, post, brand, kind, engine) {
       console.error(`[video:submit:error] ${row.id}:`, error.message);
       await updatePostVideo(row.id, { status: 'error', error: String(error.message).slice(0, 400) }).catch(() => {});
       await notifyVideoFailed(post.id);
+      const { alertOps } = await import('./ops.js');
+      await alertOps('video fallido', `Post ${post.id} (${kind}): ${error.message}`);
     });
 }
 

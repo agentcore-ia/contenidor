@@ -10,6 +10,7 @@ import { supabase } from './supabase.js';
 import { AppError } from './errors.js';
 import { PLANS, planFor } from './plans.js';
 import { monthStart } from './usage.js';
+import { billingConfigured } from './billing.js';
 
 function adminEmails() {
   return String(process.env.ADMIN_EMAILS || '')
@@ -59,15 +60,16 @@ export async function adminOverview({ days = 30 } = {}) {
   const since = daysAgo(days);
   const month = monthStart();
 
-  const [brandsRes, postsRes, usageRes, visitsRes, videosRes] = await Promise.all([
+  const [brandsRes, postsRes, usageRes, visitsRes, videosRes, subsRes] = await Promise.all([
     supabase.from('brands').select('id, name, slug, plan, owner_id, owner_email, ig_username, ig_connected_at, ig_token_expires_at, whatsapp_number, automation_enabled, onboarding_status, created_at'),
     supabase.from('generated_posts').select('id, brand_id, status, content_type, render_error, publish_error, ig_like_count, ig_comments_count, created_at').gte('created_at', since),
     supabase.from('usage_events').select('brand_id, kind, quantity, cost_usd, provider, created_at').gte('created_at', since),
     supabase.from('landing_events').select('kind, referrer, utm_source, country, visitor_hash, created_at').gte('created_at', since),
-    supabase.from('post_videos').select('id, brand_id, status, kind, created_at').gte('created_at', since)
+    supabase.from('post_videos').select('id, brand_id, status, kind, created_at').gte('created_at', since),
+    supabase.from('subscriptions').select('brand_id, plan, status, amount_ars')
   ]);
 
-  for (const res of [brandsRes, postsRes, usageRes, visitsRes, videosRes]) {
+  for (const res of [brandsRes, postsRes, usageRes, visitsRes, videosRes, subsRes]) {
     if (res.error) throw new AppError(res.error.message, 500, 'SUPABASE_ERROR');
   }
 
@@ -76,6 +78,7 @@ export async function adminOverview({ days = 30 } = {}) {
   const usage = usageRes.data || [];
   const visits = visitsRes.data || [];
   const videos = videosRes.data || [];
+  const subs = subsRes.data || [];
 
   // --- Negocio -------------------------------------------------------------
   // OJO con el MRR: no hay cobro conectado, asi que NADIE paga. Sumar el precio
@@ -84,6 +87,11 @@ export async function adminOverview({ days = 30 } = {}) {
   // el panel no lo usa como titular ni calcula margen contra el.
   const onPaidPlan = brands.filter((brand) => planFor(brand).priceUsd > 0);
   const mrrSimulated = onPaidPlan.reduce((acc, brand) => acc + planFor(brand).priceUsd, 0);
+
+  // MRR de verdad: solo suscripciones autorizadas en Mercado Pago. Este si es
+  // plata que entra, y por eso se calcula aparte de la simulacion de arriba.
+  const paying = subs.filter((sub) => sub.status === 'authorized');
+  const mrrReal = paying.reduce((acc, sub) => acc + (PLANS[sub.plan]?.priceUsd || 0), 0);
 
   const usageMonth = usage.filter((row) => row.created_at >= month);
   const costMonth = usageMonth.reduce((acc, row) => acc + (Number(row.cost_usd) || 0), 0);
@@ -184,7 +192,9 @@ export async function adminOverview({ days = 30 } = {}) {
       brands_on_paid_plan: onPaidPlan.length,
       cost_month_usd: round(costMonth),
       cost_per_active_brand_usd: round(costPerActive),
-      billing_connected: false,
+      billing_connected: billingConfigured(),
+      paying_subscriptions: paying.length,
+      mrr_usd: round(mrrReal),
       mrr_simulated_usd: mrrSimulated,
       by_plan: byPlan
     },

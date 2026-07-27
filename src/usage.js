@@ -145,3 +145,44 @@ export async function assertWithinPlan(brand, kind) {
 
   throw new AppError(LIMIT_COPY[kind](plan), 402, 'PLAN_LIMIT');
 }
+
+// --- Tope de marcas por CUENTA -----------------------------------------------
+// Los topes de piezas y videos se miden por marca. Sin un limite de marcas por
+// cuenta eso se esquiva solo: alguien en Emprendedor (15 piezas) crea diez
+// marcas y se lleva 150 piezas por los mismos US$15. Este es el cierre de ese
+// agujero.
+//
+// El plan de una CUENTA es el mas alto de sus marcas — si pago un plan mayor
+// para una marca, esa capacidad es de la cuenta. Sin marcas todavia, prueba.
+export function accountPlan(brands = []) {
+  const plans = brands.map((brand) => planFor(brand));
+  if (!plans.length) return planFor(null);
+  return plans.reduce((best, plan) => (plan.brands > best.brands ? plan : best), plans[0]);
+}
+
+export async function assertCanCreateBrand(user, { isOperator = false } = {}) {
+  // El operador de Postia maneja las marcas de demo y soporte; no se le aplica.
+  if (isOperator || !enforcementOn()) return;
+
+  const { data: brands, error } = await supabase
+    .from('brands')
+    .select('id, plan')
+    .eq('owner_id', user.id);
+
+  if (error) {
+    console.warn(`[usage] no se pudo contar las marcas de ${user.id}: ${error.message}`);
+    return; // ante la duda no se bloquea a alguien que quiere empezar
+  }
+
+  const plan = accountPlan(brands || []);
+  const used = brands?.length || 0;
+  if (used < plan.brands) return;
+
+  throw new AppError(
+    plan.brands === 1
+      ? `El plan ${plan.name} incluye una marca. Pasa a un plan mayor para manejar varias.`
+      : `Llegaste a las ${plan.brands} marcas del plan ${plan.name}. Pasa a un plan mayor para agregar mas.`,
+    402,
+    'PLAN_BRAND_LIMIT'
+  );
+}

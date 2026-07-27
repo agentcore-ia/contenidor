@@ -2526,3 +2526,19 @@ input[type="checkbox"].toggle {
 
 /* Link al panel de operacion (solo lo ve el operador) */
 .foot-admin { display:block; margin-top:8px; text-align:center; text-decoration:none; font-size:12px; }
+
+.auth-forgot { margin-top: 12px; text-align: center; font-size: 13px; color: var(--muted); cursor: pointer; }
+.auth-forgot:hover { color: var(--accent); text-decoration: underline; }
+
+.danger-zone { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; border-top:1px solid var(--border); }
+.danger-zone b { display:block; font-size:14px; }
+.danger-zone p { margin:3px 0 0; font-size:12.5px; color:var(--muted); max-width:52ch; }
+
+/* Selector de plan */
+.billing-row { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.plan-picker { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; }
+.plan-opt { text-align:left; padding:14px; border:1px solid var(--border); border-radius:12px; background:var(--surface-2); cursor:pointer; font:inherit; transition:border-color .15s; }
+.plan-opt:hover { border-color:var(--accent); }
+.plan-opt b { display:block; font-size:14px; }
+.plan-opt span { display:block; margin-top:2px; font-size:16px; font-weight:700; letter-spacing:-.02em; }
+.plan-opt small { display:block; margin-top:6px; font-size:11.5px; color:var(--muted); line-height:1.45; }

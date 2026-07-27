@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "install:browsers": "playwright install chromium"
+    "install:browsers": "playwright install chromium",
+    "test": "node --test \"test/**/*.test.mjs\""
   },
   "keywords": [
     "capta",

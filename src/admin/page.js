@@ -174,7 +174,10 @@ function render() {
 
   byId('app').innerHTML = `
     <h2 class="section">Negocio</h2>
-    ${b.billing_connected ? '' : `<div class="card notice">
+    ${b.billing_connected ? `<div class="grid g-kpi" style="margin-bottom:14px">
+      ${kpi({ label: 'MRR real', value: usd(b.mrr_usd), tone: 'good', note: `${num(b.paying_subscriptions)} suscripcion(es) autorizada(s) en Mercado Pago` })}
+      ${kpi({ label: 'Margen del mes', value: usd(b.mrr_usd - b.cost_month_usd), tone: (b.mrr_usd - b.cost_month_usd) < 0 ? 'bad' : 'good', note: 'MRR real menos costo real' })}
+    </div>` : `<div class="card notice">
       <b>Todavia no hay cobro conectado.</b> Ninguna marca esta pagando, asi que no hay MRR real que mostrar.
       De lista, las ${num(b.brands_on_paid_plan)} marcas en plan pago sumarian ${usd(b.mrr_simulated_usd)} al mes —
       es una simulacion, no un ingreso: hoy los planes estan asignados por operacion.

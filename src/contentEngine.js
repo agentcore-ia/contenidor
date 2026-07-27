@@ -35,6 +35,7 @@ import { renderPostImage } from './render.js';
 import { AI_TEMPLATE_ID } from './templates/index.js';
 import { addDays, todayDateString } from './dates.js';
 import { AppError } from './errors.js';
+import { alertDailySummary, alertOps } from './ops.js';
 import { assertWithinPlan, recordImageUsage, recordTextUsage, recordUsage } from './usage.js';
 import { textCostUsd } from './plans.js';
 
@@ -208,6 +209,11 @@ export function renderPostInBackground(post, opts = {}) {
     .catch(async (error) => {
       console.error(`[render:bg:error] post ${post.id}:`, error);
       await setPostRenderError(post.id, error.message);
+      // El render corre en background: si falla, nadie se entera salvo que se
+      // avise. Los topes de plan no son una falla, son un limite esperado.
+      if (error.code !== 'PLAN_LIMIT') {
+        await alertOps('imagen fallida', `Post ${post.id}: ${error.message}`);
+      }
     });
 }
 
@@ -503,6 +509,13 @@ export async function publishDuePosts(brand) {
     }
   }
 
+  if (failed.length) {
+    await alertOps(
+      'publicacion fallida',
+      `${brand.name}: ${failed.length} de ${due.length} posts no se pudieron publicar. Primero: ${failed[0].message}`
+    );
+  }
+
   return { due: due.length, published, failed };
 }
 
@@ -678,6 +691,7 @@ export async function runDailyAutomation({ brandId = null, queueTarget = 7, auto
   }
 
   summary.finished_at = new Date().toISOString();
+  await alertDailySummary(summary);
   return summary;
 }
 

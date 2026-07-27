@@ -96,3 +96,72 @@ export async function requireBrand(req) {
 
   return getBrandForUser(brandId, req.user.id);
 }
+
+// --- Recuperar contrasena ----------------------------------------------------
+// Supabase manda el mail y redirige a /dashboard#recuperar con un token de
+// recuperacion en el fragmento. El front toma ese token y lo manda a
+// resetPassword() junto con la contrasena nueva.
+//
+// REQUIERE SMTP configurado en Supabase. Con el SMTP por defecto los mails
+// salen con un limite muy bajo y pueden no llegar a cualquier destinatario.
+export async function requestPasswordReset(email, { redirectTo } = {}) {
+  const clean = String(email || '').trim().toLowerCase();
+  if (!clean) throw new AppError('Escribi tu email', 400, 'EMAIL_REQUIRED');
+
+  const { error } = await anonAuth.auth.resetPasswordForEmail(clean, { redirectTo });
+
+  // A proposito NO se distingue entre "existe" y "no existe": si respondieramos
+  // distinto, cualquiera podria averiguar que mails tienen cuenta en Postia.
+  if (error) console.warn(`[auth:reset] ${clean}: ${error.message}`);
+  return { sent: true };
+}
+
+// Cambia la contrasena usando el access token de recuperacion que vino en el
+// link del mail. Se llama al endpoint REST directo porque ese token es de un
+// solo uso y no conviene meterlo en un cliente con sesion persistida.
+export async function resetPassword(accessToken, password) {
+  if (!accessToken) throw new AppError('Falta el token de recuperacion', 400, 'RESET_NO_TOKEN');
+  if (String(password || '').length < 8) {
+    throw new AppError('La contrasena debe tener al menos 8 caracteres', 400, 'WEAK_PASSWORD');
+  }
+
+  const res = await fetch(`${process.env.SUPABASE_URL}/auth/v1/user`, {
+    method: 'PUT',
+    headers: {
+      apikey: process.env.SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ password })
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const expired = res.status === 401 || /expired|invalid/i.test(body?.msg || body?.error_description || '');
+    throw new AppError(
+      expired ? 'El link de recuperacion vencio. Pedi uno nuevo.' : (body?.msg || 'No se pudo cambiar la contrasena'),
+      expired ? 401 : 400,
+      'RESET_FAILED'
+    );
+  }
+
+  return { email: body?.email || null };
+}
+
+// --- Borrar la cuenta --------------------------------------------------------
+// Borra al usuario de Auth; las marcas y todo lo que cuelga de ellas se van por
+// las foreign keys con on delete cascade. Es irreversible a proposito: es lo
+// que pide la politica de eliminacion de datos que publicamos para Meta.
+export async function deleteAccount(user) {
+  const { data: brands } = await supabase.from('brands').select('id').eq('owner_id', user.id);
+
+  for (const brand of brands || []) {
+    const { error } = await supabase.from('brands').delete().eq('id', brand.id);
+    if (error) throw new AppError(`No se pudo borrar la marca: ${error.message}`, 500, 'DELETE_BRAND_FAILED');
+  }
+
+  const { error } = await supabase.auth.admin.deleteUser(user.id);
+  if (error) throw new AppError(`No se pudo borrar la cuenta: ${error.message}`, 500, 'DELETE_USER_FAILED');
+
+  return { deleted: true, brands: brands?.length || 0 };
+}
