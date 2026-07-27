@@ -2413,18 +2413,6 @@ function renderLogin(mode = 'login') {
         <div>
           <h1>Dejá de pensar qué postear.</h1>
           <p class="hero-sub">Postia crea los posts, carruseles, historias y videos de tu Instagram. Vos aprobás desde WhatsApp y se publican solos.</p>
-
-          <div class="auth-proof">
-            <img src="/img/verde-posturas.webp" alt="Pieza generada con Postia" />
-            <div class="auth-proof-body">
-              <div class="auth-proof-tag">Generado por Postia</div>
-              <div class="auth-proof-title">3 posturas para tu espalda</div>
-              <span class="auth-proof-wa">
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.9-1.4A10 10 0 1 0 12 2Z"/></svg>
-                Aprobado y publicado
-              </span>
-            </div>
-          </div>
         </div>
 
         <div class="hero-points">
