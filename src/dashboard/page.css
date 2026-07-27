@@ -1,5 +1,5 @@
 /* ============================================================
-   Contenidor Studio — design system
+   Postia — design system
    Light, clean, premium SaaS. Inter. Orange signature accent.
    ============================================================ */
 
@@ -1281,10 +1281,14 @@ td.actions { white-space: nowrap; text-align: right; }
    Auth (login / registro)
    ============================================================ */
 
+/* ============================================================
+   Login — puente visual con postia.ar: panel oscuro con una pieza
+   real generada, y el formulario limpio a la derecha.
+   ============================================================ */
 .auth-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 1.1fr 1fr;
+  grid-template-columns: 1.05fr 1fr;
   width: 100vw;
   margin: -26px 0 -80px calc(50% - 50vw);
   background: var(--surface);
@@ -1295,75 +1299,146 @@ td.actions { white-space: nowrap; text-align: right; }
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 48px 56px;
-  background:
-    radial-gradient(900px 500px at 20% 0%, rgba(255, 106, 26, 0.12), transparent 55%),
-    radial-gradient(700px 500px at 90% 100%, rgba(255, 106, 26, 0.06), transparent 55%),
-    var(--bg);
-  border-right: 1px solid var(--border);
+  gap: 30px;
+  padding: 44px 52px;
+  background: #0B0B0C;
+  color: #fff;
   overflow: hidden;
 }
-
-.auth-hero::after {
+/* halo suave, el mismo verde del flujo de WhatsApp */
+.auth-hero::before {
   content: "";
   position: absolute;
-  inset: 0;
-  background-image: radial-gradient(rgba(20, 16, 10, 0.05) 1px, transparent 1px);
-  background-size: 26px 26px;
-  mask-image: radial-gradient(600px 400px at 30% 30%, black, transparent);
+  width: 620px; height: 620px;
+  right: -220px; top: 50%;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(37,211,102,0.16), transparent 68%);
   pointer-events: none;
 }
 
-.auth-hero .side-logo { padding: 0; }
+.auth-brand {
+  position: relative; z-index: 2;
+  display: inline-flex; align-items: center; gap: 10px;
+  font-size: 17px; font-weight: 800; letter-spacing: -0.02em;
+  color: #fff; text-decoration: none; width: fit-content;
+}
+.auth-brand .mark {
+  width: 26px; height: 26px; border-radius: 8px;
+  background: #fff; color: #0B0B0C;
+  display: grid; place-items: center;
+  font-size: 13px; font-weight: 900;
+}
 
 .auth-hero h1 {
-  font-size: clamp(30px, 3.6vw, 46px);
-  font-weight: 900;
-  letter-spacing: -0.04em;
-  line-height: 1.06;
-  max-width: 480px;
-  color: var(--text);
+  position: relative; z-index: 2;
+  font-size: clamp(30px, 3.4vw, 44px);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1.03;
+  max-width: 12em;
+  color: #fff;
 }
-.auth-hero h1 em {
-  font-style: normal;
-  background: linear-gradient(90deg, #ff8b45, #ff5a05);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+.auth-hero .hero-sub {
+  position: relative; z-index: 2;
+  margin-top: 14px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.62);
+  max-width: 34em;
 }
 
-.auth-hero .hero-points { display: flex; flex-direction: column; gap: 12px; margin-top: 26px; }
-.hero-point { display: flex; gap: 11px; align-items: flex-start; color: var(--text-soft); font-size: 14px; max-width: 440px; }
+/* Muestra real: la pieza generada + su aprobacion por WhatsApp */
+.auth-proof {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; gap: 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 18px;
+  padding: 14px;
+  max-width: 400px;
+  backdrop-filter: blur(6px);
+}
+.auth-proof img {
+  width: 74px; height: 92px; flex: 0 0 auto;
+  border-radius: 11px; object-fit: cover;
+  border: 1px solid rgba(255,255,255,0.14);
+}
+.auth-proof-body { min-width: 0; }
+.auth-proof-tag {
+  font-size: 10px; font-weight: 750; letter-spacing: 0.13em;
+  text-transform: uppercase; color: rgba(255,255,255,0.5);
+}
+.auth-proof-title {
+  font-size: 13.5px; font-weight: 650; line-height: 1.35;
+  margin: 4px 0 9px; color: #fff;
+}
+.auth-proof-wa {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: rgba(37,211,102,0.16); color: #4BC98A;
+  border-radius: 999px; padding: 5px 11px;
+  font-size: 11.5px; font-weight: 650;
+}
+.auth-proof-wa svg { width: 13px; height: 13px; }
+
+.auth-hero .hero-points { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 11px; }
+.hero-point {
+  display: flex; gap: 11px; align-items: flex-start;
+  color: rgba(255,255,255,0.72); font-size: 14px; max-width: 440px;
+}
 .hero-point::before {
   content: "";
   flex: 0 0 auto;
   width: 18px; height: 18px;
   margin-top: 1px;
   border-radius: 50%;
-  background: var(--accent-wash) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff5a05' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 13 4 4L19 7'/%3E%3C/svg%3E") center / 10px no-repeat;
+  background: rgba(255,255,255,0.1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234BC98A' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 13 4 4L19 7'/%3E%3C/svg%3E") center / 10px no-repeat;
 }
 
-.auth-hero .hero-foot { color: var(--faint); font-size: 12px; }
+.auth-hero .hero-foot {
+  position: relative; z-index: 2;
+  color: rgba(255,255,255,0.38); font-size: 12px;
+}
+.auth-hero .hero-foot a { color: rgba(255,255,255,0.6); text-decoration: none; }
+.auth-hero .hero-foot a:hover { color: #fff; }
 
-.auth-panel { display: flex; align-items: center; justify-content: center; padding: 40px 28px; background: var(--surface); }
+.auth-panel {
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px 28px; background: var(--surface);
+}
 
-.auth-card { width: min(400px, 100%); }
-.auth-card h2 { font-size: 22px; font-weight: 800; letter-spacing: -0.03em; color: var(--text); }
-.auth-card .subtle { display: block; margin: 6px 0 24px; }
-.auth-card form { display: flex; flex-direction: column; gap: 16px; }
-.auth-card input { padding: 12px 14px; font-size: 14px; border-radius: var(--r-md); }
-.auth-card .btn { padding: 12px 16px; font-size: 14px; border-radius: var(--r-md); width: 100%; }
+.auth-card { width: min(392px, 100%); }
+.auth-card .auth-brand-sm {
+  display: none;
+  align-items: center; gap: 9px;
+  font-size: 16px; font-weight: 800; letter-spacing: -0.02em;
+  color: var(--text); margin-bottom: 26px;
+}
+.auth-card .auth-brand-sm .mark {
+  width: 24px; height: 24px; border-radius: 7px;
+  background: var(--text); color: var(--surface);
+  display: grid; place-items: center; font-size: 12px; font-weight: 900;
+}
+.auth-card h2 { font-size: 25px; font-weight: 800; letter-spacing: -0.035em; color: var(--text); }
+.auth-card .subtle { display: block; margin: 7px 0 26px; font-size: 14px; }
+.auth-card form { display: flex; flex-direction: column; gap: 15px; }
+.auth-card label { font-size: 12px; font-weight: 650; letter-spacing: 0.02em; }
+.auth-card input { padding: 13px 15px; font-size: 14.5px; border-radius: var(--r-md); }
+.auth-card .btn { padding: 13px 16px; font-size: 14.5px; font-weight: 650; border-radius: var(--r-md); width: 100%; margin-top: 4px; }
+
+.auth-legal { margin-top: 16px; text-align: center; font-size: 11.5px; color: var(--faint); line-height: 1.6; }
+.auth-legal a { color: var(--muted); }
 
 .auth-switch {
-  margin-top: 18px;
+  margin-top: 20px;
   text-align: center;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 13.5px;
   cursor: pointer;
   transition: color 0.15s;
 }
-.auth-switch:hover { color: var(--accent); }
-.auth-switch b { color: var(--accent); font-weight: 700; }
+.auth-switch:hover { color: var(--text); }
+.auth-switch b { color: var(--text); font-weight: 700; }
 
 /* Empty state — primera marca */
 .hero-empty {
@@ -2162,6 +2237,8 @@ input[type="checkbox"].toggle {
   .grid.two, .grid.three { grid-template-columns: 1fr; }
   .auth-shell { grid-template-columns: 1fr; }
   .auth-hero { display: none; }
+  /* sin el panel oscuro, la marca tiene que aparecer sobre el formulario */
+  .auth-card .auth-brand-sm { display: flex; }
 }
 
 /* ============================================================

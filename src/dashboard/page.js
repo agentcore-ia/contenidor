@@ -2408,31 +2408,47 @@ function renderLogin(mode = 'login') {
   byId('content').innerHTML = `
     <div class="auth-shell">
       <div class="auth-hero">
-        <div class="side-logo">
-          <span class="logo-mark"></span>
-          <div class="logo-text"><strong>Contenidor</strong><span>Content Studio</span></div>
-        </div>
+        <a class="auth-brand" href="https://postia.ar"><span class="mark">P</span>Postia</a>
+
         <div>
-          <h1>Tu Instagram,<br />en <em>piloto automatico</em>.</h1>
-          <div class="hero-points">
-            <div class="hero-point">Pega el link de tu cuenta y la IA aprende tu rubro, tu estilo y tus colores.</div>
-            <div class="hero-point">Ideas nuevas todos los dias, alineadas a tu marca.</div>
-            <div class="hero-point">Creativos listos para publicar, con tu look exacto. Vos solo aprobas.</div>
+          <h1>Dejá de pensar qué postear.</h1>
+          <p class="hero-sub">Postia crea los posts, carruseles, historias y videos de tu Instagram. Vos aprobás desde WhatsApp y se publican solos.</p>
+
+          <div class="auth-proof">
+            <img src="/img/verde-posturas.webp" alt="Pieza generada con Postia" />
+            <div class="auth-proof-body">
+              <div class="auth-proof-tag">Generado por Postia</div>
+              <div class="auth-proof-title">3 posturas para tu espalda</div>
+              <span class="auth-proof-wa">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.9-1.4A10 10 0 1 0 12 2Z"/></svg>
+                Aprobado y publicado
+              </span>
+            </div>
           </div>
         </div>
-        <div class="hero-foot">Contenidor Studio — motor de contenido con IA</div>
+
+        <div class="hero-points">
+          <div class="hero-point">Ideas pensadas para tu rubro, agendadas solas todos los días.</div>
+          <div class="hero-point">Imágenes y videos listos, con tu identidad y tus precios reales.</div>
+          <div class="hero-point">Nada se publica sin tu OK: aprobás con un toque, desde el chat.</div>
+        </div>
+
+        <div class="hero-foot">¿Todavía no la conocés? <a href="https://postia.ar">Mirá cómo funciona</a></div>
       </div>
+
       <div class="auth-panel">
         <div class="auth-card">
-          <h2>${mode === 'login' ? 'Hola de nuevo' : 'Crea tu cuenta'}</h2>
-          <span class="subtle">${mode === 'login' ? 'Entra para ver tus marcas y tu contenido.' : 'Empeza gratis: solo email y contrasena.'}</span>
+          <a class="auth-brand-sm" href="https://postia.ar"><span class="mark">P</span>Postia</a>
+          <h2>${mode === 'login' ? 'Hola de nuevo' : 'Creá tu cuenta'}</h2>
+          <span class="subtle">${mode === 'login' ? 'Entrá para ver tus marcas y tu contenido.' : 'Tu primera semana de contenido es gratis. Sin tarjeta.'}</span>
           <form onsubmit="submitAuth(event,'${mode}')">
             <div class="form-group"><label>Email</label><input name="email" type="email" required autocomplete="email" placeholder="tu@email.com" /></div>
-            <div class="form-group"><label>Contrasena</label><input name="password" type="password" required minlength="8" autocomplete="${mode === 'login' ? 'current-password' : 'new-password'}" placeholder="Minimo 8 caracteres" /></div>
-            <button class="btn btn-primary">${mode === 'login' ? 'Entrar' : 'Crear cuenta'}</button>
+            <div class="form-group"><label>Contraseña</label><input name="password" type="password" required minlength="8" autocomplete="${mode === 'login' ? 'current-password' : 'new-password'}" placeholder="Mínimo 8 caracteres" /></div>
+            <button class="btn btn-primary">${mode === 'login' ? 'Entrar' : 'Empezar gratis'}</button>
           </form>
+          ${mode === 'login' ? '' : `<div class="auth-legal">Al crear tu cuenta aceptás los <a href="https://postia.ar/terminos" target="_blank" rel="noopener">términos</a> y la <a href="https://postia.ar/privacidad" target="_blank" rel="noopener">política de privacidad</a>.</div>`}
           <div class="auth-switch" onclick="renderLoginMode('${mode === 'login' ? 'signup' : 'login'}')">
-            ${mode === 'login' ? 'No tenes cuenta? <b>Registrate</b>' : 'Ya tenes cuenta? <b>Inicia sesion</b>'}
+            ${mode === 'login' ? '¿No tenés cuenta? <b>Creá una gratis</b>' : '¿Ya tenés cuenta? <b>Iniciá sesión</b>'}
           </div>
         </div>
       </div>
@@ -2764,7 +2780,7 @@ const TOUR_KEY = 'contenidor_tour_seen_v1';
 let tourIdx = 0;
 
 const TOUR_STEPS = [
-  { target: null, title: 'Bienvenido a Contenidor 👋', body: 'Tu estudio de contenido con IA. En un minuto te muestro como funciona para que empieces a publicar sin esfuerzo.' },
+  { target: null, title: 'Bienvenido a Postia 👋', body: 'Tu estudio de contenido con IA. En un minuto te muestro como funciona para que empieces a publicar sin esfuerzo.' },
   { targets: ['#side-foot .brand-switch', '#side-foot'], title: 'Tus marcas', body: 'Cada negocio es una marca con su propio estilo, catalogo e ideas. Podes tener varias y cambiar entre ellas desde aca.' },
   { targets: ['.topbar-actions .btn-primary'], title: 'Genera contenido', body: 'Con este boton creas un creativo nuevo al instante: la IA arma la imagen y los textos, listos para revisar.' },
   { targets: ['[data-tab="calendar"]'], title: 'Tu calendario', body: 'La IA propone ideas y las agenda sola. Aca ves y ajustas el plan de las proximas semanas.' },
