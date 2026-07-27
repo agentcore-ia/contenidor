@@ -127,8 +127,12 @@ export function registerDashboardRoutes(app) {
   // Pide el mail de recuperacion. Responde igual exista o no la cuenta, para no
   // convertir el endpoint en un detector de que mails estan registrados.
   app.post('/auth/forgot', resetLimit, wrap(async (req, res) => {
+    // Sin fragmento: probado contra la API, Supabase descarta el redirect_to si
+    // trae "#" y cae a site_url. El destino real lo fija site_url (ya apunta a
+    // /dashboard, ver scripts/supabase-auth-config.mjs) y Supabase le agrega el
+    // token en el fragmento, que es lo que lee handleRecoveryRedirect().
     const base = `${req.protocol}://${req.headers['x-forwarded-host'] || req.get('host')}`;
-    await requestPasswordReset(req.body?.email, { redirectTo: `${base}/dashboard#recuperar` });
+    await requestPasswordReset(req.body?.email, { redirectTo: `${base}/dashboard` });
     res.json({ success: true, message: 'Si ese email tiene cuenta, te mandamos un link para cambiar la contrasena.' });
   }));
 
