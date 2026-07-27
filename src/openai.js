@@ -134,7 +134,7 @@ FORMATO: CARRUSEL (3 a 5 placas que se deslizan).
     return `
 FORMATO: HISTORIA (vertical 9:16, dura 24 horas, la ve tu audiencia actual).
 - Tono cercano, informal y directo, como hablandole a un cliente habitual. Urgencia y espontaneidad valen ("solo por hoy", "quedan 3").
-- ATENCION: la historia NO lleva caption, asi que el texto de la imagen es TODO el mensaje. Tiene que entenderse sin ningun contexto extra: nombra el producto o servicio del que hablas. Si la pieza sola no se entiende, no sirve.
+- ATENCION: la historia NO lleva caption, asi que el texto de la imagen es TODO el mensaje. Entre el titular y la bajada tiene que aparecer el SUSTANTIVO del producto o servicio al menos una vez ("la bateria", "el celular", "el lifting") — un pronombre no alcanza: "¿Cambiarlo o seguir estirando?" sigue sin decir que cosa. Si la pieza sola no se entiende, no sirve.
 - "image_headline": max 9 palabras, estilo sticker/anotacion de historia, no titular publicitario de vidriera.
 - "image_subline": casi siempre hace falta, porque es la que aterriza el gancho con el dato concreto (que producto, que precio, hasta cuando). Max 12 palabras.
 - Las historias NO llevan caption: devolve "caption_instagram" VACIA. Todo el mensaje vive DENTRO de la imagen.
@@ -179,8 +179,8 @@ Reglas:${products.length ? `
 - Body maximo 34 palabras.
 - CTA maximo 10 palabras.
 - "image_headline": el texto que va DENTRO de la imagen. Version corta y potente del mensaje, maximo 9 palabras. No es un resumen tibio: es un titular publicitario con garra.
-- **EL TITULAR TIENE QUE ENTENDERSE SOLO.** Quien lo ve scrolleando no leyo la idea, no conoce la marca y quizas no ve bien la foto. Nombra SIEMPRE el sujeto concreto (el producto, el servicio, la parte del cuerpo, el plato). Prohibido dejar pronombres colgados sin sustantivo: "¿Cambio o lo dejo asi?" no dice QUE se cambia; "¿Cambio la bateria o aguanto?" si. Igual con "esto", "eso", "lo importante": si no se entiende sin contexto, reescribilo.
-- Test rapido antes de responder: leete el titular como si nunca hubieras visto esta marca. Si te queda la pregunta "¿de que estan hablando?", falta el sustantivo.
+- **LA PIEZA NO PUEDE DEJAR UNA PREGUNTA SIN RESPONDER.** El titular puede ser evocativo si la foto ya da el contexto — "Tu momento empieza al entrar" sobre la foto de un salon de estetica funciona perfecto y es mejor que un titular explicativo. Lo que NO puede pasar es que el texto abra una duda concreta que ni la imagen ni la bajada contestan: "¿Cambio o lo dejo asi?" no dice QUE se cambia (¿la pantalla? ¿la bateria? ¿el equipo?) y la foto de un local tampoco lo aclara. Ahi si hay que nombrar el sujeto: "¿Cambio la bateria o aguanto?".
+- Test antes de responder: mirate la pieza completa (titular + bajada + la foto que describiste) como alguien que no conoce la marca. Si te queda la pregunta "¿de que estan hablando?", falta el sustantivo. Si en cambio se entiende y ademas suena lindo, dejalo evocativo: no lo aplanes explicando de mas.
 - "image_subline": bajada opcional para la imagen, maximo 16 palabras (1-2 lineas). Solo si suma de verdad; si el titular se sostiene solo, devolvela vacia. El desarrollo largo va al caption, nunca a la imagen. Si el titular es un gancho o una pregunta, la bajada DEBE aterrizarlo con el dato concreto.
 - PROHIBIDO el relleno publicitario vacio: "pensado para vos", "para vos", "sin vueltas", "de verdad", "lo que necesitas", "tu momento", "una experiencia unica", "calidad superior". Si una frase podria estar en el aviso de cualquier otro negocio, no sirve: cambiala por un detalle real de ESTE negocio.
 - Caption Instagram: 1 parrafo breve + 3 a 6 hashtags.
@@ -936,7 +936,7 @@ The single reference image provided is the brand's official logo — a branding 
 // generic prompt, it art-directs THIS specific piece — concrete typographic
 // treatment, colour, layout and integration — so the type looks designed and
 // varied rather than "same white font, flat, pasted on top".
-export async function generateImageArtDirection({ post, brand }) {
+export async function generateImageArtDirection({ post, brand, sistema = false }) {
   const client = createOpenAIClient();
   const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
   const manual = brand?.brand_manual || {};
@@ -950,16 +950,19 @@ Rubro/estilo visual: ${manual.visual_style || 'gastronomico, calido, apetecible'
 Paleta: ${compactJson(manual.colors || {})}
 ${manual.render_style ? `ADN visual de la cuenta: ${compactJson(manual.render_style)}` : ''}
 
-Texto que ira en la imagen (exacto, no lo cambies):
+${sistema ? `ESTA DIRECCION SE APLICA A VARIAS PLACAS DE UN MISMO CARRUSEL, cada una con su propio texto.
+- Escribi el SISTEMA tipografico, no la composicion de una placa puntual.
+- PROHIBIDO citar, transcribir o entrecomillar texto concreto (nada de 'quiebre despues de "BATERIA:"' ni 'destaca la palabra "USADO"'). Si nombras un texto especifico, el modelo lo termina escribiendo en TODAS las placas.
+- Referite siempre en abstracto: "el titular", "la primera palabra", "la ultima linea", "el numero de placa".` : `Texto que ira en la imagen (exacto, no lo cambies):
 - Titular: "${headline}"
-${subline ? `- Bajada: "${subline}"` : '- Sin bajada.'}
+${subline ? `- Bajada: "${subline}"` : '- Sin bajada.'}`}
 
 Foto de fondo (concepto): ${post.visual_direction || ''} ${post.background_idea || ''}
 
 Escribi una direccion de arte concreta y visual (un solo parrafo denso, 90-140 palabras, en ingles para el modelo de imagen). DEBE incluir decisiones especificas de:
 - Tratamiento tipografico del titular: familia sugerida (ej. condensed grotesque, elegant high-contrast serif, rounded sans, script), peso, mayusculas/minusculas, tracking, si va en una o varias lineas y como se rompen.
 - COLOR del texto: NO por defecto blanco. Elegi color(es) que salgan de la paleta/escena (ej. crema calido, un word destacado en color de acento, texto sobre bloque de color). Buen contraste.
-- Un detalle de diseno que le de personalidad: una palabra clave en otro peso/estilo/color, un subrayado, un kicker chico, numeros o simbolo tratados aparte, textura sutil, etc. (elegi UNO, sin recargar).
+- Un detalle de diseno que le de personalidad: ${sistema ? 'una palabra del titular en otro peso o color (sin decir CUAL palabra), un subrayado, un kicker chico, una textura sutil' : 'una palabra clave en otro peso/estilo/color, un subrayado, un kicker chico, numeros o simbolo tratados aparte, textura sutil'}, etc. (elegi UNO, sin recargar).
 - Como se integra el texto con la foto y el dispositivo de legibilidad (gradiente/panel/bloque) para que tenga profundidad.
 - Layout: donde va el bloque y como usa el espacio negativo.
 

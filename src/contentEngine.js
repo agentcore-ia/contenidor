@@ -124,8 +124,10 @@ async function renderCarouselImages(post, opts = {}) {
     : [{ headline: post.image_headline || post.hook, body: post.image_subline || '' }];
 
   // Una sola direccion de arte para TODO el carrusel: es lo que mantiene las
-  // placas como paginas del mismo sistema editorial.
-  const artDirection = await generateImageArtDirection({ post, brand });
+  // placas como paginas del mismo sistema editorial. Va en modo 'sistema' para
+  // que describa el tratamiento sin citar el texto de la portada — si lo cita,
+  // el modelo de imagen escribe ese titular en todas las placas.
+  const artDirection = await generateImageArtDirection({ post, brand, sistema: true });
 
   const urls = [];
   for (let i = 0; i < slides.length; i += 1) {
