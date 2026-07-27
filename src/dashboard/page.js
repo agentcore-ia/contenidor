@@ -2510,44 +2510,56 @@ window.switchBrand = async function switchBrand(brandId) {
 // --- Onboarding focus options + social proof (shown per choice) ------------
 
 const ONB_FOCUS = [
-  { id: 'ventas', emoji: '🔥', title: 'Vender mas', desc: 'Mas pedidos, reservas y clientes' },
-  { id: 'redes', emoji: '📈', title: 'Crecer en redes', desc: 'Presencia constante y comunidad' },
-  { id: 'ambos', emoji: '🚀', title: 'Las dos cosas', desc: 'Marca fuerte que ademas vende' },
+  { id: 'ventas', emoji: '🛒', title: 'Que me compren', desc: 'Mostrar lo que vendo y mover pedidos, turnos o reservas' },
+  { id: 'redes', emoji: '💬', title: 'Que me conozcan', desc: 'Estar presente todos los dias y construir comunidad' },
+  { id: 'ambos', emoji: '⚖️', title: 'Un poco de cada uno', desc: 'Contenido de valor que ademas empuja a comprar' },
 ];
 
-const ONB_AVOID = ['Sin precios', 'Sin emojis', 'Sin texto sobre la foto', 'Tono formal', 'Nada de la competencia', 'Sin descuentos'];
+const ONB_AVOID = [
+  'Sin precios', 'Sin emojis', 'Sin texto sobre la foto', 'Sin descuentos',
+  'Sin gente en las fotos', 'Sin jerga tecnica', 'Nada de la competencia',
+];
 
-const ONB_TESTIMONIALS = {
-  ventas: { stars: 5, quote: 'Desde que automatice mis posts entran mas pedidos por Instagram. Dejamos de perder clientes que antes no llegabamos a responder.', name: 'Martin G.', role: 'Parrilla', avatar: 'M' },
-  redes: { stars: 5, quote: 'Publico todos los dias sin pensarlo y siempre con el mismo estilo. Por fin mi cuenta se ve profesional.', name: 'Caro P.', role: 'Cafeteria de especialidad', avatar: 'C' },
-  ambos: { stars: 5, quote: 'Pase de 8 horas por semana armando contenido a 20 minutos. Y encima vende. Se siente casi injusto.', name: 'Lucia R.', role: 'Restaurante', avatar: 'L' },
-  closing: { stars: 5, quote: 'Los creativos salen tan buenos que me preguntan que agencia contrate. No contrate ninguna.', name: 'Diego S.', role: 'Pizzeria', avatar: 'D' },
-};
+const ONB_TONE = [
+  { id: 'cercano', title: 'Cercano', desc: 'Como le hablas a un cliente de siempre' },
+  { id: 'premium', title: 'Premium', desc: 'Cuidado y elegante, sin estridencias' },
+  { id: 'divertido', title: 'Divertido', desc: 'Suelto, con humor y guiños' },
+  { id: 'experto', title: 'Experto', desc: 'Didactico, explicando el porque' },
+];
 
-const ONB_STEPS = ['instagram', 'focus', 'testimonial_a', 'preferences', 'testimonial_b'];
+const ONB_STEPS = ['instagram', 'focus', 'negocio', 'preferences', 'resumen'];
 
-function ratingRow() {
-  return `<div class="rating-row">
-    <span class="rating-badge"><span class="rstar">★</span> Trustpilot <b>4.8</b></span>
-    <span class="rating-badge"><span class="rstar">★</span> Google <b>4.7</b></span>
-    <span class="rating-badge"><span class="rstar">★</span> Capterra <b>4.9</b></span>
-  </div>`;
-}
+// Lo que el motor hace de verdad, en orden. Se usa para la pantalla de espera:
+// cada paso corresponde a un trabajo real del backend (onboarding.js).
+const ONB_WORK_IG = [
+  { ico: '👀', label: 'Leyendo tu perfil', detail: 'Nombre, bio, foto y ultimas publicaciones' },
+  { ico: '🖼️', label: 'Mirando tus fotos', detail: 'Encuadres, luz, colores y como se ve tu producto' },
+  { ico: '🎨', label: 'Detectando tu identidad', detail: 'Tu paleta, tu tipografia y tu manera de mostrarte' },
+  { ico: '📝', label: 'Escribiendo tu manual de marca', detail: 'Tu voz, tus reglas de diseño y que evitar' },
+  { ico: '🗂️', label: 'Armando tus categorias', detail: 'Los pilares sobre los que va a girar tu contenido' },
+  { ico: '💡', label: 'Pensando tus primeras ideas', detail: 'Una semana completa, ya agendada' },
+];
 
-function testimonialCard(t) {
-  return `<div class="testimonial-card">
-    <div class="stars">${'★'.repeat(t.stars)}</div>
-    <blockquote>“${esc(t.quote)}”</blockquote>
-    <div class="testi-author">
-      <div class="testi-avatar">${esc(t.avatar)}</div>
-      <div><div class="name">${esc(t.name)}</div><div class="role">${esc(t.role)}</div></div>
-    </div>
-    ${ratingRow()}
-  </div>`;
-}
+const ONB_WORK_MANUAL = [
+  { ico: '🧭', label: 'Entendiendo tu negocio', detail: 'Tu rubro, que vendes y a quien le hablas' },
+  { ico: '🎨', label: 'Definiendo tu identidad', detail: 'Una paleta y un estilo visual para tu marca' },
+  { ico: '📝', label: 'Escribiendo tu manual de marca', detail: 'Tu voz, tus reglas de diseño y que evitar' },
+  { ico: '🗂️', label: 'Armando tus categorias', detail: 'Los pilares sobre los que va a girar tu contenido' },
+  { ico: '💡', label: 'Pensando tus primeras ideas', detail: 'Una semana completa, ya agendada' },
+];
+
+// Datos utiles para la espera. Todos verificables sobre el propio producto.
+const ONB_TIPS = [
+  'Ninguna pieza se publica sin que la apruebes vos.',
+  'Podes aprobar o rechazar desde WhatsApp, sin entrar al panel.',
+  'Cada dia lleva un post de feed y una historia que lo acompaña.',
+  'Si cargas tu catalogo, las promos usan tus precios exactos.',
+  'Los carruseles se escriben placa por placa, con gancho y cierre.',
+  'Subi tu logo y la IA lo integra en los envases, la ropa o los carteles.',
+];
 
 window.openOnboarding = function openOnboarding() {
-  S.onb = { step: 0, data: { mode: 'instagram', instagram_url: '', brand_name: '', brand_desc: '', focus: '', objetivo: '', avoid: [] } };
+  S.onb = { step: 0, data: { mode: 'instagram', instagram_url: '', brand_name: '', brand_desc: '', focus: '', tone: 'cercano', estrella: '', publico: '', objetivo: '', avoid: [] } };
   renderOnbStep();
 };
 
@@ -2598,21 +2610,52 @@ function renderOnbStep() {
         </button>`).join('')}
       </div>`;
     footer = `<button class="btn btn-primary" onclick="onbNext()" ${data.focus ? '' : 'disabled'}>Continuar</button>`;
-  } else if (kind === 'testimonial_a') {
-    body = testimonialCard(ONB_TESTIMONIALS[data.focus] || ONB_TESTIMONIALS.ambos);
-    footer = `<button class="btn btn-primary" onclick="onbNext()">Siguiente</button>`;
+  } else if (kind === 'negocio') {
+    body = `<h3>¿Qué querés que la gente elija?</h3>
+      <span class="lead">Lo que nos cuentes acá aparece en las ideas: tus productos estrella y a quién le hablás.</span>
+      <div class="form-group full"><label>Lo que más vendés (o lo que querés vender más)</label>
+        <input value="${esc(data.estrella)}" placeholder="Ej: helado por kilo, tortas para cumpleaños, turnos de limpieza facial" oninput="S.onb.data.estrella=this.value" /></div>
+      <div class="form-group full" style="margin-top:12px"><label>¿Quién es tu cliente?</label>
+        <input value="${esc(data.publico)}" placeholder="Ej: familias del barrio, oficinistas de 25 a 40, novias en su año de casamiento" oninput="S.onb.data.publico=this.value" /></div>
+      <div class="onb-note">Si lo dejás vacío lo deducimos de tu cuenta, pero con esto le pegamos mucho mejor.</div>`;
+    footer = `<button class="btn btn-primary" onclick="onbNext()">Continuar</button>`;
   } else if (kind === 'preferences') {
-    body = `<h3>Como queres que se sienta tu contenido?</h3>
-      <span class="lead">Opcional. Marca lo que quieras evitar y sumamos un detalle si hace falta.</span>
+    body = `<h3>¿Cómo querés que suene?</h3>
+      <span class="lead">Elegí el tono y marcá lo que preferís evitar. Todo esto queda en tu manual de marca.</span>
+      <div class="tone-grid">
+        ${ONB_TONE.map((t) => `<button class="tone-opt ${data.tone === t.id ? 'selected' : ''}" onclick="onbSelectTone('${t.id}')">
+          <strong>${esc(t.title)}</strong><span>${esc(t.desc)}</span>
+        </button>`).join('')}
+      </div>
+      <label class="onb-sublabel">Evitar en mi contenido</label>
       <div class="chip-list">
         ${ONB_AVOID.map((c) => `<button class="chip-opt ${data.avoid.includes(c) ? 'selected' : ''}" onclick="onbToggleAvoid('${esc(c)}')">${esc(c)}</button>`).join('')}
       </div>
-      <div class="form-group full" style="margin-top:8px"><label>Algo mas que quieras lograr o aclarar?</label>
-        <textarea rows="2" placeholder="Ej: atraer clientes del barrio, vender por WhatsApp, mostrar el detras de escena" oninput="S.onb.data.objetivo=this.value">${esc(data.objetivo)}</textarea></div>`;
+      <div class="form-group full" style="margin-top:14px"><label>¿Algo más que debamos saber? <span class="subtle">(opcional)</span></label>
+        <textarea rows="2" placeholder="Ej: cerramos los lunes, hacemos envíos solo en la ciudad, no mostramos precios de los combos" oninput="S.onb.data.objetivo=this.value">${esc(data.objetivo)}</textarea></div>`;
     footer = `<button class="btn btn-primary" onclick="onbNext()">Continuar</button>`;
-  } else if (kind === 'testimonial_b') {
-    body = testimonialCard(ONB_TESTIMONIALS.closing);
-    footer = `<button class="btn btn-primary" onclick="onbStart()">Analizar y crear mi marca</button>`;
+  } else if (kind === 'resumen') {
+    const focusTitle = (ONB_FOCUS.find((f) => f.id === data.focus) || {}).title || '';
+    const toneTitle = (ONB_TONE.find((t) => t.id === data.tone) || {}).title || 'Cercano';
+    const marca = data.mode === 'manual' ? data.brand_name : `@${data.instagram_url.replace(/^.*instagram\.com\//, '').replace(/[@/]/g, '')}`;
+    body = `<div class="wizard-emoji">🚀</div>
+      <h3>Listo, esto es lo que vamos a hacer</h3>
+      <span class="lead">Con esto armamos tu marca completa. Después revisás todo y cambiás lo que quieras.</span>
+      <div class="recap">
+        <div class="recap-row"><span class="rk">Marca</span><span class="rv">${esc(marca || 'Tu marca')}</span></div>
+        ${focusTitle ? `<div class="recap-row"><span class="rk">Objetivo</span><span class="rv">${esc(focusTitle)}</span></div>` : ''}
+        <div class="recap-row"><span class="rk">Tono</span><span class="rv">${esc(toneTitle)}</span></div>
+        ${data.estrella ? `<div class="recap-row"><span class="rk">Foco</span><span class="rv">${esc(data.estrella)}</span></div>` : ''}
+        ${data.avoid.length ? `<div class="recap-row"><span class="rk">Evitamos</span><span class="rv">${esc(data.avoid.join(' · '))}</span></div>` : ''}
+      </div>
+      <div class="deliver">
+        <div class="deliver-title">Vas a recibir</div>
+        <div class="deliver-item"><span>🎨</span> Tu manual de marca: paleta, estilo y voz</div>
+        <div class="deliver-item"><span>🗂️</span> Tus categorías de contenido</div>
+        <div class="deliver-item"><span>💡</span> 7 ideas agendadas, listas para generar</div>
+      </div>
+      <div class="onb-note">Tarda 1 a 3 minutos. Nada se publica sin tu aprobación.</div>`;
+    footer = `<button class="btn btn-primary" onclick="onbStart()">Crear mi marca</button>`;
   }
 
   modal(`<div class="wizard">
@@ -2626,6 +2669,7 @@ function renderOnbStep() {
 }
 
 window.onbSelectFocus = function onbSelectFocus(id) { S.onb.data.focus = id; renderOnbStep(); };
+window.onbSelectTone = function onbSelectTone(id) { S.onb.data.tone = id; renderOnbStep(); };
 window.onbToggleAvoid = function onbToggleAvoid(c) {
   const a = S.onb.data.avoid;
   const i = a.indexOf(c);
@@ -2710,22 +2754,99 @@ window.onbStart = async function onbStart() {
           ...(manual ? { descripcion: d.brand_desc.trim() } : {}),
           objetivo: [focusLabel, d.objetivo].filter(Boolean).join('. '),
           evitar: d.avoid.join(', '),
+          tono: (ONB_TONE.find((t) => t.id === d.tone) || {}).title || '',
+          productos_estrella: d.estrella.trim(),
+          publico: d.publico.trim(),
         },
       },
     });
-    modal(`<div class="wizard">
-      <div class="wizard-emoji">${manual ? '🎨' : '🔎'}</div>
-      <h3>${manual ? `Creando ${esc(data.brand.name)}...` : `Analizando @${esc(data.brand.instagram_handle)}...`}</h3>
-      <span class="lead" id="onboarding-progress">${manual
-        ? 'Armamos tu manual de marca, tu estilo visual, tus categorias y tus primeras ideas a partir de lo que nos contaste. Tarda 1-2 minutos.'
-        : 'Leemos tu perfil, analizamos tus fotos y armamos tu manual de marca, tus categorias y tus primeras ideas. Tarda 1-3 minutos.'}</span>
-      <div class="wizard-progress"><div class="wizard-bar" style="width:100%;animation:pulse 1.4s ease-in-out infinite"></div></div>
-    </div>`);
+    renderOnbWorking({ manual, name: data.brand.name, handle: data.brand.instagram_handle });
     pollOnboarding(data.brand.id);
   } catch (error) {
     toast(error.message, 'error');
   }
 };
+
+// --- Pantalla de trabajo -----------------------------------------------------
+// El backend no reporta avance parcial, asi que los pasos corren sobre una
+// linea de tiempo. Son los trabajos reales y en el orden real; el ultimo se
+// queda "en curso" hasta que el poll confirma que termino, para no mentir.
+let onbWorkTimers = [];
+
+function clearOnbWork() {
+  onbWorkTimers.forEach((t) => clearTimeout(t) || clearInterval(t));
+  onbWorkTimers = [];
+}
+
+function renderOnbWorking({ manual, name, handle }) {
+  clearOnbWork();
+  const steps = manual ? ONB_WORK_MANUAL : ONB_WORK_IG;
+  const titulo = manual ? esc(name || 'tu marca') : `@${esc(handle || '')}`;
+
+  modal(`<div class="wizard onb-working">
+    <div class="ow-orbit" aria-hidden="true">
+      <span class="ow-core">${manual ? '🎨' : '🔎'}</span>
+      <span class="ow-ring r1"></span><span class="ow-ring r2"></span><span class="ow-ring r3"></span>
+    </div>
+    <h3 class="ow-title">Analizando ${titulo}</h3>
+    <span class="lead">Estamos armando tu marca completa. Podés quedarte mirando o volver en un ratito: no se pierde nada.</span>
+
+    <div class="ow-steps" id="ow-steps">
+      ${steps.map((s, i) => `<div class="ow-step" data-i="${i}">
+        <span class="ow-ico"><span class="ow-emoji">${s.ico}</span><span class="ow-spin"></span><svg class="ow-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg></span>
+        <span class="ow-body"><b>${esc(s.label)}</b><span>${esc(s.detail)}</span></span>
+      </div>`).join('')}
+    </div>
+
+    <div class="ow-bar"><i id="ow-fill"></i></div>
+    <div class="ow-tip" id="ow-tip"><span>${esc(ONB_TIPS[0])}</span></div>
+  </div>`);
+
+  const nodes = [...document.querySelectorAll('.ow-step')];
+  const fill = byId('ow-fill');
+  // Ritmo realista: el analisis de imagenes y la escritura del manual son los
+  // tramos largos, asi que reciben mas tiempo.
+  const pesos = manual ? [1, 1.4, 2, 1.2, 1.8] : [0.8, 1.6, 1.6, 2, 1.2, 1.8];
+  const totalPeso = pesos.reduce((a, b) => a + b, 0);
+  const duracion = manual ? 70000 : 105000;
+
+  let acumulado = 0;
+  nodes.forEach((node, i) => {
+    const inicio = acumulado;
+    acumulado += (pesos[i] / totalPeso) * duracion;
+    // el porcentaje se congela ahora: si se lee dentro del setTimeout, para
+    // entonces 'acumulado' ya vale el total y la barra salta al final.
+    const pct = Math.min(96, Math.round((acumulado / duracion) * 96));
+    onbWorkTimers.push(setTimeout(() => {
+      nodes.forEach((n, j) => { if (j < i) { n.classList.remove('active'); n.classList.add('done'); } });
+      node.classList.add('active');
+      node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      // el ultimo paso no se marca solo: espera al backend
+      if (fill) fill.style.width = `${pct}%`;
+    }, inicio));
+  });
+
+  let tip = 0;
+  const tipEl = byId('ow-tip');
+  onbWorkTimers.push(setInterval(() => {
+    tip = (tip + 1) % ONB_TIPS.length;
+    if (!tipEl) return;
+    tipEl.classList.add('out');
+    setTimeout(() => {
+      tipEl.innerHTML = `<span>${esc(ONB_TIPS[tip])}</span>`;
+      tipEl.classList.remove('out');
+    }, 300);
+  }, 5200));
+}
+
+// Cierra la animacion: completa todos los pasos antes de mostrar el plan.
+function finishOnbWork() {
+  clearOnbWork();
+  document.querySelectorAll('.ow-step').forEach((n) => { n.classList.remove('active'); n.classList.add('done'); });
+  const fill = byId('ow-fill');
+  if (fill) fill.style.width = '100%';
+  return new Promise((r) => setTimeout(r, 620));
+}
 
 async function pollOnboarding(brandId) {
   const started = Date.now();
@@ -2737,10 +2858,12 @@ async function pollOnboarding(brandId) {
       if (!brand) return;
       if (brand.onboarding_status === 'ready') {
         clearInterval(timer);
+        await finishOnbWork();
         await switchBrand(brandId);
         await showContentPlan(brand);
       } else if (brand.onboarding_status === 'error') {
         clearInterval(timer);
+        clearOnbWork();
         const el = byId('onboarding-progress');
         if (el) el.textContent = `Error: ${brand.onboarding_error || 'fallo el analisis'}. Cerra y proba de nuevo.`;
         toast(brand.onboarding_error || 'Fallo el onboarding', 'error');
