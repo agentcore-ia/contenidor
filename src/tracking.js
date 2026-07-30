@@ -7,16 +7,13 @@
 
 import { createHash, randomBytes } from 'node:crypto';
 import { supabase } from './supabase.js';
+import { clientIp } from './rateLimit.js';
 
 // Si no hay sal configurada se genera una por arranque: peor para las series
 // historicas, mejor que una sal fija y publica.
 const SALT = process.env.TRACKING_SALT || randomBytes(32).toString('hex');
 
 const KINDS = new Set(['view', 'demo', 'signup_click']);
-
-function clientIp(req) {
-  return String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim();
-}
 
 function visitorHash(req) {
   const day = new Date().toISOString().slice(0, 10);

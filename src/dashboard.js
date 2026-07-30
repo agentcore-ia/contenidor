@@ -28,7 +28,7 @@ import { isValidSignature, parseWebhookEvents, verifyWebhook, whatsappConfigured
 import { refreshPostVideo, startPostVideo, videoConfigured } from './videoEngine.js';
 import { getSchedulerState } from './scheduler.js';
 import { authMiddleware, requireBrand, signUp, signIn, refreshSession, requestPasswordReset, resetPassword, deleteAccount } from './auth.js';
-import { byIpAndEmail, rateLimit } from './rateLimit.js';
+import { assertSignupAllowed, byIpAndEmail, rateLimit, recordSignup } from './rateLimit.js';
 import { startOnboarding } from './onboarding.js';
 import { templates } from './templates/index.js';
 import { addDays, todayDateString } from './dates.js';
@@ -110,7 +110,9 @@ export function registerDashboardRoutes(app) {
   });
 
   app.post('/auth/signup', signupLimit, wrap(async (req, res) => {
+    await assertSignupAllowed(req);
     const session = await signUp(req.body?.email, req.body?.password);
+    recordSignup(req, req.body?.email);
     res.json({ success: true, session });
   }));
 

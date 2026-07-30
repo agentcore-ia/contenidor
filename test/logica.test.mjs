@@ -14,7 +14,7 @@ process.env.SUPABASE_ANON_KEY ||= 'test-anon-key';
 
 const { PLANS, planFor, imageCostUsd, videoCostUsd } = await import('../src/plans.js');
 const { accountPlan, monthStart, trialExpired } = await import('../src/usage.js');
-const { hit } = await import('../src/rateLimit.js');
+const { hit, clientIp } = await import('../src/rateLimit.js');
 const { isAdmin } = await import('../src/admin.js');
 
 describe('planes', () => {
@@ -155,5 +155,24 @@ describe('vencimiento de la prueba', () => {
   test('un plan pago nunca "vence como prueba", aunque tenga fecha vieja', () => {
     assert.equal(trialExpired({ plan: 'business', trial_ends_at: ayer }), false);
     assert.equal(trialExpired({ plan: 'agency', trial_ends_at: ayer }), false);
+  });
+});
+
+describe('de donde sale la IP del cliente', () => {
+  const req = (headers, ip) => ({ headers, ip });
+
+  test('el primer valor de x-forwarded-for NO se usa: lo escribe el atacante', () => {
+    // El proxy AGREGA la IP real al final; lo que venga antes es del cliente.
+    const r = req({ 'x-forwarded-for': '6.6.6.6, 190.1.2.3' });
+    assert.equal(clientIp(r), '190.1.2.3');
+  });
+
+  test('cf-connecting-ip manda cuando existe', () => {
+    const r = req({ 'cf-connecting-ip': '200.5.5.5', 'x-forwarded-for': '6.6.6.6' });
+    assert.equal(clientIp(r), '200.5.5.5');
+  });
+
+  test('sin headers cae a la ip de la conexion', () => {
+    assert.equal(clientIp(req({}, '127.0.0.1')), '127.0.0.1');
   });
 });
