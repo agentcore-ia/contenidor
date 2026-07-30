@@ -67,6 +67,29 @@ export async function createCheckout({ brand, user, planId, backUrl }) {
   const plan = PLANS[planId];
   if (!plan || plan.priceUsd <= 0) throw new AppError('Plan invalido', 400, 'BAD_PLAN');
 
+  // Una marca tiene una sola suscripcion viva. Si hay una AUTORIZADA, el
+  // cliente tiene que cancelarla primero (no le cobramos dos veces por las
+  // dudas). Si hay una PENDIENTE, es un checkout que quedo a medias o un
+  // cambio de opinion: se cancela sola y se sigue — obligar al cliente a
+  // limpiarla a mano es perder la venta en el momento exacto en que queria
+  // pagar.
+  const { data: existing } = await supabase
+    .from('subscriptions')
+    .select('preapproval_id, status')
+    .eq('brand_id', brand.id)
+    .in('status', ['pending', 'authorized'])
+    .maybeSingle();
+
+  if (existing?.status === 'authorized') {
+    throw new AppError('Esta marca ya tiene una suscripcion activa. Cancelala primero desde Ajustes.', 409, 'ALREADY_SUBSCRIBED');
+  }
+  if (existing) {
+    await mp(`/preapproval/${encodeURIComponent(existing.preapproval_id)}`, { method: 'PUT', body: { status: 'cancelled' } }).catch(() => {});
+    await supabase.from('subscriptions')
+      .update({ status: 'cancelled', last_event_at: new Date().toISOString() })
+      .eq('preapproval_id', existing.preapproval_id);
+  }
+
   const amount = priceArs(plan);
   const preapproval = await mp('/preapproval', {
     method: 'POST',
