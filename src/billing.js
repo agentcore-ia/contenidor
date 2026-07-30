@@ -86,7 +86,9 @@ export async function createCheckout({ brand, user, planId, backUrl }) {
     }
   });
 
-  await supabase.from('subscriptions').upsert({
+  // Si nuestra fila no se guarda, el webhook nunca va a poder activar el plan:
+  // mejor fallar aca, ruidoso, que dejar un preapproval huerfano en MP.
+  const { error } = await supabase.from('subscriptions').upsert({
     brand_id: brand.id,
     owner_id: user.id,
     plan: plan.id,
@@ -96,6 +98,14 @@ export async function createCheckout({ brand, user, planId, backUrl }) {
     amount_ars: amount,
     last_event_at: new Date().toISOString()
   }, { onConflict: 'preapproval_id' });
+
+  if (error) {
+    await alertOps('cobro', `Se creo el preapproval ${preapproval.id} en MP pero no se pudo guardar la suscripcion: ${error.message}`);
+    // Se intenta cancelar el preapproval para no dejar basura en MP; si tambien
+    // falla, el alert de arriba ya aviso y queda para limpiar a mano.
+    await mp(`/preapproval/${encodeURIComponent(preapproval.id)}`, { method: 'PUT', body: { status: 'cancelled' } }).catch(() => {});
+    throw new AppError('No se pudo registrar la suscripcion. Proba de nuevo.', 500, 'SUBSCRIPTION_SAVE_FAILED');
+  }
 
   return {
     checkout_url: preapproval.init_point || preapproval.sandbox_init_point,
