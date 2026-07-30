@@ -1,9 +1,8 @@
 // Cobro con Mercado Pago (suscripciones / preapproval).
 //
-// ATENCION: este modulo NO fue probado contra la API real de Mercado Pago —
-// falta la credencial. Antes de cobrarle a alguien de verdad hay que correrlo
-// con credenciales de PRUEBA y hacer un ciclo completo: crear la suscripcion,
-// autorizarla, recibir el webhook, y cancelarla.
+// Probado contra la API real de MP (2026-07-29): crear preapproval, guardar la
+// fila, webhook con estado pending, y cancelar. Lo unico que falta ver con un
+// pago real es el paso a 'authorized' — ocurre con el primer cliente.
 //
 // Como funciona:
 //   1. /api/billing/checkout crea un preapproval y devuelve el link de pago.
@@ -153,8 +152,17 @@ export async function syncPreapproval(preapprovalId) {
     return { status, applied: false };
   }
 
-  // Autorizada -> la marca sube al plan pago. Cualquier otro estado terminal la
-  // devuelve a prueba: si dejo de pagar, deja de tener la capacidad del plan.
+  // Autorizada -> la marca sube al plan pago. Cancelada/pausada/rechazada ->
+  // vuelve a prueba: si dejo de pagar, pierde la capacidad del plan.
+  //
+  // 'pending' NO toca el plan: es el estado normal MIENTRAS el cliente esta
+  // pagando, y MP puede mandar un webhook en ese momento — si lo tratamos como
+  // terminal, le pisamos el plan a una marca en medio del checkout.
+  if (status === 'pending') {
+    console.log(`[billing] ${preapprovalId} -> pending; el plan de ${targetBrand} no se toca`);
+    return { status, applied: false, reason: 'pending no cambia el plan' };
+  }
+
   const nextPlan = status === 'authorized' ? plan : 'trial';
   await updateBrandFields(targetBrand, { plan: nextPlan });
 
