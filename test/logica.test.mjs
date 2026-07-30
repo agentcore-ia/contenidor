@@ -13,7 +13,7 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ||= 'test-service-key';
 process.env.SUPABASE_ANON_KEY ||= 'test-anon-key';
 
 const { PLANS, planFor, imageCostUsd, videoCostUsd } = await import('../src/plans.js');
-const { accountPlan, monthStart } = await import('../src/usage.js');
+const { accountPlan, monthStart, trialExpired } = await import('../src/usage.js');
 const { hit } = await import('../src/rateLimit.js');
 const { isAdmin } = await import('../src/admin.js');
 
@@ -133,5 +133,27 @@ describe('periodo de facturacion', () => {
 
   test('el 1 a la madrugada sigue siendo ese mes', () => {
     assert.equal(monthStart(new Date('2026-07-01T00:10:00Z')), '2026-07-01T00:00:00.000Z');
+  });
+});
+
+describe('vencimiento de la prueba', () => {
+  const ayer = new Date(Date.now() - 86400000).toISOString();
+  const manana = new Date(Date.now() + 86400000).toISOString();
+
+  test('trial con fecha pasada esta vencida', () => {
+    assert.equal(trialExpired({ plan: 'trial', trial_ends_at: ayer }), true);
+  });
+
+  test('trial vigente no esta vencida', () => {
+    assert.equal(trialExpired({ plan: 'trial', trial_ends_at: manana }), false);
+  });
+
+  test('sin fecha no vence: no se cambian las reglas retroactivamente', () => {
+    assert.equal(trialExpired({ plan: 'trial', trial_ends_at: null }), false);
+  });
+
+  test('un plan pago nunca "vence como prueba", aunque tenga fecha vieja', () => {
+    assert.equal(trialExpired({ plan: 'business', trial_ends_at: ayer }), false);
+    assert.equal(trialExpired({ plan: 'agency', trial_ends_at: ayer }), false);
   });
 });

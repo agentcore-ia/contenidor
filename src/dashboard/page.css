@@ -2542,3 +2542,8 @@ input[type="checkbox"].toggle {
 .plan-opt b { display:block; font-size:14px; }
 .plan-opt span { display:block; margin-top:2px; font-size:16px; font-weight:700; letter-spacing:-.02em; }
 .plan-opt small { display:block; margin-top:6px; font-size:11.5px; color:var(--muted); line-height:1.45; }
+
+/* Banner de fin de prueba */
+.trial-banner { position:sticky; top:0; z-index:60; display:flex; align-items:center; justify-content:center; gap:14px; padding:10px 16px; background:#fff7ed; border-bottom:1px solid #fed7aa; color:#9a3412; font-size:13.5px; font-weight:500; }
+.trial-banner.expired { background:#fef2f2; border-color:#fecaca; color:#991b1b; }
+.trial-banner .btn { flex:none; }

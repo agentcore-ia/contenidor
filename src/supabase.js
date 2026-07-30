@@ -578,7 +578,10 @@ export async function createBrandShell({ ownerId, ownerEmail, name, instagramHan
       instagram_handle: instagramHandle,
       onboarding_status: 'analyzing',
       default_template_id: 'ai_gpt_image_2',
-      brand_manual: {}
+      brand_manual: {},
+      // La prueba dura 7 dias desde que se crea la marca — es lo que promete
+      // la landing ("tu primera semana gratis"). Los planes pagos la ignoran.
+      trial_ends_at: new Date(Date.now() + 7 * 86400000).toISOString()
     })
     .select('*')
     .single();

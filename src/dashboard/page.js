@@ -2139,9 +2139,15 @@ function planSection() {
 
   const full = p.left.posts === 0 || p.left.videos === 0;
   const near = !full && (p.left.posts <= 3 || p.left.videos === 0);
-  const notice = full
+  let notice = full
     ? `<div class="plan-notice over">Llegaste al tope del plan ${esc(p.plan.name)} este mes. La generacion queda pausada hasta el 1.</div>`
     : (near ? `<div class="plan-notice warn">Te quedan ${p.left.posts} posts este mes.</div>` : '');
+  if (p.trial_expired) {
+    notice = `<div class="plan-notice over">Tu semana de prueba terminó. Lo que creaste queda tuyo — <a href="#" onclick="goToPlans();return false">elegí un plan</a> para seguir generando.</div>`;
+  } else if (p.plan.id === 'trial' && p.trial_ends_at) {
+    const dias = Math.max(0, Math.ceil((new Date(p.trial_ends_at).getTime() - Date.now()) / 86400000));
+    notice = `<div class="plan-notice warn">Semana de prueba: te quedan ${dias} día${dias === 1 ? '' : 's'}.</div>` + notice;
+  }
 
   return `<section class="settings-card" style="margin:0 0 16px">
     <div class="settings-card-head">
@@ -2759,6 +2765,38 @@ window.logout = function logout() {
   window.location.reload();
 };
 
+// --- Aviso de fin de prueba ---------------------------------------------------
+// Un banner arriba de todo cuando la semana gratis vencio o esta por vencer.
+// Es EL momento de conversion: el aviso lleva directo a elegir plan.
+window.goToPlans = function goToPlans() {
+  S.settingsTab = 'cuenta';
+  if (S.tab === 'system') { renderSystem(S.lastHealth || { ok: true }); }
+  else { location.hash = '#system'; }
+};
+
+async function checkTrialBanner() {
+  try {
+    const p = await api('/api/plan');
+    if (p.plan?.id !== 'trial' || !p.trial_ends_at) return;
+
+    const msLeft = new Date(p.trial_ends_at).getTime() - Date.now();
+    const expired = p.trial_expired || msLeft <= 0;
+    const daysLeft = Math.ceil(msLeft / 86400000);
+    if (!expired && daysLeft > 2) return;
+
+    const text = expired
+      ? 'Tu semana de prueba terminó. Lo que creaste queda tuyo — elegí un plan para seguir generando.'
+      : `Tu semana de prueba termina ${daysLeft <= 1 ? 'mañana' : `en ${daysLeft} días`}. Elegí un plan y no pares de publicar.`;
+
+    document.getElementById('trial-banner')?.remove();
+    const bar = document.createElement('div');
+    bar.id = 'trial-banner';
+    bar.className = expired ? 'trial-banner expired' : 'trial-banner';
+    bar.innerHTML = `<span>${text}</span><button class="btn btn-sm btn-primary" onclick="goToPlans()">Ver planes</button>`;
+    document.body.prepend(bar);
+  } catch { /* sin plan no hay banner */ }
+}
+
 // El link al panel solo aparece si el backend dice que esta cuenta es
 // operadora. Se consulta una vez por sesion.
 async function checkAdmin() {
@@ -3307,6 +3345,7 @@ async function bootApp() {
   localStorage.setItem(BRAND_KEY, S.brandId);
   ensureBrandBar();
   checkAdmin();
+  checkTrialBanner();
   handleInstagramRedirect();
   await loadBootstrap();
   // Land on the section named in the URL hash (deep link / refresh in place).

@@ -112,6 +112,8 @@ export async function planStatus(brand) {
 
   return {
     plan: { id: plan.id, name: plan.name, price_usd: plan.priceUsd, blurb: plan.blurb },
+    trial_ends_at: plan.id === 'trial' ? (brand?.trial_ends_at || null) : null,
+    trial_expired: trialExpired(brand),
     limits: { posts: plan.posts, videos: plan.videos, brands: plan.brands },
     used: {
       posts: usage.posts,
@@ -130,15 +132,35 @@ const LIMIT_COPY = {
   video: (plan) => `Llegaste a los ${plan.videos} video${plan.videos === 1 ? '' : 's'} del plan ${plan.name} este mes. Pasa a un plan mayor para generar mas.`
 };
 
+// La prueba vencio si la marca esta en trial y paso su fecha. Sin fecha (marcas
+// de antes de esta regla) la prueba no vence: no se le cambian las condiciones
+// a alguien retroactivamente.
+export function trialExpired(brand) {
+  if (planFor(brand).id !== 'trial') return false;
+  if (!brand?.trial_ends_at) return false;
+  return new Date(brand.trial_ends_at).getTime() < Date.now();
+}
+
 // Corta antes de gastar. `kind` es 'post' o 'video'.
 export async function assertWithinPlan(brand, kind) {
   if (!enforcementOn()) return;
+
+  // La prueba es UNA semana, no una mensualidad renovable: vencida, se genera
+  // nuevo contenido solo con un plan pago. Lo ya generado no se toca.
+  if (trialExpired(brand)) {
+    throw new AppError(
+      'Tu semana de prueba termino. Elegi un plan en Ajustes para seguir generando contenido — lo que ya creaste queda tuyo.',
+      402,
+      'TRIAL_EXPIRED'
+    );
+  }
 
   const plan = planFor(brand);
   const cap = kind === 'video' ? plan.videos : plan.posts;
   if (cap === null) return;
 
-  const usage = await monthUsage(brand.id);
+  // El tope de la prueba tampoco se reinicia por mes: es el total de la semana.
+  const usage = await monthUsage(brand.id, plan.id === 'trial' ? { since: brand.created_at || monthStart() } : {});
   const used = kind === 'video' ? usage.videos : usage.posts;
   if (used < cap) return;
 
