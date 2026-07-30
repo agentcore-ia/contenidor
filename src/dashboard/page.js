@@ -426,10 +426,24 @@ function renderOverview() {
     </div>`;
   }
 
+  // Sin Instagram conectado nada se publica solo: el llamado va arriba de todo
+  // del Resumen, con el boton que abre la conexion directo (sin ir a buscarla
+  // a Marca). Desaparece al conectar.
+  const igCta = !brand || brand.ig_username || brand.ig_connected_at ? '' : `
+    <div class="ig-cta" id="ig-connect-cta">
+      <div class="platform-chip">${ICON.instagram}</div>
+      <div class="ig-cta-text">
+        <b>Conecta tu Instagram</b>
+        <span>Es el ultimo paso: con la cuenta conectada, lo que aprobes se publica solo.</span>
+      </div>
+      <button class="btn btn-primary" onclick="connectInstagram()">Conectar Instagram</button>
+    </div>`;
+
   byId('content').innerHTML = `
     <div class="dash-head">
       <div><h1>Hola${S.userEmail ? `, ${esc(S.userEmail.split('@')[0])}` : ''}</h1><p>Resumen de ${brand ? esc(brand.name) : 'tu marca'} · ${o.today}</p></div>
     </div>
+    ${igCta}
     ${todayHero}
     ${metrics}
     <div class="grid two" style="margin-top:14px">
@@ -1311,7 +1325,7 @@ function brandHero(brand, manual) {
     : `<div class="bh-avatar">${esc(initial)}</div>`;
   const colors = Object.values(manual.colors || {}).slice(0, 6);
   const chips = [
-    brand.ig_username ? `<span class="chan-chip on">${ICON.instagram} @${esc(brand.ig_username)}</span>` : '<span class="chan-chip">Instagram sin conectar</span>',
+    brand.ig_username ? `<span class="chan-chip on">${ICON.instagram} @${esc(brand.ig_username)}</span>` : `<button class="chan-chip chan-chip-cta" onclick="connectInstagram()">${ICON.instagram} Conectar Instagram</button>`,
     brand.whatsapp_number ? `<span class="chan-chip on">WhatsApp +${esc(brand.whatsapp_number)}</span>` : '<span class="chan-chip">WhatsApp sin configurar</span>',
   ].join('');
   return `<section class="brand-hero">
@@ -3236,8 +3250,9 @@ const TOUR_STEPS = [
   { targets: ['.topbar-actions .btn-primary'], title: 'Genera contenido', body: 'Con este boton creas un creativo nuevo al instante: la IA arma la imagen y los textos, listos para revisar.' },
   { targets: ['[data-tab="calendar"]'], title: 'Tu calendario', body: 'La IA propone ideas y las agenda sola. Aca ves y ajustas el plan de las proximas semanas.' },
   { targets: ['[data-tab="posts"]'], title: 'Revisa y aproba', body: 'Cada creativo aparece en Posts como una publicacion de Instagram. Lo aprobas o lo rechazas de un toque.' },
-  { targets: ['[data-tab="brand"]', '.tab-more'], title: 'Tu marca e integraciones', body: 'En Marca defines tu identidad, subis tu logo y conectas Instagram y WhatsApp para publicar y aprobar desde el chat.' },
+  { targets: ['[data-tab="brand"]', '.tab-more'], title: 'Tu marca', body: 'En Marca defines tu identidad, subis tu logo y tus referencias para que cada pieza salga con tu estilo.' },
   { targets: ['[data-tab="products"]', '.tab-more'], title: 'Tu catalogo', body: 'Carga tus productos y precios (o una foto de tu carta) y las ideas van a promocionar lo que realmente vendes.' },
+  { targets: ['#ig-connect-cta', '[data-tab="brand"]'], title: 'Conecta tu Instagram 🔗', body: 'El paso que hace la magia: con tu cuenta conectada, lo que aprobes se publica solo. Un toque aca y listo.' },
   { target: null, title: 'Listo, ya sabes lo esencial 🎉', body: 'Podes volver a ver este tutorial cuando quieras desde Ajustes › Cuenta. Ahora si: a crear contenido.' },
 ];
 
@@ -3307,7 +3322,14 @@ function positionTour(el) {
 
 window.addEventListener('resize', () => { if (byId('tour-root')) positionTour(tourTargetEl(TOUR_STEPS[tourIdx])); });
 
-window.tourNext = function tourNext() { if (tourIdx >= TOUR_STEPS.length - 1) endTour(); else { tourIdx++; renderTour(); } };
+window.tourNext = function tourNext() {
+  if (tourIdx >= TOUR_STEPS.length - 1) {
+    endTour();
+    // Si el tutorial termino y todavia no hay Instagram, el banner queda a la
+    // vista: es la accion que sigue.
+    document.getElementById('ig-connect-cta')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  } else { tourIdx++; renderTour(); }
+};
 window.tourPrev = function tourPrev() { if (tourIdx > 0) { tourIdx--; renderTour(); } };
 window.tourSkip = function tourSkip() { endTour(); };
 

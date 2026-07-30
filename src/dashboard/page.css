@@ -2547,3 +2547,13 @@ input[type="checkbox"].toggle {
 .trial-banner { position:sticky; top:0; z-index:60; display:flex; align-items:center; justify-content:center; gap:14px; padding:10px 16px; background:#fff7ed; border-bottom:1px solid #fed7aa; color:#9a3412; font-size:13.5px; font-weight:500; }
 .trial-banner.expired { background:#fef2f2; border-color:#fecaca; color:#991b1b; }
 .trial-banner .btn { flex:none; }
+
+/* Llamado a conectar Instagram en el Resumen */
+.ig-cta { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin:0 0 16px; padding:16px 18px; border-radius:14px; border:1px solid #fcd9bd; background:linear-gradient(135deg,#fff7ed,#fff); }
+.ig-cta .platform-chip { flex:none; }
+.ig-cta-text { flex:1; min-width:220px; }
+.ig-cta-text b { display:block; font-size:15px; }
+.ig-cta-text span { display:block; margin-top:2px; font-size:13px; color:var(--muted); }
+.ig-cta .btn { flex:none; }
+.chan-chip-cta { cursor:pointer; border:1px solid var(--accent); color:var(--accent); background:transparent; font:inherit; font-size:12.5px; }
+.chan-chip-cta:hover { background:var(--accent); color:#fff; }
