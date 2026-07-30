@@ -426,10 +426,15 @@ function renderOverview() {
     </div>`;
   }
 
-  // Sin Instagram conectado nada se publica solo: el llamado va arriba de todo
-  // del Resumen, con el boton que abre la conexion directo (sin ir a buscarla
-  // a Marca). Desaparece al conectar.
-  const igCta = !brand || brand.ig_username || brand.ig_connected_at ? '' : `
+  // Los dos pasos que activan el producto, arriba de todo del Resumen y de a
+  // uno por vez (dos banners a la vez compiten y no se hace ninguno):
+  // 1) Instagram -> lo aprobado se publica solo.
+  // 2) WhatsApp  -> las imagenes llegan al chat para aprobar con un toque.
+  // Cada banner desaparece al completarse.
+  const igConnected = brand && (brand.ig_username || brand.ig_connected_at);
+  let igCta = '';
+  if (brand && !igConnected) {
+    igCta = `
     <div class="ig-cta" id="ig-connect-cta">
       <div class="platform-chip">${ICON.instagram}</div>
       <div class="ig-cta-text">
@@ -438,6 +443,20 @@ function renderOverview() {
       </div>
       <button class="btn btn-primary" onclick="connectInstagram()">Conectar Instagram</button>
     </div>`;
+  } else if (brand && !brand.whatsapp_number) {
+    igCta = `
+    <div class="ig-cta" id="wa-setup-cta">
+      <div class="platform-chip">💬</div>
+      <div class="ig-cta-text">
+        <b>¿A que WhatsApp te mandamos los posts?</b>
+        <span>Cada creativo nuevo te llega al chat con botones Aprobar / Rechazar. Sin abrir la app.</span>
+      </div>
+      <form class="wa-cta-form" onsubmit="saveWhatsappNumber(event)">
+        <input name="wa" inputmode="numeric" placeholder="54 9 341 1234567" required />
+        <button class="btn btn-primary">Guardar</button>
+      </form>
+    </div>`;
+  }
 
   byId('content').innerHTML = `
     <div class="dash-head">
@@ -1326,7 +1345,7 @@ function brandHero(brand, manual) {
   const colors = Object.values(manual.colors || {}).slice(0, 6);
   const chips = [
     brand.ig_username ? `<span class="chan-chip on">${ICON.instagram} @${esc(brand.ig_username)}</span>` : `<button class="chan-chip chan-chip-cta" onclick="connectInstagram()">${ICON.instagram} Conectar Instagram</button>`,
-    brand.whatsapp_number ? `<span class="chan-chip on">WhatsApp +${esc(brand.whatsapp_number)}</span>` : '<span class="chan-chip">WhatsApp sin configurar</span>',
+    brand.whatsapp_number ? `<span class="chan-chip on">WhatsApp +${esc(brand.whatsapp_number)}</span>` : `<button class="chan-chip chan-chip-cta" onclick="document.querySelector('[name=whatsapp_number]')?.scrollIntoView({block:'center',behavior:'smooth'}) || null; document.querySelector('[name=whatsapp_number]')?.focus()">💬 Configurar WhatsApp</button>`,
   ].join('');
   return `<section class="brand-hero">
     ${avatar}
@@ -1415,6 +1434,22 @@ window.submitTokenConnect = async function submitTokenConnect() {
     await loadBrand();
   } catch (error) {
     toast(error.message || 'No se pudo conectar', 'error');
+  }
+};
+
+window.saveWhatsappNumber = async function saveWhatsappNumber(event) {
+  event.preventDefault();
+  const raw = new FormData(event.target).get('wa');
+  const digits = String(raw || '').replace(/[^0-9]/g, '');
+  if (digits.length < 10) return toast('Escribi el numero completo, con codigo de pais (54...)', 'error');
+  try {
+    await api(`/api/brands/${S.brandId}`, { method: 'PUT', body: { whatsapp_number: digits } });
+    const brand = S.brands.find((b) => b.id === S.brandId);
+    if (brand) brand.whatsapp_number = digits;
+    toast('Listo: los proximos creativos te llegan por WhatsApp', 'success');
+    loadOverview();
+  } catch (error) {
+    toast(error.message, 'error');
   }
 };
 
@@ -3253,6 +3288,7 @@ const TOUR_STEPS = [
   { targets: ['[data-tab="brand"]', '.tab-more'], title: 'Tu marca', body: 'En Marca defines tu identidad, subis tu logo y tus referencias para que cada pieza salga con tu estilo.' },
   { targets: ['[data-tab="products"]', '.tab-more'], title: 'Tu catalogo', body: 'Carga tus productos y precios (o una foto de tu carta) y las ideas van a promocionar lo que realmente vendes.' },
   { targets: ['#ig-connect-cta', '[data-tab="brand"]'], title: 'Conecta tu Instagram 🔗', body: 'El paso que hace la magia: con tu cuenta conectada, lo que aprobes se publica solo. Un toque aca y listo.' },
+  { targets: ['#wa-setup-cta', '[data-tab="brand"]'], title: 'Aproba desde WhatsApp 💬', body: 'Deja tu numero y cada creativo nuevo te llega al chat con botones Aprobar / Rechazar. El Instagram de tu negocio se maneja sin abrir nada.' },
   { target: null, title: 'Listo, ya sabes lo esencial 🎉', body: 'Podes volver a ver este tutorial cuando quieras desde Ajustes › Cuenta. Ahora si: a crear contenido.' },
 ];
 
@@ -3327,7 +3363,7 @@ window.tourNext = function tourNext() {
     endTour();
     // Si el tutorial termino y todavia no hay Instagram, el banner queda a la
     // vista: es la accion que sigue.
-    document.getElementById('ig-connect-cta')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    (document.getElementById('ig-connect-cta') || document.getElementById('wa-setup-cta'))?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   } else { tourIdx++; renderTour(); }
 };
 window.tourPrev = function tourPrev() { if (tourIdx > 0) { tourIdx--; renderTour(); } };

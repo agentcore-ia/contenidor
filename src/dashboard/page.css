@@ -2557,3 +2557,7 @@ input[type="checkbox"].toggle {
 .ig-cta .btn { flex:none; }
 .chan-chip-cta { cursor:pointer; border:1px solid var(--accent); color:var(--accent); background:transparent; font:inherit; font-size:12.5px; }
 .chan-chip-cta:hover { background:var(--accent); color:#fff; }
+
+.wa-cta-form { display:flex; gap:8px; flex:none; flex-wrap:wrap; }
+.wa-cta-form input { width:190px; padding:9px 12px; border:1px solid var(--border); border-radius:9px; font:inherit; font-size:13.5px; }
+.wa-cta-form input:focus { outline:none; border-color:var(--accent); }
