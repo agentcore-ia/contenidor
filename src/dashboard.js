@@ -431,11 +431,12 @@ export function registerDashboardRoutes(app) {
     });
   }));
 
-  app.get('/api/system', wrap(async (_req, res) => {
+  // Datos internos del servidor: solo el operador tiene por que verlos.
+  app.get('/api/system', requireAdmin, wrap(async (_req, res) => {
     res.json({
       success: true,
       system: {
-        service: 'capta-content-engine',
+        service: 'postia',
         node: process.version,
         uptime_seconds: Math.round(process.uptime()),
         content_time_zone: process.env.CONTENT_TIME_ZONE || 'America/Argentina/Buenos_Aires',

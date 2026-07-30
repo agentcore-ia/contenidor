@@ -561,11 +561,13 @@ const POST_FILTER_LABELS = {
   approved: 'Aprobados', posted: 'Publicados', rejected: 'Rechazados',
 };
 
+// Los valores son motores internos; las etiquetas hablan de calidad, no de
+// proveedores ni de lo que nos cuesta cada clip — eso es informacion nuestra.
 const VIDEO_ENGINE_OPTS = [
-  ['veo_lite', 'Veo 3 Lite · el más barato (~$0,50 x 10s)'],
-  ['omni', 'Omni · barato, avatares (~$1 x 10s)'],
-  ['veo_fast', 'Veo 3 Fast (~$0,80 x 8s)'],
-  ['veo', 'Veo 3 Cine · caro (~$3,20 x 8s)'],
+  ['veo_lite', 'Ligero · rapido y simple'],
+  ['omni', 'Estándar · ideal para UGC con avatar'],
+  ['veo_fast', 'Alta · mas nitido y fluido'],
+  ['veo', 'Cine · calidad maxima'],
 ];
 function videoEngineOptions(selected) {
   const sel = selected || 'omni';
@@ -873,8 +875,7 @@ window.setVideoEngine = function setVideoEngine(engine, btn) {
 
 window.generateVideo = async function generateVideo(id, kind) {
   const engine = S.videoEngine || 'omni';
-  const engineLabel = engine === 'veo' ? 'Veo 3' : 'Omni';
-  toast(kind === 'ugc' ? `Escribiendo guion y generando UGC con ${engineLabel}...` : `Generando video de producto con ${engineLabel}...`);
+  toast(kind === 'ugc' ? 'Escribiendo el guion y generando tu video UGC...' : 'Generando el video de tu producto...');
   try {
     await api(`/api/posts/${id}/videos`, { method: 'POST', body: { kind, engine } });
     toast('Video en proceso (~1 min). Se actualiza solo.', 'success');
@@ -1257,7 +1258,7 @@ function renderBrand() {
           <div class="form-group">
             <label>Motor de video</label>
             <select name="video_engine">${videoEngineOptions(brand.video_engine)}</select>
-            <div class="subtle" style="margin-top:6px">Default para la agenda y el autopilot. Veo 3 Lite es el mas barato (~$0,50 x clip); Veo Cine el mas caro (~$3 x clip).</div>
+            <div class="subtle" style="margin-top:6px">Calidad por defecto para los videos de la agenda y el autopilot.</div>
           </div>
           <div class="form-group full">
             <label>Logo de la marca</label>
@@ -2154,12 +2155,9 @@ function planSection() {
         ${meter('Videos generados', p.used.videos, p.limits.videos)}
       </div>
       <div class="plan-cost">
-        <div><b>${p.used.images}</b><span>imagenes</span></div>
-        <div><b>${p.used.video_seconds}s</b><span>de video</span></div>
-        <div><b>US$${p.cost_usd}</b><span>costo estimado</span></div>
-        <div class="${p.margin_usd < 0 ? 'neg' : ''}"><b>US$${p.margin_usd}</b><span>margen del plan</span></div>
+        <div><b>${p.used.images}</b><span>imagenes generadas</span></div>
+        <div><b>${p.used.video_seconds}s</b><span>de video generado</span></div>
       </div>
-      <p class="plan-foot">El costo es una estimacion con las tarifas de OpenAI y Google cargadas en el servidor; la cifra exacta esta en la factura de cada proveedor.</p>
     </div>
   </section>`;
 }
@@ -2314,20 +2312,15 @@ function renderAnalytics() {
 }
 
 async function loadSystem() {
-  const [system, health, automation] = await Promise.all([
-    api('/api/system'),
-    fetch('/health').then((res) => res.json()).catch(() => ({ ok: false })),
-    api('/api/automation').catch(() => ({ automation: null })),
-  ]);
-  S.system = system.system;
+  const automation = await api('/api/automation').catch(() => ({ automation: null }));
   S.automation = automation.automation;
-  renderSystem(health);
+  renderSystem({ ok: true });
 }
 
 function fmtDateTime(value) {
   if (!value) return '-';
   try {
-    return new Date(value).toLocaleString('es-AR', { timeZone: S.system?.content_time_zone });
+    return new Date(value).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
   } catch {
     return value;
   }
@@ -2396,7 +2389,6 @@ const SETTINGS_TABS = [
   ['integraciones', 'Integraciones'],
   ['publicacion', 'Publicacion'],
   ['cuenta', 'Cuenta'],
-  ['sistema', 'Sistema'],
 ];
 
 window.setSettingsTab = function setSettingsTab(tab) { S.settingsTab = tab; renderSystem(S.lastHealth || { ok: true }); };
@@ -2587,41 +2579,9 @@ window.doDeleteAccount = async function doDeleteAccount() {
   }
 };
 
-function settingsSistema(health) {
-  const sys = S.system;
-  return `<div class="grid two">
-      <section class="settings-card" style="margin:0">
-        <div class="settings-card-head"><div><h2>Runtime</h2><p>Estado del motor de contenido.</p></div><span class="${health.ok ? 'ok' : 'bad'}">${health.ok ? 'online' : 'offline'}</span></div>
-        <div class="settings-card-body">
-          <div class="health-grid">
-            ${healthItem('Node', sys.node, 'ok')}
-            ${healthItem('Uptime', `${sys.uptime_seconds}s`, 'ok')}
-            ${healthItem('Modelo', sys.model, 'ok')}
-            ${healthItem('Timezone', sys.content_time_zone, 'ok')}
-            ${healthItem('Fecha engine', sys.today, 'ok')}
-          </div>
-        </div>
-      </section>
-      <section class="settings-card" style="margin:0">
-        <div class="settings-card-head"><div><h2>Configuracion</h2><p>Variables criticas del servidor.</p></div></div>
-        <div class="settings-card-body">
-          <div class="health-grid">
-            ${healthItem('SUPABASE_URL', sys.env.SUPABASE_URL ? 'OK' : 'Falta', sys.env.SUPABASE_URL ? 'ok' : 'bad')}
-            ${healthItem('SERVICE_ROLE_KEY', sys.env.SUPABASE_SERVICE_ROLE_KEY ? 'OK' : 'Falta', sys.env.SUPABASE_SERVICE_ROLE_KEY ? 'ok' : 'bad')}
-            ${healthItem('OPENAI_API_KEY', sys.env.OPENAI_API_KEY ? 'OK' : 'Falta', sys.env.OPENAI_API_KEY ? 'ok' : 'bad')}
-          </div>
-        </div>
-      </section>
-    </div>
-    <section class="settings-card" style="margin-top:16px">
-      <div class="settings-card-head"><div><h2>Motor de imagenes</h2><p>Todas las imagenes se generan con IA (GPT Image 2) con la identidad visual de cada marca.</p></div></div>
-      <div class="settings-card-body"><div class="tag-row"><span class="tag">ai_gpt_image_2</span><span class="tag">direccion de arte por pieza</span><span class="tag">referencias del feed</span><span class="tag">logo integrado</span></div></div>
-    </section>`;
-}
-
 function renderSystem(health) {
   S.lastHealth = health;
-  if (!S.settingsTab) S.settingsTab = 'integraciones';
+  if (!SETTINGS_TABS.some(([id]) => id === S.settingsTab)) S.settingsTab = 'integraciones';
   const brand = S.brands.find((b) => b.id === S.brandId) || S.brands[0] || null;
 
   const tabs = `<div class="segmented" style="margin-bottom:18px">
@@ -2632,7 +2592,6 @@ function renderSystem(health) {
     integraciones: () => settingsIntegraciones(brand),
     publicacion: () => settingsPublicacion(brand),
     cuenta: () => settingsCuenta(brand),
-    sistema: () => settingsSistema(health),
   }[S.settingsTab]();
 
   byId('content').innerHTML = `

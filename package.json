@@ -1,5 +1,5 @@
 {
-  "name": "capta-content-engine",
+  "name": "postia",
   "version": "1.0.0",
   "description": "Internal content rendering engine for Capta Instagram posts.",
   "main": "server.js",

@@ -102,8 +102,9 @@ export async function monthUsage(brandId, { since = monthStart() } = {}) {
   }, { ...empty });
 }
 
-// Estado completo del plan de una marca: lo que incluye, lo que va consumido y
-// cuanto queda. Es lo que alimenta la tarjeta del dashboard.
+// Estado del plan de una marca para el CLIENTE: lo que incluye, lo consumido y
+// lo que queda. A proposito NO incluye nuestro costo ni el margen — eso es
+// informacion del negocio y vive solo en el panel de operador (/admin).
 export async function planStatus(brand) {
   const plan = planFor(brand);
   const usage = await monthUsage(brand?.id);
@@ -119,8 +120,6 @@ export async function planStatus(brand) {
       video_seconds: usage.videoSeconds
     },
     left: { posts: left(plan.posts, usage.posts), videos: left(plan.videos, usage.videos) },
-    cost_usd: Math.round(usage.costUsd * 100) / 100,
-    margin_usd: Math.round((plan.priceUsd - usage.costUsd) * 100) / 100,
     period_start: usage.since,
     enforced: enforcementOn()
   };

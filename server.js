@@ -19,7 +19,7 @@ app.use(express.json({
 }));
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, service: 'capta-content-engine' });
+  res.json({ ok: true, service: 'postia' });
 });
 
 // La raiz depende del dominio: postia.ar muestra la landing publica;
@@ -160,6 +160,6 @@ registerDashboardRoutes(app);
 console.log('[startup] routes registered, starting listen...');
 
 app.listen(port, () => {
-  console.log(`Capta Content Engine listening on port ${port}`);
+  console.log(`Postia listening on port ${port}`);
   startScheduler();
 });
