@@ -120,6 +120,27 @@ Usalos asi: repeti el ANGULO de los temas que mejor rindieron (no el tema litera
 
 // Renders the brand's product/service catalog as a prompt block. Returns ''
 // when the brand has no catalog so prompts stay clean.
+// Lo que sacamos de la web de la marca. Es la fuente mas confiable que
+// tenemos: lo escribio el negocio sobre si mismo. Por eso va con prioridad
+// alta y con la orden explicita de no inventar lo que no esta.
+function websiteBlock(website) {
+  if (!website?.que_vende) return '';
+  return `
+Informacion REAL sacada de la web de la marca (${website.url}):
+${compactJson({
+    que_vende: website.que_vende,
+    propuesta: website.propuesta,
+    diferenciales: website.diferenciales,
+    publico: website.publico,
+    datos_utiles: website.datos_utiles,
+    temas_sugeridos: website.temas_sugeridos
+  })}
+Esto lo escribio el propio negocio: tiene PRIORIDAD sobre suposiciones del rubro.
+Usa estos servicios, diferenciales y datos concretos en las ideas. Nunca inventes
+un servicio, precio o dato que no figure aca.
+`;
+}
+
 function catalogBlock(products) {
   if (!products?.length) return '';
   const rows = products.map((p) => ({
@@ -299,7 +320,7 @@ ${compactJson(categories.map((category) => ({
 
 Temas ya usados o programados (NO los repitas ni generes variantes casi iguales):
 ${compactJson(existingTopics)}
-${catalogBlock(products)}${performanceBlock(performance)}
+${websiteBlock(brand?.analysis?.website)}${catalogBlock(products)}${performanceBlock(performance)}
 Reglas:
 - Le hablamos a la audiencia de esta marca, en su rubro. Ideas concretas para su negocio.
 - VARIEDAD OBLIGATORIA (lo mas importante): cada idea debe abordar un PILAR distinto. Mezcla entre: mostrar un producto, tip/educacion, detras de escena, comunidad/clientes, momento de consumo/antojo, fecha o estacionalidad, prueba social/testimonio, curiosidad del rubro. NO uses el mismo gancho ni la misma estructura dos veces. Que se sientan 7 posts claramente diferentes, no variaciones del mismo.${products.length ? `
@@ -699,6 +720,72 @@ Instrucciones:
 // Analyzes a brand from its Instagram profile (bio + captions + post images)
 // and the onboarding answers — or, without Instagram, from the user's own
 // description — producing a full brand manual + categories.
+const websiteSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['que_vende', 'propuesta', 'diferenciales', 'publico', 'datos_utiles', 'temas_sugeridos'],
+  properties: {
+    que_vende: { type: 'string' },
+    propuesta: { type: 'string' },
+    diferenciales: { type: 'array', items: { type: 'string' } },
+    publico: { type: 'string' },
+    datos_utiles: { type: 'array', items: { type: 'string' } },
+    temas_sugeridos: { type: 'array', items: { type: 'string' } }
+  }
+};
+
+// Destila la web a un resumen chico y util. Se guarda una sola vez (al cargar
+// la URL) y despues viaja en cada generacion de ideas: descargar y resumir el
+// sitio en cada llamada seria lento, fragil y caro en tokens.
+export async function analyzeWebsite({ site, brandName = '' } = {}) {
+  const client = createOpenAIClient();
+  const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
+
+  const prompt = `Analiza el contenido de la web de ${brandName || 'esta marca'} para darle contexto a su motor de contenido de Instagram.
+
+Texto extraido de la web (${site.url}):
+"""
+${site.text}
+"""
+
+Instrucciones:
+- "que_vende": los productos o servicios CONCRETOS que ofrece, con nombres reales tal como figuran. Si hay precios, incluilos.
+- "propuesta": en una o dos frases, por que alguien le compraria a este negocio.
+- "diferenciales": 3-6 cosas que este negocio dice que lo hacen distinto (metodo propio, anos de experiencia, garantia, envio, ubicacion, etc). Solo lo que este en el texto.
+- "publico": a quien apunta, deducido de como se dirige a la gente.
+- "datos_utiles": datos duros publicables (horarios, zona/ciudad, formas de contacto, envios, medios de pago, garantias). Solo lo que figure.
+- "temas_sugeridos": 8-12 temas de posteo especificos de ESTE negocio, sacados de lo que dice la web. Nada generico que sirva para cualquier rubro.
+- REGLA DURA: no inventes nada. Si algo no esta en el texto, omitilo. Es preferible una lista corta y cierta que una larga inventada.
+- Responde solo con el JSON solicitado.`;
+
+  let response;
+  try {
+    response = await client.responses.create({
+      model,
+      input: [
+        { role: 'system', content: 'Extraes informacion verificable de una web. Nunca inventas datos que no figuren en el texto.' },
+        { role: 'user', content: prompt }
+      ],
+      text: { format: { type: 'json_schema', name: 'postia_website', strict: true, schema: websiteSchema } }
+    });
+  } catch (error) {
+    throw new AppError(`No se pudo analizar la web: ${error.message}`, 502, 'OPENAI_WEBSITE_FAILED');
+  }
+
+  const parsed = parseGenerationOutput(response);
+  return {
+    url: site.url,
+    paginas: site.pages,
+    analizada_el: new Date().toISOString(),
+    que_vende: String(parsed?.que_vende || '').trim(),
+    propuesta: String(parsed?.propuesta || '').trim(),
+    diferenciales: Array.isArray(parsed?.diferenciales) ? parsed.diferenciales : [],
+    publico: String(parsed?.publico || '').trim(),
+    datos_utiles: Array.isArray(parsed?.datos_utiles) ? parsed.datos_utiles : [],
+    temas_sugeridos: Array.isArray(parsed?.temas_sugeridos) ? parsed.temas_sugeridos : []
+  };
+}
+
 export async function analyzeInstagramBrand({ handle, brandName, profile, answers = {}, imageDataUrls = [] }) {
   const client = createOpenAIClient();
   const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;

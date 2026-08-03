@@ -2561,3 +2561,10 @@ input[type="checkbox"].toggle {
 .wa-cta-form { display:flex; gap:8px; flex:none; flex-wrap:wrap; }
 .wa-cta-form input { width:190px; padding:9px 12px; border:1px solid var(--border); border-radius:9px; font:inherit; font-size:13.5px; }
 .wa-cta-form input:focus { outline:none; border-color:var(--accent); }
+
+/* Sitio web de la marca: input + boton de analisis en una linea. */
+.web-row { display:flex; gap:8px; align-items:center; }
+.web-row input { flex:1; min-width:0; }
+.web-row .btn { flex:none; white-space:nowrap; }
+.web-row .btn[disabled] { opacity:.6; cursor:default; }
+.hint { margin:6px 0 0; font-size:12.5px; line-height:1.5; color:var(--muted); }

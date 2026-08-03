@@ -16,7 +16,8 @@ import {
   updateBrandFields,
   uploadReferenceImage
 } from './supabase.js';
-import { extractMenuProducts } from './openai.js';
+import { analyzeWebsite, extractMenuProducts } from './openai.js';
+import { normalizeUrl, readWebsite } from './website.js';
 import { AppError } from './errors.js';
 import { assertCanCreateBrand, planStatus } from './usage.js';
 import { adminOverview, isAdmin, requireAdmin } from './admin.js';
@@ -677,6 +678,12 @@ export function registerDashboardRoutes(app) {
       updates.whatsapp_number = digits || null;
     }
     if (typeof req.body?.logo_url === 'string') updates.logo_url = req.body.logo_url.trim() || null;
+    // La URL se guarda normalizada; el analisis se dispara aparte, con POST
+    // /api/brands/:id/website, porque tarda (descarga + modelo) y no puede
+    // colgar el guardado del resto de la marca.
+    if (typeof req.body?.website_url === 'string') {
+      updates.website_url = req.body.website_url.trim() ? normalizeUrl(req.body.website_url) : null;
+    }
     if (['omni', 'veo_lite', 'veo_fast', 'veo'].includes(req.body?.video_engine)) updates.video_engine = req.body.video_engine;
     if (typeof req.body?.default_template_id === 'string') {
       if (!isValidTemplateId(req.body.default_template_id)) throw new AppError(`Template ${req.body.default_template_id} no existe`, 400);
@@ -685,6 +692,35 @@ export function registerDashboardRoutes(app) {
     const { data, error } = await supabase.from('brands').update(updates).eq('id', req.params.id).select('*').single();
     if (error) throw new AppError(error.message, 500, 'SUPABASE_ERROR');
     res.json({ success: true, brand: data });
+  }));
+
+  // Analiza la web de la marca. Va con limite propio: cada llamada dispara una
+  // descarga externa mas una llamada al modelo, asi que sin freno es a la vez
+  // un gasto nuestro y una forma de usar el servidor para golpear webs ajenas.
+  const websiteLimit = rateLimit({
+    name: 'website',
+    limit: Number(process.env.RL_WEBSITE_PER_HOUR || 10),
+    windowMs: 60 * 60 * 1000,
+    message: 'Analizaste muchas webs seguidas. Espera un rato y proba de nuevo.'
+  });
+
+  app.post('/api/brands/:id/website', websiteLimit, wrap(async (req, res) => {
+    const brand = await getBrandForUser(req.params.id, req.user.id);
+    const url = normalizeUrl(req.body?.url ?? brand.website_url);
+    if (!url) throw new AppError('Falta la direccion de la web.', 400, 'BAD_URL');
+
+    const site = await readWebsite(url);
+    const website = await analyzeWebsite({ site, brandName: brand.name });
+
+    const { data, error } = await supabase
+      .from('brands')
+      .update({ website_url: site.url, analysis: { ...(brand.analysis || {}), website } })
+      .eq('id', brand.id)
+      .select('*')
+      .single();
+    if (error) throw new AppError(error.message, 500, 'SUPABASE_ERROR');
+
+    res.json({ success: true, brand: data, website });
   }));
 
   app.get('/api/categories', wrap(async (req, res) => {

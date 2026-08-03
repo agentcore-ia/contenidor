@@ -1261,6 +1261,14 @@ function renderBrand() {
         <div class="settings-card-body form-grid">
           <div class="form-group"><label>Nombre</label><input name="name" value="${esc(brand.name)}" /></div>
           <div class="form-group full"><label>Descripcion</label><textarea name="description" rows="4">${esc(brand.description || '')}</textarea></div>
+          <div class="form-group full">
+            <label>Sitio web</label>
+            <div class="web-row">
+              <input name="website_url" placeholder="minegocio.com.ar" value="${esc(brand.website_url || '')}" />
+              <button type="button" class="btn" id="btn-web" onclick="analizarWeb()">Analizar</button>
+            </div>
+            <p class="hint" id="web-estado">${webStatus(brand)}</p>
+          </div>
         </div>
       </section>
 
@@ -1405,6 +1413,46 @@ function renderInstagramCard(brand) {
       </div>
     </section>`;
 }
+
+// Resumen de lo que la IA saco de la web, para que el usuario vea que sirvio
+// de algo y cuando se leyo por ultima vez.
+function webStatus(brand) {
+  const web = brand?.analysis?.website;
+  if (!web?.que_vende) {
+    return brand?.website_url
+      ? 'Guardada pero sin analizar todavia. Toca "Analizar" para que la IA la lea.'
+      : 'Si cargas tu web, la IA la lee y usa tus servicios, precios y diferenciales reales en las ideas.';
+  }
+  const fecha = new Date(web.analizada_el).toLocaleDateString('es-AR');
+  const temas = (web.temas_sugeridos || []).length;
+  return `Analizada el ${fecha}: ${(web.paginas || []).length} pagina(s) leidas, ${temas} temas detectados. Si cambiaste la web, volve a analizarla.`;
+}
+
+window.analizarWeb = async function analizarWeb() {
+  const input = document.querySelector('[name="website_url"]');
+  const boton = byId('btn-web');
+  const estado = byId('web-estado');
+  const url = (input?.value || '').trim();
+  if (!url) return toast('Escribi la direccion de tu web', 'error');
+
+  boton.disabled = true;
+  boton.textContent = 'Leyendo...';
+  if (estado) estado.textContent = 'Leyendo la web y analizandola. Puede tardar hasta un minuto.';
+
+  try {
+    const res = await api(`/api/brands/${S.brandId}/website`, { method: 'POST', body: { url } });
+    const brand = S.brands.find((b) => b.id === S.brandId);
+    if (brand) { brand.website_url = res.brand.website_url; brand.analysis = res.brand.analysis; }
+    toast('Web analizada: las proximas ideas ya la usan', 'success');
+    await loadBrand();
+  } catch (error) {
+    if (estado) estado.textContent = error.message || 'No se pudo analizar la web.';
+    toast(error.message || 'No se pudo analizar la web', 'error');
+  } finally {
+    boton.disabled = false;
+    boton.textContent = 'Analizar';
+  }
+};
 
 window.connectInstagramToken = function connectInstagramToken() {
   modal(`<h3>Conectar con token de acceso</h3>
@@ -1562,6 +1610,7 @@ window.saveBrand = async function saveBrand(event) {
       body: {
         name: fd.get('name'),
         description: fd.get('description'),
+        website_url: fd.get('website_url') || '',
         whatsapp_number: fd.get('whatsapp_number') || '',
         logo_url: fd.get('logo_url') || '',
         video_engine: fd.get('video_engine') || 'omni',

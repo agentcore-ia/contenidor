@@ -16,6 +16,7 @@ const { PLANS, planFor, imageCostUsd, videoCostUsd } = await import('../src/plan
 const { accountPlan, monthStart, trialExpired } = await import('../src/usage.js');
 const { hit, clientIp } = await import('../src/rateLimit.js');
 const { isAdmin } = await import('../src/admin.js');
+const { isPrivateIp, normalizeUrl, extractText, pickInternalLinks } = await import('../src/website.js');
 
 describe('planes', () => {
   test('los ids son los que vende la landing', () => {
@@ -155,6 +156,68 @@ describe('vencimiento de la prueba', () => {
   test('un plan pago nunca "vence como prueba", aunque tenga fecha vieja', () => {
     assert.equal(trialExpired({ plan: 'business', trial_ends_at: ayer }), false);
     assert.equal(trialExpired({ plan: 'agency', trial_ends_at: ayer }), false);
+  });
+});
+
+describe('web de la marca: no dejar que nos usen de proxy (SSRF)', () => {
+  test('bloquea loopback, redes privadas y los metadatos de la nube', () => {
+    // 169.254.169.254 es el caso grave: devuelve credenciales de la instancia.
+    ['127.0.0.1', '10.0.0.5', '192.168.1.1', '172.16.0.9', '169.254.169.254',
+     '0.0.0.0', '100.64.0.1', '::1', 'fe80::1', 'fd00::1', '::ffff:127.0.0.1']
+      .forEach((ip) => assert.equal(isPrivateIp(ip), true, `${ip} tiene que estar bloqueada`));
+  });
+
+  test('deja pasar IPs publicas de verdad', () => {
+    ['200.5.5.5', '8.8.8.8', '172.32.0.1', '2606:4700::1111']
+      .forEach((ip) => assert.equal(isPrivateIp(ip), false, `${ip} es publica`));
+  });
+
+  test('solo acepta http y https', () => {
+    assert.throws(() => normalizeUrl('file:///etc/passwd'), /http/);
+    assert.throws(() => normalizeUrl('ftp://archivos.com'), /http/);
+  });
+
+  test('sin esquema asume https, y exige dominio completo', () => {
+    assert.equal(normalizeUrl('minegocio.com.ar'), 'https://minegocio.com.ar/');
+    assert.throws(() => normalizeUrl('localhost'), /dominio completo/);
+  });
+
+  test('descarta el fragmento y no rompe con vacio', () => {
+    assert.equal(normalizeUrl('https://x.com/a#seccion'), 'https://x.com/a');
+    assert.equal(normalizeUrl('   '), null);
+  });
+});
+
+describe('web de la marca: extraer el texto', () => {
+  const html = `<html><head><title>Cafe Uno</title>
+    <meta name="description" content="Cafe de especialidad en Rosario">
+    <style>.x{color:red}</style></head>
+    <body><script>var a=1</script><h1>Nuestro caf&eacute;</h1>
+    <p>Tostado propio &amp; brunch</p><!-- oculto --></body></html>`;
+
+  test('saca titulo, meta y texto sin script ni style', () => {
+    const { title, metaDescription, text } = extractText(html);
+    assert.equal(title, 'Cafe Uno');
+    assert.equal(metaDescription, 'Cafe de especialidad en Rosario');
+    assert.match(text, /Nuestro café/);
+    assert.match(text, /Tostado propio & brunch/);
+    assert.doesNotMatch(text, /var a=1/, 'el javascript no es contenido');
+    assert.doesNotMatch(text, /color:red/, 'el css tampoco');
+    assert.doesNotMatch(text, /oculto/, 'los comentarios tampoco');
+  });
+
+  test('solo sigue links internos que valen la pena', () => {
+    const conLinks = `<a href="/nosotros">Quienes somos</a>
+      <a href="/precios">Precios</a>
+      <a href="https://instagram.com/otro">IG</a>
+      <a href="/aviso-legal">Legal</a>
+      <a href="mailto:a@b.com">Mail</a>`;
+    const links = pickInternalLinks(conLinks, 'https://cafeuno.com/');
+    assert.ok(links.includes('https://cafeuno.com/nosotros'));
+    assert.ok(links.includes('https://cafeuno.com/precios'));
+    assert.ok(!links.some((l) => l.includes('instagram.com')), 'no se sale del dominio');
+    assert.ok(!links.some((l) => l.includes('aviso-legal')), 'lo legal no aporta contexto');
+    assert.ok(!links.some((l) => l.startsWith('mailto')));
   });
 });
 
