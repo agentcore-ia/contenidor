@@ -292,7 +292,11 @@ function ideasSchema(categorySlugs) {
   };
 }
 
-export async function generateContentIdeas({ brand, categories, existingTopics = [], count = 7, products = [], performance = null }) {
+// `composition` fija cuantas piezas de cada formato pedir ({image, carousel,
+// story}). Se usa para la prueba gratis, donde la mezcla no puede quedar al
+// criterio del modelo: cada carrusel son 5 imagenes y un video cuesta mas que
+// todas las imagenes juntas. Sin composition, el reparto es el de siempre.
+export async function generateContentIdeas({ brand, categories, existingTopics = [], count = 7, products = [], performance = null, composition = null }) {
   const client = createOpenAIClient();
   const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
   const categorySlugs = categories.map((category) => category.slug);
@@ -332,7 +336,9 @@ Reglas:
   * "story" (historia vertical 9:16, dura 24hs) = CERCANIA Y URGENCIA. Efimera, informal, para la audiencia que YA te sigue: detras de escena del dia, promo relampago valida solo hoy, pregunta o encuesta a la audiencia, recordatorio de horarios/turnos, "quedan pocos", humor interno del rubro. NUNCA una pieza "de vidriera" — eso va al feed.
   * "product_video" = video corto del producto en movimiento (cuando el foco es el producto en si). "ugc_video" = testimonial de una persona hablando a camara (recomendaciones, resenas, confianza).
 - ESTRUCTURA DEL PLAN (asi trabaja un social media manager real): la historia NO reemplaza al post del dia — lo ACOMPANA. Cada dia del plan lleva UN post de feed + UNA historia el mismo dia.
-  * CANTIDADES EXACTAS: de las ${count} ideas, EXACTAMENTE ${Math.ceil(count / 2)} son posts de FEED y EXACTAMENTE ${Math.floor(count / 2)} son "story". Los posts de feed van variados entre si: mayoria "image", 1-2 "carousel" y 0-1 video por lote. Cada post de feed ocupa un dia.
+  * CANTIDADES EXACTAS: ${composition
+    ? `de las ${count} ideas, EXACTAMENTE ${composition.image} son "image", EXACTAMENTE ${composition.carousel} son "carousel" y EXACTAMENTE ${composition.story} son "story". NO generes ningun video: nada de "product_video" ni "ugc_video".`
+    : `de las ${count} ideas, EXACTAMENTE ${Math.ceil(count / 2)} son posts de FEED y EXACTAMENTE ${Math.floor(count / 2)} son "story". Los posts de feed van variados entre si: mayoria "image", 1-2 "carousel" y 0-1 video por lote. Cada post de feed ocupa un dia.`}
   * La otra mitad son "story": la historia N acompana al post de feed N en su MISMO dia. Puede complementarlo (detras de escena de esa promo, recordatorio "hoy sale esto", encuesta relacionada al tip del carrusel) o ser un momento del dia a dia del negocio — pero siempre con logica de dupla dia a dia.
   * ORDEN DE SALIDA OBLIGATORIO: primero TODOS los posts de feed en orden de dia (dia 1, dia 2, dia 3...), y despues TODAS las historias en el MISMO orden de dias (historia del dia 1, del dia 2...). No los intercales.
 - "topic": el tema puntual del post, maximo 16 palabras.

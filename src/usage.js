@@ -129,7 +129,11 @@ export async function planStatus(brand) {
 
 const LIMIT_COPY = {
   post: (plan) => `Llegaste a los ${plan.posts} posts del plan ${plan.name} este mes. Pasa a un plan mayor para seguir generando.`,
-  video: (plan) => `Llegaste a los ${plan.videos} video${plan.videos === 1 ? '' : 's'} del plan ${plan.name} este mes. Pasa a un plan mayor para generar mas.`
+  // Con cap 0 el mensaje generico quedaba en "Llegaste a los 0 videos", que no
+  // se entiende: el plan no es que se agoto, es que no incluye videos.
+  video: (plan) => (plan.videos === 0
+    ? `El plan ${plan.name} no incluye videos. Pasa a un plan pago para generarlos.`
+    : `Llegaste a los ${plan.videos} video${plan.videos === 1 ? '' : 's'} del plan ${plan.name} este mes. Pasa a un plan mayor para generar mas.`)
 };
 
 // La prueba vencio si la marca esta en trial y paso su fecha. Sin fecha (marcas

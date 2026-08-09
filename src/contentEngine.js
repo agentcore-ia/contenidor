@@ -37,7 +37,7 @@ import { addDays, todayDateString } from './dates.js';
 import { AppError } from './errors.js';
 import { alertDailySummary, alertOps } from './ops.js';
 import { assertWithinPlan, recordImageUsage, recordTextUsage, recordUsage } from './usage.js';
-import { textCostUsd } from './plans.js';
+import { planFor, textCostUsd } from './plans.js';
 
 function chooseTemplateId(content) {
   return (
@@ -365,6 +365,14 @@ export async function generateAndRenderPost(calendarId, opts = {}) {
 
 // Uses OpenAI to propose fresh calendar ideas and appends them to the queue,
 // starting the day after the last scheduled item so publish_date never collides.
+// Composicion FIJA de la prueba gratis: 6 posts de imagen + 1 carrusel + 7
+// historias = 14 piezas, 18 imagenes. Sin video.
+//
+// No se deja al criterio del modelo porque la prueba se regala: si le tocaran
+// tres carruseles en vez de uno, la misma prueba pasa de 18 a 28 imagenes. Los
+// planes pagos si usan el reparto libre — ahi el cliente paga lo que consume.
+export const TRIAL_COMPOSITION = { image: 6, carousel: 1, story: 7 };
+
 export async function generateCalendarIdeas({ brandId = null, count = 7 } = {}) {
   const safeCount = Math.max(1, Math.min(Number(count) || 7, 30));
 
@@ -378,13 +386,19 @@ export async function generateCalendarIdeas({ brandId = null, count = 7 } = {}) 
   const existingTopics = await getExistingCalendarTopics(brand.id);
   const products = await listBrandProducts(brand.id).catch(() => []);
   const performance = await getBrandPerformance(brand.id).catch(() => null);
+  // En prueba se pide la tanda completa de una: la composicion es un paquete
+  // cerrado (6 + 1 + 7), no tiene sentido partirla.
+  const esPrueba = planFor(brand).id === 'trial';
+  const total = Object.values(TRIAL_COMPOSITION).reduce((a, b) => a + b, 0);
+
   const generation = await generateContentIdeas({
     brand,
     categories,
     existingTopics,
-    count: safeCount,
+    count: esPrueba ? total : safeCount,
     products,
-    performance
+    performance,
+    composition: esPrueba ? TRIAL_COMPOSITION : null
   });
 
   await recordTextUsage({ brandId: brand.id, generations: 1 });

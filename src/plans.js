@@ -14,13 +14,16 @@ export const PLANS = {
     id: 'trial',
     name: 'Prueba',
     priceUsd: 0,
-    // La prueba se regala a perdida (~US$1,8 por cuenta): es costo de
-    // adquisicion, no un plan. El video es US$1 de esos 1,8 y es lo que mas
-    // convierte, por eso queda.
-    posts: 12,
-    videos: 1,
+    // La prueba se regala a perdida: es costo de adquisicion, no un plan.
+    // Composicion FIJA (ver TRIAL_COMPOSITION en src/contentEngine.js):
+    // 6 posts de imagen + 1 carrusel + 7 historias = 14 piezas, 18 imagenes.
+    // SIN video: costaba US$1 — mas que todas las imagenes juntas — y era la
+    // mitad del costo de cada prueba. Hoy la prueba sale ~US$1.41 en calidad
+    // media y ~US$0.29 en baja, contra los ~US$2.19 que costaba con video.
+    posts: 14,
+    videos: 0,
     brands: 1,
-    blurb: 'Tu primera semana: 5 posts con sus historias, sin tarjeta.'
+    blurb: 'Tu primera semana: 6 posts, 1 carrusel y 7 historias, sin tarjeta.'
   },
   starter: {
     id: 'starter',

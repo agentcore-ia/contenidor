@@ -31,6 +31,26 @@ describe('planes', () => {
     assert.equal(PLANS.agency.videos, 10, 'Agencia vende 10 videos');
   });
 
+  test('la prueba no incluye video: cuesta mas que todas sus imagenes juntas', () => {
+    assert.equal(PLANS.trial.videos, 0);
+  });
+
+  test('el tope de la prueba coincide con su composicion fija', async () => {
+    const { TRIAL_COMPOSITION } = await import('../src/contentEngine.js');
+    const piezas = TRIAL_COMPOSITION.image + TRIAL_COMPOSITION.carousel + TRIAL_COMPOSITION.story;
+    assert.equal(
+      PLANS.trial.posts, piezas,
+      'si la composicion pide mas piezas que el tope, la prueba se corta a la mitad'
+    );
+  });
+
+  test('la prueba cuesta menos de US$2 en su peor caso', () => {
+    // 6 imagenes + 1 carrusel (5) + 7 historias = 18 imagenes, sin video.
+    const imgs = 6 + 5 + 7;
+    const costo = imgs * imageCostUsd() + PLANS.trial.videos * videoCostUsd('omni', 10);
+    assert.ok(costo < 2, `la prueba cuesta US$${costo.toFixed(2)}`);
+  });
+
   test('un plan desconocido cae a prueba, no a uno pago', () => {
     assert.equal(planFor({ plan: 'inventado' }).id, 'trial');
     assert.equal(planFor(null).id, 'trial');
