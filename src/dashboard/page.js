@@ -2244,7 +2244,10 @@ function planSection() {
     notice = `<div class="plan-notice over">Tu semana de prueba terminó. Lo que creaste queda tuyo — <a href="#" onclick="goToPlans();return false">elegí un plan</a> para seguir generando.</div>`;
   } else if (p.plan.id === 'trial' && p.trial_ends_at) {
     const dias = Math.max(0, Math.ceil((new Date(p.trial_ends_at).getTime() - Date.now()) / 86400000));
-    notice = `<div class="plan-notice warn">Semana de prueba: te quedan ${dias} día${dias === 1 ? '' : 's'}.</div>` + notice;
+    const detalle = p.image_quality === 'low'
+      ? ' Las imágenes de la prueba se generan en calidad reducida y no incluye videos: con cualquier plan, tu contenido pasa a la calidad máxima y se habilitan los videos.'
+      : ' La prueba no incluye videos: con cualquier plan quedan habilitados.';
+    notice = `<div class="plan-notice warn">Semana de prueba: te quedan ${dias} día${dias === 1 ? '' : 's'}.${detalle}</div>` + notice;
   }
 
   return `<section class="settings-card" style="margin:0 0 16px">
@@ -2880,16 +2883,23 @@ async function checkTrialBanner() {
     const msLeft = new Date(p.trial_ends_at).getTime() - Date.now();
     const expired = p.trial_expired || msLeft <= 0;
     const daysLeft = Math.ceil(msLeft / 86400000);
-    if (!expired && daysLeft > 2) return;
 
+    // Toda la semana de prueba lleva su aviso: primero uno informativo (que
+    // explica que la calidad es la reducida y que no incluye videos — el dato
+    // sale de image_quality, no de un texto fijo), y en los ultimos dos dias
+    // pasa al tono de urgencia por el vencimiento.
     const text = expired
       ? 'Tu semana de prueba terminó. Lo que creaste queda tuyo — elegí un plan para seguir generando.'
-      : `Tu semana de prueba termina ${daysLeft <= 1 ? 'mañana' : `en ${daysLeft} días`}. Elegí un plan y no pares de publicar.`;
+      : daysLeft <= 2
+        ? `Tu semana de prueba termina ${daysLeft <= 1 ? 'mañana' : `en ${daysLeft} días`}. Elegí un plan y no pares de publicar.`
+        : (p.image_quality === 'low'
+          ? 'Semana de prueba: el contenido se genera en calidad reducida y no incluye videos. Con cualquier plan, tu misma agenda pasa a calidad máxima.'
+          : 'Semana de prueba: no incluye videos. Con cualquier plan quedan habilitados.');
 
     document.getElementById('trial-banner')?.remove();
     const bar = document.createElement('div');
     bar.id = 'trial-banner';
-    bar.className = expired ? 'trial-banner expired' : 'trial-banner';
+    bar.className = expired ? 'trial-banner expired' : (daysLeft <= 2 ? 'trial-banner' : 'trial-banner info');
     bar.innerHTML = `<span>${text}</span><button class="btn btn-sm btn-primary" onclick="goToPlans()">Ver planes</button>`;
     document.body.prepend(bar);
   } catch { /* sin plan no hay banner */ }

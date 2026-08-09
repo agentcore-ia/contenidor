@@ -2568,3 +2568,7 @@ input[type="checkbox"].toggle {
 .web-row .btn { flex:none; white-space:nowrap; }
 .web-row .btn[disabled] { opacity:.6; cursor:default; }
 .hint { margin:6px 0 0; font-size:12.5px; line-height:1.5; color:var(--muted); }
+
+/* Variante informativa del banner de prueba: acompana toda la semana (calidad
+   reducida, sin videos) sin el tono de urgencia de los ultimos dias. */
+.trial-banner.info { background:#f8fafc; border-color:#e2e8f0; color:#475569; }

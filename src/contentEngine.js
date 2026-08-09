@@ -121,7 +121,7 @@ async function renderAiPostImage(post, opts = {}) {
   const artDirection = post.content_type === 'story' ? '' : await generateImageArtDirection({ post, brand });
 
   const asset = await generatePostImageAsset(post, { brand, referenceBuffers, artDirection, logoBuffer });
-  await recordImageUsage({ brandId: brand.id, postId: post.id, images: 1 });
+  await recordImageUsage({ brandId: brand.id, postId: post.id, images: 1, quality: asset.quality });
   return asset.buffer;
 }
 
@@ -153,7 +153,7 @@ async function renderCarouselImages(post, opts = {}) {
       format: 'carousel',
       slideInfo: { index: i, total: slides.length }
     });
-    await recordImageUsage({ brandId: brand.id, postId: post.id, images: 1 });
+    await recordImageUsage({ brandId: brand.id, postId: post.id, images: 1, quality: asset.quality });
     const url = await uploadPostImage(post.id, asset.buffer, { suffix: i === 0 ? '' : `s${i + 1}` });
     urls.push(url);
     console.log(`[render:carousel] ${post.id} placa ${i + 1}/${slides.length} lista`);

@@ -78,10 +78,25 @@ const num = (envKey, fallback) => {
   return Number.isFinite(value) && value >= 0 ? value : fallback;
 };
 
-// gpt-image-2, por imagen generada. Todas las piezas salen en calidad media
-// (ver IMAGE_QUALITY en src/openai.js), asi que hay un solo precio.
-export function imageCostUsd() {
-  return num('COST_IMAGE_MEDIUM', 0.07);
+// Calidad de imagen segun el plan. La prueba genera en 'low' y los planes
+// pagos en 'medium' — y la UI se lo DICE al cliente de prueba: probas gratis
+// con calidad reducida, pagas y desbloqueas la completa. Si tocas esto, toca
+// tambien ese aviso en src/dashboard/page.js: prometer calidad reducida y
+// entregar la misma que la paga (o al reves) es mentirle a alguien.
+//
+// Se decidio mirando pares medium/low generados con el prompt real: low es
+// publicable (la diferencia hay que buscarla) y cuesta ~9x menos. La medicion:
+// 1510 tokens de salida en medium vs 173 en low, misma pieza.
+export function imageQualityFor(plan) {
+  return plan?.id === 'trial' ? 'low' : 'medium';
+}
+
+// gpt-image-2, por imagen generada, segun calidad. El default de low sale de
+// la relacion medida de tokens (173/1510 de 0.07 ≈ 0.008).
+export function imageCostUsd(quality = 'medium') {
+  return quality === 'low'
+    ? num('COST_IMAGE_LOW', 0.008)
+    : num('COST_IMAGE_MEDIUM', 0.07);
 }
 
 // Gemini, por SEGUNDO de video. Los comentarios de src/gemini.js documentan de

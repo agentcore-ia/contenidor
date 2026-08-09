@@ -10,7 +10,7 @@
 
 import { supabase } from './supabase.js';
 import { AppError } from './errors.js';
-import { imageCostUsd, planFor, textCostUsd, videoCostUsd } from './plans.js';
+import { imageCostUsd, imageQualityFor, planFor, textCostUsd, videoCostUsd } from './plans.js';
 
 function enforcementOn() {
   return process.env.PLAN_LIMITS_ENFORCED !== 'false';
@@ -41,13 +41,13 @@ export async function recordUsage({ brandId, kind, quantity = 1, costUsd = 0, pr
   return null;
 }
 
-export async function recordImageUsage({ brandId, postId, images = 1 }) {
+export async function recordImageUsage({ brandId, postId, images = 1, quality = 'medium' }) {
   return recordUsage({
     brandId,
     postId,
     kind: 'image',
     quantity: images,
-    costUsd: imageCostUsd() * images,
+    costUsd: imageCostUsd(quality) * images,
     provider: 'openai',
     model: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2'
   });
@@ -112,6 +112,10 @@ export async function planStatus(brand) {
 
   return {
     plan: { id: plan.id, name: plan.name, price_usd: plan.priceUsd, blurb: plan.blurb },
+    // 'low' en prueba, 'medium' en pagos. El front usa esto para avisarle al
+    // cliente de prueba que su calidad es la reducida — el aviso sale de aca
+    // y no de un texto fijo, asi nunca miente respecto de lo que se genera.
+    image_quality: imageQualityFor(plan),
     trial_ends_at: plan.id === 'trial' ? (brand?.trial_ends_at || null) : null,
     trial_expired: trialExpired(brand),
     limits: { posts: plan.posts, videos: plan.videos, brands: plan.brands },

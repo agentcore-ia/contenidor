@@ -1,5 +1,6 @@
 import OpenAI, { toFile } from 'openai';
 import { AppError, assertRequiredEnv } from './errors.js';
+import { imageQualityFor, planFor } from './plans.js';
 
 const DEFAULT_MODEL = 'gpt-5.4-mini';
 const DEFAULT_IMAGE_MODEL = 'gpt-image-2';
@@ -1094,10 +1095,11 @@ Reglas: coherente con el ADN de la cuenta y su densidad visual; jerarquia clara 
 // 1024x1824 = 9:16 aprox (0.561 vs 0.5625) con ambas dimensiones multiplo de 16.
 const STORY_IMAGE_SIZE = '1024x1824';
 
-// Todas las piezas se generan en calidad media. Alta cuesta casi el triple sin
-// una diferencia que el ojo note en un feed de Instagram, y baja se ve barata.
-// Es una sola decision de producto, no una perilla por marca.
-export const IMAGE_QUALITY = 'medium';
+// La calidad por plan vive en plans.js (imageQualityFor): prueba en 'low',
+// planes pagos en 'medium'. Alta cuesta casi el triple sin una diferencia que
+// el ojo note en un feed de Instagram, por eso no existe como opcion. No es
+// una perilla por marca: es una decision de producto por plan, y la UI le
+// avisa al cliente de prueba que su calidad es la reducida.
 
 export async function generatePostImageAsset(post, { brand, referenceBuffers = [], artDirection = '', logoBuffer = null, format = null, slideInfo = null } = {}) {
   const client = createOpenAIClient();
@@ -1106,7 +1108,7 @@ export async function generatePostImageAsset(post, { brand, referenceBuffers = [
   const size = pieceFormat === 'story'
     ? (process.env.OPENAI_IMAGE_SIZE_STORY || STORY_IMAGE_SIZE)
     : (process.env.OPENAI_IMAGE_SIZE || DEFAULT_IMAGE_SIZE);
-  const quality = IMAGE_QUALITY;
+  const quality = imageQualityFor(planFor(brand));
   // Las historias usan su propio prompt (look "tomado con el celular", texto
   // sticker); el resto usa el poster editorial con direccion de arte.
   const prompt = pieceFormat === 'story'
@@ -1162,6 +1164,7 @@ export async function generatePostImageAsset(post, { brand, referenceBuffers = [
   return {
     model,
     size,
+    quality,
     buffer: Buffer.from(image.b64_json, 'base64'),
     raw: response
   };

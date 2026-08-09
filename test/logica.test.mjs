@@ -12,7 +12,7 @@ process.env.SUPABASE_URL ||= 'https://test.supabase.co';
 process.env.SUPABASE_SERVICE_ROLE_KEY ||= 'test-service-key';
 process.env.SUPABASE_ANON_KEY ||= 'test-anon-key';
 
-const { PLANS, planFor, imageCostUsd, videoCostUsd } = await import('../src/plans.js');
+const { PLANS, planFor, imageCostUsd, imageQualityFor, videoCostUsd } = await import('../src/plans.js');
 const { accountPlan, monthStart, trialExpired } = await import('../src/usage.js');
 const { hit, clientIp } = await import('../src/rateLimit.js');
 const { isAdmin } = await import('../src/admin.js');
@@ -44,11 +44,27 @@ describe('planes', () => {
     );
   });
 
-  test('la prueba cuesta menos de US$2 en su peor caso', () => {
-    // 6 imagenes + 1 carrusel (5) + 7 historias = 18 imagenes, sin video.
+  test('la prueba genera en calidad reducida y los pagos en la completa', () => {
+    // La UI le DICE al cliente de prueba que su calidad es la reducida
+    // (banner y tarjeta de plan). Si esto cambia, ese aviso pasa a mentir:
+    // hay que cambiar tambien src/dashboard/page.js y el FAQ de la landing.
+    assert.equal(imageQualityFor(PLANS.trial), 'low');
+    assert.equal(imageQualityFor(PLANS.starter), 'medium');
+    assert.equal(imageQualityFor(PLANS.business), 'medium');
+    assert.equal(imageQualityFor(PLANS.agency), 'medium');
+  });
+
+  test('la calidad reducida cuesta menos que la completa', () => {
+    assert.ok(imageCostUsd('low') < imageCostUsd('medium'));
+    assert.equal(imageCostUsd(), imageCostUsd('medium'), 'sin argumento, el precio es el de los planes pagos');
+  });
+
+  test('la prueba cuesta centavos en su peor caso', () => {
+    // 6 imagenes + 1 carrusel (5) + 7 historias = 18 imagenes, sin video,
+    // en la calidad que la prueba usa de verdad.
     const imgs = 6 + 5 + 7;
-    const costo = imgs * imageCostUsd() + PLANS.trial.videos * videoCostUsd('omni', 10);
-    assert.ok(costo < 2, `la prueba cuesta US$${costo.toFixed(2)}`);
+    const costo = imgs * imageCostUsd(imageQualityFor(PLANS.trial)) + PLANS.trial.videos * videoCostUsd('omni', 10);
+    assert.ok(costo < 0.5, `la prueba cuesta US$${costo.toFixed(2)}`);
   });
 
   test('un plan desconocido cae a prueba, no a uno pago', () => {
