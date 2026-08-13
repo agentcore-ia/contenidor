@@ -183,9 +183,18 @@ export function registerDashboardRoutes(app) {
   // Inbound events (button taps). Always 200 quickly so Meta doesn't retry;
   // process decisions after acknowledging.
   app.post('/webhooks/whatsapp', (req, res) => {
+    // Solo se procesa lo que Meta firmo. Antes se rechazaba unicamente el
+    // 'mismatch', asi que bastaba con OMITIR el header para saltear la
+    // verificacion entera: cualquiera con la URL podia mandar aprobaciones
+    // falsas y publicar en el Instagram de un cliente.
     const sig = isValidSignature(req.headers['x-hub-signature-256'], req.rawBody);
-    if (sig.reason === 'mismatch') {
-      console.warn('[whatsapp:webhook] signature mismatch, ignoring');
+    if (!sig.verified) {
+      console.warn(`[whatsapp:webhook] descartado, firma ${sig.reason}`);
+      // Sin secret configurado no hay forma de verificar nada: se avisa fuerte
+      // porque el sintoma (los botones no responden) no apunta a esta causa.
+      if (sig.reason === 'no_app_secret') {
+        console.error('[whatsapp:webhook] falta WHATSAPP_APP_SECRET: los botones de aprobacion NO van a funcionar');
+      }
       return res.sendStatus(403);
     }
     res.sendStatus(200);

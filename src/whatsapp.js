@@ -27,7 +27,11 @@ function templateName() { return process.env.WHATSAPP_TEMPLATE_NAME || ''; }
 function templateNameVideo() { return process.env.WHATSAPP_TEMPLATE_NAME_VIDEO || ''; }
 function templateLang() { return process.env.WHATSAPP_TEMPLATE_LANG || 'es'; }
 export function verifyToken() { return process.env.WHATSAPP_VERIFY_TOKEN || ''; }
-function appSecret() { return process.env.WHATSAPP_APP_SECRET || process.env.INSTAGRAM_APP_SECRET || ''; }
+// SIN fallback a INSTAGRAM_APP_SECRET: son apps de Meta distintas (WhatsApp e
+// Instagram tienen cada una la suya), asi que el secret de una nunca valida las
+// firmas de la otra. El fallback hacia que TODOS los webhooks se rechazaran por
+// firma invalida, en silencio, y el sintoma era "los botones no responden".
+function appSecret() { return process.env.WHATSAPP_APP_SECRET || ''; }
 function freeformMode() {
   const v = String(process.env.WHATSAPP_FREEFORM || '').toLowerCase();
   return v === '1' || v === 'true' || v === 'yes';

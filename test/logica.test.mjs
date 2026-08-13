@@ -269,6 +269,25 @@ describe('botones de WhatsApp', () => {
     assert.deepEqual(parseWebhookEvents(evento('edit:abc')), [{ action: 'edit', postId: 'abc', from: '5491100000000' }]);
   });
 
+  test('la firma solo valida con el secret correcto', async () => {
+    const crypto = await import('node:crypto');
+    const { isValidSignature } = await import('../src/whatsapp.js');
+    const previo = process.env.WHATSAPP_APP_SECRET;
+    process.env.WHATSAPP_APP_SECRET = 'secreto-de-la-app-whatsapp';
+
+    const cuerpo = Buffer.from('{"hola":1}');
+    const firma = (secret) => 'sha256=' + crypto.createHmac('sha256', secret).update(cuerpo).digest('hex');
+
+    assert.equal(isValidSignature(firma('secreto-de-la-app-whatsapp'), cuerpo).verified, true);
+    // El secret de OTRA app de Meta (ej. Instagram) no puede validar: por eso
+    // no existe el fallback, hacia que se rechazara todo en silencio.
+    assert.equal(isValidSignature(firma('secreto-de-otra-app'), cuerpo).reason, 'mismatch');
+    // Omitir el header no puede ser una forma de saltear la verificacion.
+    assert.equal(isValidSignature(null, cuerpo).verified, false);
+
+    process.env.WHATSAPP_APP_SECRET = previo || '';
+  });
+
   test('ignora payloads que no conoce, en vez de romper', async () => {
     const { parseWebhookEvents } = await import('../src/whatsapp.js');
     const evento = (payload) => ({
