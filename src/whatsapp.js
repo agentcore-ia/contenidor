@@ -112,7 +112,11 @@ export async function sendApprovalRequest({ to, imageUrl, videoUrl, bodyText, po
         header,
         { type: 'body', parameters: [{ type: 'text', text: (bodyText || '').slice(0, 900) || '-' }] },
         { type: 'button', sub_type: 'quick_reply', index: '0', parameters: [{ type: 'payload', payload: `approve:${postId}` }] },
-        { type: 'button', sub_type: 'quick_reply', index: '1', parameters: [{ type: 'payload', payload: `reject:${postId}` }] }
+        { type: 'button', sub_type: 'quick_reply', index: '1', parameters: [{ type: 'payload', payload: `reject:${postId}` }] },
+        // Tercer boton "Modificar". Si la plantilla aprobada solo tiene dos,
+        // Meta ignora este componente y el mensaje sale igual: por eso se manda
+        // siempre y no hace falta una variable de entorno para activarlo.
+        { type: 'button', sub_type: 'quick_reply', index: '2', parameters: [{ type: 'payload', payload: `edit:${postId}` }] }
       ]
     }
   });
@@ -139,7 +143,8 @@ async function sendApprovalInteractive({ recipient, imageUrl, videoUrl, bodyText
       action: {
         buttons: [
           { type: 'reply', reply: { id: `approve:${postId}`, title: 'Aprobar' } },
-          { type: 'reply', reply: { id: `reject:${postId}`, title: 'Rechazar' } }
+          { type: 'reply', reply: { id: `reject:${postId}`, title: 'Rechazar' } },
+          { type: 'reply', reply: { id: `edit:${postId}`, title: 'Modificar' } }
         ]
       }
     }
@@ -198,7 +203,7 @@ export function parseWebhookEvents(body) {
             : null);
         if (!payload) continue;
         const [action, postId] = String(payload).split(':');
-        if ((action === 'approve' || action === 'reject') && postId) {
+        if (['approve', 'reject', 'edit'].includes(action) && postId) {
           events.push({ action, postId, from });
         }
       }

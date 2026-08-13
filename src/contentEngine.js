@@ -39,6 +39,12 @@ import { alertDailySummary, alertOps } from './ops.js';
 import { assertWithinPlan, recordImageUsage, recordTextUsage, recordUsage } from './usage.js';
 import { planFor, textCostUsd } from './plans.js';
 
+// URL publica de la app, para los links que se mandan por WhatsApp. Se puede
+// override con APP_URL; el default es el dominio de produccion.
+function appUrl() {
+  return String(process.env.APP_URL || 'https://app.postia.ar').replace(/\/+$/, '');
+}
+
 function chooseTemplateId(content) {
   return (
     content.category?.default_template_id ||
@@ -323,6 +329,19 @@ export async function applyWhatsappDecision({ action, postId, from }) {
   } catch {
     if (from) await sendText(from, 'No encontramos ese post (quiza fue eliminado).');
     return { ok: false, reason: 'post_not_found' };
+  }
+
+  // "Modificar" NO cambia el estado: el post queda esperando decision para que
+  // el usuario edite y despues apruebe. Va antes del chequeo de publicado
+  // porque pedir el link del panel tiene sentido igual en ese caso.
+  if (action === 'edit') {
+    if (from) {
+      await sendText(
+        from,
+        `✏️ Para cambiar el texto o la imagen, entra a ${appUrl()}/dashboard y abri el post desde "Posts". Cuando lo dejes como querias, aprobalo desde ahi o volve a este chat.`
+      );
+    }
+    return { ok: true, status: post.status, action: 'edit' };
   }
 
   if (post.status === 'posted') {

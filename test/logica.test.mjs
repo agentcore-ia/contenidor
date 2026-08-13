@@ -257,6 +257,28 @@ describe('web de la marca: extraer el texto', () => {
   });
 });
 
+describe('botones de WhatsApp', () => {
+  test('reconoce aprobar, rechazar y modificar', async () => {
+    const { parseWebhookEvents } = await import('../src/whatsapp.js');
+    const evento = (payload) => ({
+      entry: [{ changes: [{ value: { messages: [{ from: '5491100000000', type: 'button', button: { payload } }] } }] }]
+    });
+
+    assert.deepEqual(parseWebhookEvents(evento('approve:abc')), [{ action: 'approve', postId: 'abc', from: '5491100000000' }]);
+    assert.deepEqual(parseWebhookEvents(evento('reject:abc')), [{ action: 'reject', postId: 'abc', from: '5491100000000' }]);
+    assert.deepEqual(parseWebhookEvents(evento('edit:abc')), [{ action: 'edit', postId: 'abc', from: '5491100000000' }]);
+  });
+
+  test('ignora payloads que no conoce, en vez de romper', async () => {
+    const { parseWebhookEvents } = await import('../src/whatsapp.js');
+    const evento = (payload) => ({
+      entry: [{ changes: [{ value: { messages: [{ from: '549110', type: 'button', button: { payload } }] } }] }]
+    });
+    assert.deepEqual(parseWebhookEvents(evento('borrar:abc')), []);
+    assert.deepEqual(parseWebhookEvents(evento('approve')), [], 'sin postId no es un evento valido');
+  });
+});
+
 describe('de donde sale la IP del cliente', () => {
   const req = (headers, ip) => ({ headers, ip });
 
