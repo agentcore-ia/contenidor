@@ -455,6 +455,20 @@ export function registerDashboardRoutes(app) {
         today: todayDateString(),
         model: process.env.OPENAI_MODEL || 'gpt-5.4-mini',
         templates: Object.keys(templates),
+        // Diagnostico de WhatsApp: NUNCA el valor de los secretos, solo su
+        // forma. Alcanza para detectar el error que costo horas — pegar el App
+        // ID (16 digitos) en vez del App Secret (32 hex) hace que TODAS las
+        // firmas fallen y los botones no respondan, sin ningun sintoma visible.
+        whatsapp: {
+          phone_number_id: process.env.WHATSAPP_PHONE_NUMBER_ID || null,
+          template: process.env.WHATSAPP_TEMPLATE_NAME || null,
+          template_lang: process.env.WHATSAPP_TEMPLATE_LANG || 'es',
+          freeform: String(process.env.WHATSAPP_FREEFORM || '').toLowerCase() === 'true',
+          access_token_largo: (process.env.WHATSAPP_ACCESS_TOKEN || '').length,
+          app_secret_largo: (process.env.WHATSAPP_APP_SECRET || '').length,
+          app_secret_parece_valido: /^[0-9a-f]{32}$/i.test(process.env.WHATSAPP_APP_SECRET || ''),
+          verify_token_cargado: Boolean(process.env.WHATSAPP_VERIFY_TOKEN)
+        },
         env: {
           SUPABASE_URL: Boolean(process.env.SUPABASE_URL),
           SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
