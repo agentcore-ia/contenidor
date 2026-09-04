@@ -1,16 +1,56 @@
 # Meta App Review — guía completa
 
-Preparado el 2026-07-30. Todo verificado contra producción antes de escribir esto.
+Preparado el 2026-07-30, corregido el 2026-08-15 tras el primer rechazo,
+corregido de nuevo el 2026-09-04 tras el segundo.
 
-## Estado del terreno (ya verificado, no tenés que tocar nada)
+## ⚠️⚠️ Rechazo #2 (17-ago-2026): la causa real, encontrada mirando el video
+
+Mismo motivo textual que la primera vez ("la captura de vídeo no se corresponde
+con los detalles del caso de uso"), pero esta vez se miró frame a frame el
+video que quedó adjunto en la revisión de Meta y se encontró el problema real:
+
+**El paso "Desconectá Instagram de Capta" (más abajo) solo borra el token del
+lado de Postia. Instagram, del otro lado, sigue recordando que la app ya
+estuvo autorizada.** Por eso, al tocar "Conectar Instagram" para grabar de
+nuevo, Instagram NO mostró el flujo completo de autorización (el que lista
+los permisos que se piden) — mostró la pantalla corta de "Anteriormente
+conectaste Postia-IG con tu cuenta de Instagram. ¿Quieres seguir compartiendo
+información sobre capta.arg con Postia-IG?", sin listar permisos ni mostrar el
+flujo real. Eso es exactamente lo que Meta objeta: no es "el flujo de inicio
+de sesión completo" ni "un usuario concediendo acceso" en el sentido que
+piden ver.
+
+**La corrección real: revocar el acceso desde ADENTRO de Instagram, no solo
+desde Postia**, antes de grabar. Ver el paso 5 corregido más abajo.
+
+## ⚠️ Rechazo del 3-ago-2026: qué pasó y qué se corrigió
+
+Meta rechazó `instagram_business_basic` e `instagram_business_content_publish`
+(solo `public_profile` se aprobó). El motivo textual: **"La captura de vídeo no
+se corresponde con los detalles del caso de uso"** (Apartado 1.6) — Meta
+confirma que el caso de uso está permitido, pero el video enviado no mostró la
+experiencia completa. Piden que el video nuevo incluya explícitamente:
+1. El flujo de inicio de sesión completo de Meta.
+2. Un usuario concediendo acceso en la app al permiso.
+3. La experiencia integral del caso de uso (conectar → aprobar → publicar → verse en vivo).
+
+**Se encontró un error en esta guía**: el email de la cuenta revisor estaba
+escrito al revés (`meta.review@` en vez de `revisor.meta@postia.ar`). Ya está
+corregido abajo. La contraseña también se regeneró porque no había forma de
+confirmar que la vieja siguiera siendo válida.
+
+Se dejó un borrador de reenvío iniciado en Meta (con los dos permisos
+agregados) pero **sin enviar** — falta grabar el video nuevo y completar
+"Tratamiento de datos", que requiere criterio del operador, no automatizable.
+
+## Estado del terreno (verificado 2026-08-15)
 
 | Cosa | Estado |
 |---|---|
 | postia.ar/privacidad, /terminos, /eliminacion-datos | ✅ responden 200 |
-| Capta conectada a @capta.arg | ✅ token válido hasta sept 2026 |
-| Posts listos para aprobar/publicar en vivo | ✅ 5 con imagen en "Esperando revisión" |
-| Cuenta demo para revisores | ✅ `meta.review@postia.ar` / `Postia-Review-a2b610e2` |
-| Marca demo con contenido | ⚠️ BLOQUEADA: OpenAI sin crédito — recargar y avisar |
+| Capta conectada a @capta.arg | ✅ token válido hasta 29-sept-2026 |
+| Cuenta demo para revisores | ✅ `revisor.meta@postia.ar` / `Postia-Meta-Review-7f2b9c` (login verificado) |
+| Marca demo del revisor | ✅ "Demo Cafe Postia", 1 post con imagen en "Esperando revisión" |
 
 ## Permisos que se piden
 
@@ -32,9 +72,19 @@ que cubra los dos permisos alcanza; se sube el mismo en ambos.
 2. Abrí una ventana **limpia** del navegador (sin extensiones raras ni pestañas de más).
 3. Cerrá sesión en app.postia.ar.
 4. En otra pestaña dejá abierto **instagram.com/capta.arg** (para el final).
-5. **Desconectá Instagram de Capta**: app.postia.ar → Marca → sección Instagram →
-   "Desconectar cuenta". *Esto es a propósito: así el video muestra la conexión
-   OAuth completa desde cero.*
+5. **Revocá el acceso de la app en las DOS puntas** — esto es lo que falló la
+   segunda vez, hacelo completo:
+   a. Primero, **desde Instagram**: abrí Instagram (app o instagram.com) con
+      @capta.arg → Configuración → Seguridad → **Apps y sitios web** (o
+      "Aplicaciones autorizadas") → buscá **"Postia-IG"** → **quitale el
+      acceso ahí**. Sin este paso, Instagram va a mostrar la pantalla corta de
+      "¿seguís compartiendo?" en vez del flujo completo — ese fue el motivo
+      del segundo rechazo.
+   b. Después, **desde Postia**: app.postia.ar → Marca → sección Instagram →
+      "Desconectar cuenta" (esto limpia el token guardado en Postia).
+   *Con las dos hechas, al tocar "Conectar Instagram" Instagram trata la
+   conexión como si fuera la primera vez: muestra el listado de permisos y el
+   flujo completo, que es lo que Meta necesita ver.*
 6. Grabá **la pantalla entera** (no una ventana recortada), con resolución legible.
    El video puede durar 2-4 minutos; más largo no suma.
 
@@ -113,8 +163,8 @@ formulario cubren la explicación.
 ## Campo de instrucciones para el revisor (App Review > Testing instructions)
 
 > Test credentials for our app (Postia, https://app.postia.ar):
-> Email: meta.review@postia.ar
-> Password: Postia-Review-a2b610e2
+> Email: revisor.meta@postia.ar
+> Password: Postia-Meta-Review-7f2b9c
 >
 > 1. Go to https://app.postia.ar and log in with the credentials above.
 > 2. You will see the dashboard of a demo brand with an AI-generated content
@@ -133,9 +183,37 @@ formulario cubren la explicación.
 
 ---
 
-## Pendientes antes de enviar
+## Checklist para que el video no se rechace de nuevo
 
-- [ ] **Recargar crédito en OpenAI** (bloquea la generación en prod y la marca demo)
-- [ ] Avisarme para terminar la marca demo del revisor (Aroma Cafe quedó en error por lo de OpenAI)
-- [ ] Grabar el video siguiendo el guion
-- [ ] Subir el mismo video en los dos permisos y pegar los textos de arriba
+Meta pidió estas tres cosas EXPLÍCITAMENTE — el guion de arriba ya las cubre,
+pero al grabar de nuevo verificá cada una en cámara, sin cortes:
+
+- [ ] **Revocaste el acceso desde ADENTRO de Instagram** (no solo desde
+      Postia) antes de grabar — si no, Instagram muestra la pantalla corta de
+      "¿seguís compartiendo?" en vez del flujo completo. Esto causó el
+      rechazo #2.
+- [ ] **Se ve el flujo de login de Meta completo**: el diálogo de OAuth de
+      Instagram tiene que quedar en pantalla el tiempo suficiente para leerse,
+      no un flash de medio segundo. Si dice "Anteriormente conectaste..." en
+      vez de listar permisos, algo del paso anterior falló — no sigas grabando,
+      revisá primero.
+- [ ] **Se ve al usuario dando el consentimiento**: el click en "Autorizar"
+      (o como se llame el botón) tiene que ser visible, no cortado antes o
+      después.
+- [ ] **Se ve la experiencia de punta a punta**, sin saltos de edición:
+      conectar → aprobar → publicar → el post en vivo en instagram.com/capta.arg.
+- [ ] Grabación en una sola toma si es posible; si hay que cortar, que no sea
+      justo en esos tres momentos.
+- [ ] Ídioma de interfaz en inglés si se puede (opcional pero recomendado).
+
+## Pendientes antes de reenviar
+
+- [ ] Grabar el video nuevo siguiendo el guion + checklist de arriba
+- [ ] Subir el mismo video en los dos permisos (ya hay un borrador iniciado
+      en Meta con ambos agregados — entrar por Revisión > Revisión de la
+      aplicación > Sin enviar)
+- [ ] Completar "Tratamiento de datos" del formulario (requiere criterio del
+      operador sobre qué datos maneja la app)
+- [ ] Confirmar el texto de "Instrucciones para revisores" tenga el email y
+      contraseña correctos (arriba)
+- [ ] Enviar a revisión
