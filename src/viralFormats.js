@@ -52,7 +52,7 @@ export const RUBROS = [
     id: 'gastronomia',
     nombre: 'Gastronomia',
     sujetos: 'food and drink from a cafe, bakery, ice-cream shop, pizzeria or restaurant — a plated dish, a pastry, a cup of coffee, a scoop of ice cream',
-    claves: ['gastro', 'restaur', 'pizz', 'helad', 'panad', 'cafe', 'cafeter', 'comida', 'cocina', 'pasteler', 'confiter', 'catering', 'hamburgues', 'sushi', 'cervec', 'vino', 'food', 'bar ']
+    claves: ['gastro', 'restaur', 'pizz', 'helad', 'panad', 'cafe', 'cafeter', 'comida', 'cocina', 'pasteler', 'confiter', 'catering', 'hamburgues', 'sushi', 'cervec', 'vino', 'food']
   },
   {
     id: 'belleza',
@@ -76,13 +76,13 @@ export const RUBROS = [
     id: 'retail',
     nombre: 'Retail e indumentaria',
     sujetos: 'a clothing, footwear, accessories or homeware shop — garments on a rail, sneakers, jewellery, decorative objects on display',
-    claves: ['indumentar', 'ropa', 'tienda', 'boutique', 'calzado', 'zapat', 'accesor', 'joyer', 'deco', 'mueble', 'bazar', 'libreria', 'juguet', 'retail', 'ecommerce', 'marroquin']
+    claves: ['indumentar', 'ropa', 'tienda', 'boutique', 'calzado', 'zapat', 'accesor', 'joyer', 'deco', 'mueble', 'bazar', 'libreria', 'juguet', 'retail', 'ecommerce', 'marroquin', 'tecnolog', 'electronic', 'celular', 'telefon', 'informatic', 'computac']
   },
   {
     id: 'servicios',
     nombre: 'Servicios y oficios',
     sujetos: 'a professional service or skilled trade — a studio desk with a laptop and notes, an architect reviewing plans, a tradesperson tools laid out on a workbench',
-    claves: ['agenc', 'marketing', 'contab', 'abogac', 'legal', 'juridic', 'notari', 'seguro', 'gestoria', 'publicidad', 'imprenta', 'consultor', 'software', 'desarrollo', 'fotograf', 'plomer', 'electric', 'construc', 'arquitect', 'taller', 'mecanic', 'limpieza', 'educac', 'escuela', 'academia', 'curso']
+    claves: ['agenc', 'marketing', 'fintech', 'pagos', 'cobros', 'cripto', 'trading', 'inversion', 'finanz', 'contab', 'abogac', 'legal', 'juridic', 'notari', 'seguro', 'gestoria', 'publicidad', 'imprenta', 'consultor', 'software', 'desarrollo', 'fotograf', 'plomer', 'electric', 'construc', 'arquitect', 'taller', 'mecanic', 'limpieza', 'educac', 'escuela', 'academia', 'curso']
   },
   {
     id: 'inmobiliaria',
@@ -99,7 +99,12 @@ const RUBRO_BY_ID = new Map(RUBROS.map((rubro) => [rubro.id, rubro]));
 // deterministico, gratis y no depende de una llamada al modelo que puede fallar
 // justo cuando el cliente abre la galeria. Sin coincidencia -> 'generico'.
 export function rubroFamilyFor(brand) {
-  const texto = [brand?.analysis?.rubro, brand?.description, brand?.name]
+  // El rubro del onboarding MANDA SOLO. La descripcion no se mezcla con el:
+  // las marcas que son agencias o SaaS enumeran ahi los rubros de SUS clientes
+  // ("cafes, gimnasios, tiendas, esteticas") y eso las clasificaba como si
+  // fueran ellas. Solo si no hay rubro se cae a la descripcion y al nombre.
+  const rubroTexto = String(brand?.analysis?.rubro || '').toLowerCase().trim();
+  const texto = rubroTexto || [brand?.description, brand?.name]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
@@ -114,13 +119,27 @@ export function rubroFamilyFor(brand) {
 
   for (const rubro of RUBROS) {
     for (const clave of rubro.claves) {
-      if (clave.length > largo && texto.includes(clave)) {
+      if (clave.length > largo && empiezaPalabra(texto, clave)) {
         mejor = rubro.id;
         largo = clave.length;
       }
     }
   }
   return mejor;
+}
+
+// Las claves son raices ('peluquer' tiene que agarrar "peluqueria"), asi que se
+// busca por prefijo — pero SOLO al principio de una palabra. Sin esto, 'spa'
+// matcheaba dentro de "espacio" y una app de citas terminaba en belleza.
+function empiezaPalabra(texto, clave) {
+  let desde = 0;
+  for (;;) {
+    const i = texto.indexOf(clave, desde);
+    if (i === -1) return false;
+    const anterior = i === 0 ? '' : texto[i - 1];
+    if (!/[a-z0-9]/.test(anterior)) return true;
+    desde = i + 1;
+  }
 }
 
 export function getRubro(id) {

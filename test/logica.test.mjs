@@ -388,11 +388,38 @@ describe('el rubro de la biblioteca viral', () => {
       ['Inmobiliaria boutique', 'inmobiliaria'],
       ['Consultorio odontologico', 'salud'],
       ['Tienda de indumentaria', 'retail'],
-      ['Estudio juridico', 'servicios']
+      ['Estudio juridico', 'servicios'],
+      ['Tecnologia y electronica de consumo', 'retail'],
+      ['pagos automaticos y cobros para negocios', 'servicios']
     ];
     for (const [texto, esperado] of casos) {
       assert.equal(rubroFamilyFor({ analysis: { rubro: texto } }), esperado, texto);
     }
+  });
+
+  test('una clave corta no puede matchear dentro de otra palabra', () => {
+    // Bug real: 'spa' matcheaba dentro de "espacio" y una app de citas
+    // terminaba clasificada como salon de belleza.
+    assert.equal(rubroFamilyFor({ analysis: { rubro: 'un espacio de comunidad y citas' } }), 'generico');
+    assert.equal(rubroFamilyFor({ analysis: { rubro: 'viajes por europa' } }), 'generico', "'ropa' dentro de 'europa'");
+    // Pero la clave como palabra propia si tiene que agarrar.
+    assert.equal(rubroFamilyFor({ analysis: { rubro: 'spa y masajes' } }), 'belleza');
+  });
+
+  test('la descripcion de una agencia no la clasifica con el rubro de SUS clientes', () => {
+    // Bug real: Postia se describe como util para "cafes, gimnasios, tiendas,
+    // esteticas" y quedaba en belleza; Capta nombraba "negocios gastronomicos"
+    // y quedaba en gastronomia. El rubro del onboarding manda solo.
+    const agencia = {
+      analysis: { rubro: 'SaaS de contenido para Instagram' },
+      description: 'Para negocios reales: cafes, gimnasios, tiendas, esteticas y peluquerias.'
+    };
+    assert.equal(rubroFamilyFor(agencia), 'generico');
+  });
+
+  test('sin rubro del onboarding, recien ahi se mira la descripcion', () => {
+    assert.equal(rubroFamilyFor({ description: 'Panaderia artesanal de barrio' }), 'gastronomia');
+    assert.equal(rubroFamilyFor({ name: 'Peluqueria Vero' }), 'belleza');
   });
 
   test('un rubro desconocido o vacio cae en generico, no rompe', () => {
