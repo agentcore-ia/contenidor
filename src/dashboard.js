@@ -14,7 +14,8 @@ import {
   updateCustomTemplate,
   deleteCustomTemplate,
   updateBrandFields,
-  uploadReferenceImage
+  uploadReferenceImage,
+  listViralFormatSamples
 } from './supabase.js';
 import { analyzeWebsite, extractMenuProducts } from './openai.js';
 import { normalizeUrl, readWebsite } from './website.js';
@@ -23,7 +24,8 @@ import { assertCanCreateBrand, planStatus } from './usage.js';
 import { adminOverview, isAdmin, requireAdmin } from './admin.js';
 import { billingConfigured, cancelSubscription, createCheckout, subscriptionFor, syncPreapproval } from './billing.js';
 import { PLANS } from './plans.js';
-import { applyWhatsappDecision, refreshBrandResults, generateAndRenderPost, generateCalendarIdeas, generatePostForCalendar, publishPost, renderPostInBackground, runDailyAutomation, sendApprovalForPost } from './contentEngine.js';
+import { applyWhatsappDecision, startViralSamplesInBackground, viralSamplesStatus, refreshBrandResults, generateAndRenderPost, generateCalendarIdeas, generatePostForCalendar, publishPost, renderPostInBackground, runDailyAutomation, sendApprovalForPost, useViralFormat } from './contentEngine.js';
+import { PILARES, listViralFormats } from './viralFormats.js';
 import { buildAuthUrl, connectFromCode, connectWithToken, instagramConfigured, verifyState } from './instagram.js';
 import { isValidSignature, parseWebhookEvents, verifyWebhook, whatsappConfigured } from './whatsapp.js';
 import { refreshPostVideo, startPostVideo, videoConfigured } from './videoEngine.js';
@@ -673,6 +675,65 @@ export function registerDashboardRoutes(app) {
     const count = parseInt(req.body?.count ?? '7', 10) || 7;
     const result = await generateCalendarIdeas({ brandId: brand.id, count });
     res.json({ success: true, ...result });
+  }));
+
+  // --- Biblioteca de formatos virales ---
+  // El catalogo es el mismo para todos; lo que cambia por marca es que formatos
+  // ya uso. La muestra sale de viral_format_samples (generada una vez, ver
+  // POST /api/admin/viral-formats/samples).
+  app.get('/api/viral-formats', wrap(async (req, res) => {
+    const brand = await requireBrand(req);
+    const [formats, samples] = await Promise.all([
+      listViralFormats(),
+      listViralFormatSamples().catch(() => [])
+    ]);
+
+    const { data: usados } = await supabase
+      .from('content_calendar')
+      .select('viral_format, publish_date, status, generated_post_id')
+      .eq('brand_id', brand.id)
+      .not('viral_format', 'is', null);
+
+    const usoPorFormato = new Map();
+    (usados ?? []).forEach((row) => {
+      const previo = usoPorFormato.get(row.viral_format);
+      if (!previo || row.publish_date > previo.publish_date) usoPorFormato.set(row.viral_format, row);
+    });
+
+    const sampleByFormat = new Map(samples.map((row) => [row.format_id, row.image_url]));
+
+    res.json({
+      success: true,
+      pilares: PILARES,
+      formats: formats.map((format) => ({
+        ...format,
+        sample_url: sampleByFormat.get(format.id) || null,
+        usado: usoPorFormato.has(format.id),
+        ultimo_uso: usoPorFormato.get(format.id)?.publish_date || null
+      }))
+    });
+  }));
+
+  app.post('/api/viral-formats/:id/use', wrap(async (req, res) => {
+    const brand = await requireBrand(req);
+    const mode = req.body?.mode === 'schedule' ? 'schedule' : 'now';
+    const result = await useViralFormat({ brandId: brand.id, formatId: req.params.id, mode });
+    res.json({ success: true, ...result, rendering: result.generated });
+  }));
+
+  // Genera las muestras que falten del catalogo. Es plata nuestra y una sola
+  // vez para todos los clientes, asi que solo la dispara un operador. La tanda
+  // corre en background: son decenas de imagenes y el proxy corta la request
+  // mucho antes de que termine.
+  app.get('/api/admin/viral-formats/samples', requireAdmin, wrap(async (_req, res) => {
+    res.json({ success: true, ...(await viralSamplesStatus()) });
+  }));
+
+  app.post('/api/admin/viral-formats/samples', requireAdmin, wrap(async (req, res) => {
+    const estado = await viralSamplesStatus();
+    const only = Array.isArray(req.body?.only) ? req.body.only : null;
+    const started = startViralSamplesInBackground({ only, force: req.body?.force === true });
+    res.json({ success: true, ...started, ...estado });
   }));
 
   app.get('/api/automation', wrap(async (_req, res) => {

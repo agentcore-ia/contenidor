@@ -15,6 +15,9 @@ import {
   listBrandProducts,
   listBrandsWithInstagram,
   listCategories,
+  listViralFormatSamples,
+  upsertViralFormatSample,
+  uploadViralSampleImage,
   markCalendarGenerated,
   markCalendarPosted,
   markPostPublished,
@@ -28,7 +31,8 @@ import {
   uploadPostImage,
   supabase
 } from './supabase.js';
-import { fetchRemoteImageBytes, generateContentIdeas, generateImageArtDirection, generatePostContent, generatePostImageAsset } from './openai.js';
+import { fetchRemoteImageBytes, generateContentIdeas, generateImageArtDirection, generatePostContent, generatePostImageAsset, generateViralSampleImage } from './openai.js';
+import { getViralFormat, listViralFormats } from './viralFormats.js';
 import { publishToInstagram, refreshLongLivedToken } from './instagram.js';
 import { sendApprovalRequest, sendText, whatsappConfigured } from './whatsapp.js';
 import { renderPostImage } from './render.js';
@@ -64,11 +68,19 @@ export async function generatePostForCalendar(calendarId) {
   await assertWithinPlan(content.brand, 'post');
 
   const products = await listBrandProducts(content.brand.id).catch(() => []);
+  // Si la idea salio de la biblioteca de formatos virales, su receta viaja
+  // hasta el prompt. Un formato borrado del catalogo no rompe la generacion:
+  // la idea se genera como cualquier otra.
+  const viralFormat = content.calendar.viral_format
+    ? await getViralFormat(content.calendar.viral_format).catch(() => null)
+    : null;
+
   const generation = await generatePostContent({
     brand: content.brand,
     category: content.category,
     calendar: content.calendar,
-    products
+    products,
+    viralFormat
   });
 
   const post = await createGeneratedPost({
@@ -490,6 +502,165 @@ export async function generateCalendarIdeas({ brandId = null, count = 7 } = {}) 
     requested: safeCount,
     inserted: inserted.length,
     items: inserted
+  };
+}
+
+// --- Biblioteca de formatos virales -----------------------------------------
+
+// Elige la categoria de la marca que mejor calza con el formato, por solape de
+// palabras. Es una heuristica barata y a proposito: la que manda sobre la pieza
+// es la receta del formato, no la categoria — esto solo evita que todas las
+// ideas de la biblioteca caigan siempre en la misma.
+function pickCategoryForFormat(categories, format) {
+  const palabras = new Set(
+    `${format.nombre} ${format.gancho} ${format.pilar}`
+      .toLowerCase()
+      .split(/[^a-zñáéíóú]+/)
+      .filter((palabra) => palabra.length > 3)
+  );
+
+  let mejor = categories[0];
+  let mejorPuntaje = -1;
+
+  for (const categoria of categories) {
+    const texto = `${categoria.name} ${categoria.objective || ''} ${categoria.prompt_guidance || ''}`.toLowerCase();
+    let puntaje = 0;
+    palabras.forEach((palabra) => { if (texto.includes(palabra)) puntaje += 1; });
+    if (puntaje > mejorPuntaje) {
+      mejor = categoria;
+      mejorPuntaje = puntaje;
+    }
+  }
+
+  return mejor;
+}
+
+// Toma un formato de la biblioteca y lo baja a una idea real de esta marca.
+//   mode 'schedule' -> queda como idea en la agenda (no consume plan)
+//   mode 'now'      -> ademas genera copy + imagen con el estilo de la marca
+//
+// El "estilo de la cuenta del cliente" no se resuelve aca: se resuelve solo,
+// porque la pieza sale por el mismo camino que todas (referencias de la marca +
+// direccion de arte + logo). Lo unico que agrega el formato es la receta.
+export async function useViralFormat({ brandId = null, formatId, mode = 'now' } = {}) {
+  const format = await getViralFormat(formatId);
+  const brand = brandId ? await getBrandById(brandId) : await getDefaultBrand();
+
+  // El tope del plan se chequea ANTES de tocar el calendario: si no hay cupo,
+  // no queremos dejar una idea huerfana colgada en la agenda.
+  if (mode === 'now') {
+    await assertWithinPlan(brand, 'post');
+  }
+
+  const categories = await listCategories(brand.id);
+  if (!categories.length) {
+    throw new AppError('No hay categorias configuradas para esta marca.', 400, 'NO_CATEGORIES');
+  }
+  const category = pickCategoryForFormat(categories, format);
+
+  // Las historias no ocupan un dia propio (el indice unico solo mira el feed):
+  // acompanan al dia de hoy. Los posts de feed van al primer dia libre.
+  const today = todayDateString();
+  let publishDate = today;
+  if (format.content_type !== 'story') {
+    const latest = await getLatestCalendarDate(brand.id);
+    publishDate = latest && latest >= today ? addDays(latest, 1) : today;
+  }
+
+  const [item] = await insertCalendarIdeas([{
+    brand_id: brand.id,
+    category_id: category.id,
+    publish_date: publishDate,
+    topic: format.nombre,
+    angle: format.gancho,
+    content_type: format.content_type,
+    viral_format: format.id,
+    status: 'pending'
+  }]);
+
+  if (mode !== 'now') {
+    return { format: format.id, calendar: item, generated: false };
+  }
+
+  const post = await generateAndRenderPost(item.id);
+  return { format: format.id, calendar: item, generated: true, post_id: post.id, status: post.status };
+}
+
+// Cuantas muestras del catalogo ya existen. Es lo que mira el operador para
+// saber si la tanda en background termino.
+export async function viralSamplesStatus() {
+  const [formats, samples] = await Promise.all([listViralFormats(), listViralFormatSamples()]);
+  const conMuestra = new Set(samples.map((row) => row.format_id));
+  return {
+    catalogo: formats.length,
+    con_muestra: formats.filter((format) => conMuestra.has(format.id)).length,
+    faltan: formats.filter((format) => !conMuestra.has(format.id)).map((format) => format.id),
+    corriendo: samplesRunning
+  };
+}
+
+// Una tanda de muestras son decenas de llamadas al modelo de imagen, varios
+// minutos: no entra en una request HTTP (el proxy la corta antes). Arranca en
+// background y el operador mira el estado. El flag evita que dos clicks
+// paguen dos veces la misma tanda.
+let samplesRunning = false;
+
+export function startViralSamplesInBackground(opts = {}) {
+  if (samplesRunning) return { started: false, reason: 'ya hay una tanda corriendo' };
+  samplesRunning = true;
+
+  Promise.resolve()
+    .then(() => ensureViralSamples(opts))
+    .then((result) => {
+      console.log(`[viral:samples] tanda lista: ${result.generadas.length} generadas, ${result.fallidas.length} fallidas`);
+    })
+    .catch((error) => {
+      console.error('[viral:samples:error] la tanda fallo entera:', error);
+    })
+    .finally(() => { samplesRunning = false; });
+
+  return { started: true };
+}
+
+// Genera las imagenes de muestra del catalogo: una por formato, compartidas por
+// todas las marcas. Es idempotente — solo genera las que faltan — porque cada
+// muestra es plata nuestra y no tiene sentido rehacerlas en cada deploy.
+export async function ensureViralSamples({ only = null, force = false } = {}) {
+  const formats = await listViralFormats();
+  const existing = new Map((await listViralFormatSamples()).map((row) => [row.format_id, row]));
+
+  const pendientes = formats.filter((format) => {
+    if (only?.length && !only.includes(format.id)) return false;
+    return force || !existing.has(format.id);
+  });
+
+  const generadas = [];
+  const fallidas = [];
+
+  for (const format of pendientes) {
+    try {
+      const asset = await generateViralSampleImage(format);
+      const imageUrl = await uploadViralSampleImage(format.id, asset.buffer);
+      await upsertViralFormatSample({
+        formatId: format.id,
+        imageUrl,
+        model: asset.model,
+        prompt: asset.prompt
+      });
+      generadas.push({ format: format.id, image_url: imageUrl });
+      console.log(`[viral:samples] ${format.id} lista (${generadas.length}/${pendientes.length})`);
+    } catch (error) {
+      console.error(`[viral:samples:error] ${format.id}: ${error.message}`);
+      fallidas.push({ format: format.id, message: error.message });
+    }
+  }
+
+  return {
+    catalogo: formats.length,
+    ya_estaban: existing.size,
+    pedidas: pendientes.length,
+    generadas,
+    fallidas
   };
 }
 

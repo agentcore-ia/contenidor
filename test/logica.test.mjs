@@ -316,3 +316,47 @@ describe('de donde sale la IP del cliente', () => {
     assert.equal(clientIp(req({}, '127.0.0.1')), '127.0.0.1');
   });
 });
+
+const { PILARES, listViralFormats, getViralFormat, viralFormatIds } = await import('../src/viralFormats.js');
+const formatos = await listViralFormats();
+
+describe('biblioteca de formatos virales', () => {
+  test('todo formato apunta a un pilar que existe', () => {
+    const pilares = new Set(PILARES.map((pilar) => pilar.id));
+    const huerfanos = formatos.filter((formato) => !pilares.has(formato.pilar));
+    assert.deepEqual(huerfanos.map((formato) => formato.id), [], 'un pilar inexistente esconde el formato del panel');
+  });
+
+  test('no hay ids repetidos: el id es la clave de la muestra y del calendario', () => {
+    const ids = viralFormatIds();
+    assert.equal(ids.length, new Set(ids).size);
+  });
+
+  test('todo formato trae los campos que consumen el prompt y la tarjeta', () => {
+    for (const formato of formatos) {
+      for (const campo of ['nombre', 'gancho', 'por_que', 'receta', 'muestra', 'content_type']) {
+        assert.ok(String(formato[campo] || '').trim(), `${formato.id} sin ${campo}`);
+      }
+    }
+  });
+
+  test('el content_type es uno de los que sabe renderizar el motor', () => {
+    // Sin video: una biblioteca que ofrece un formato que el plan no cubre
+    // termina en un boton que falla recien despues de cobrar la generacion.
+    const validos = new Set(['image', 'carousel', 'story']);
+    for (const formato of formatos) {
+      assert.ok(validos.has(formato.content_type), `${formato.id} usa ${formato.content_type}`);
+    }
+  });
+
+  test('cada pilar tiene al menos 4 formatos para que el filtro no quede pelado', () => {
+    for (const pilar of PILARES) {
+      const n = formatos.filter((formato) => formato.pilar === pilar.id).length;
+      assert.ok(n >= 4, `el pilar ${pilar.id} tiene ${n}`);
+    }
+  });
+
+  test('un formato inexistente falla con 404, no con undefined', async () => {
+    await assert.rejects(() => getViralFormat('no-existe'), (error) => error.statusCode === 404);
+  });
+});

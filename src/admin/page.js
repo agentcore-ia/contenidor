@@ -36,25 +36,30 @@ async function refreshSession() {
   return false;
 }
 
-async function call(path) {
+async function call(path, opts = {}) {
   const sess = session();
   const res = await fetch(path, {
-    headers: { Authorization: `Bearer ${sess?.access_token || ''}` },
+    method: opts.method || 'GET',
+    headers: {
+      Authorization: `Bearer ${sess?.access_token || ''}`,
+      ...(opts.body ? { 'Content-Type': 'application/json' } : {})
+    },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
     cache: 'no-store'
   });
   const body = await res.json().catch(() => ({}));
   return { res, body };
 }
 
-async function api(path, { retry = true } = {}) {
+async function api(path, { retry = true, ...opts } = {}) {
   if (!session()?.access_token) {
     location.href = '/dashboard';
     throw new Error('sin sesion');
   }
 
-  const { res, body } = await call(path);
+  const { res, body } = await call(path, opts);
   if (res.status === 401 && retry) {
-    if (await refreshSession()) return api(path, { retry: false });
+    if (await refreshSession()) return api(path, { retry: false, ...opts });
     location.href = '/dashboard';
     throw new Error('sesion vencida');
   }
@@ -251,6 +256,18 @@ function render() {
       ${rowsBlock(alerts.map(([count, label]) => ({ name: label, value: count })))}
     </div>` : ''}
 
+    <h2 class="section">Biblioteca de ideas virales</h2>
+    <div class="card">
+      <h3>Muestras del catalogo</h3>
+      <p class="kpi-note" style="margin-bottom:12px">
+        Cada formato se ilustra con una imagen generada UNA vez y compartida por todas las marcas.
+        Genera solo las que faltan, asi que apretarlo de nuevo no vuelve a gastar.
+      </p>
+      <button class="seg-opt" id="gen-samples">Generar las muestras que falten</button>
+      <button class="seg-opt" id="check-samples">Ver estado</button>
+      <div class="kpi-note" id="samples-out" style="margin-top:10px"></div>
+    </div>
+
     <h2 class="section">Marcas</h2>
     ${brandsTable(d.brands)}
 
@@ -284,5 +301,40 @@ byId('range').addEventListener('click', (ev) => {
   load();
 });
 byId('reload').addEventListener('click', load);
+
+// Las muestras del catalogo se generan de a una contra el modelo de imagen: la
+// tanda completa tarda varios minutos, asi que el boton avisa y se bloquea.
+byId('app').addEventListener('click', async (ev) => {
+  if (ev.target?.id !== 'gen-samples') return;
+  const btn = ev.target;
+  const out = byId('samples-out');
+  btn.disabled = true;
+  out.textContent = '';
+  try {
+    const r = await api('/api/admin/viral-formats/samples', { method: 'POST', body: {} });
+    if (!r.started) {
+      out.textContent = `No arranco: ${r.reason}.`;
+    } else if (!r.faltan.length) {
+      out.textContent = `Ya estaban las ${r.catalogo} muestras del catalogo. No hay nada para generar.`;
+    } else {
+      out.textContent = `Arranco: faltan ${r.faltan.length} de ${r.catalogo}. Tarda unos minutos; volve a apretar "Ver estado" para seguirlo.`;
+    }
+  } catch (error) {
+    out.textContent = `Error: ${error.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+byId('app').addEventListener('click', async (ev) => {
+  if (ev.target?.id !== 'check-samples') return;
+  const out = byId('samples-out');
+  try {
+    const r = await api('/api/admin/viral-formats/samples');
+    out.textContent = `${r.con_muestra} de ${r.catalogo} con muestra${r.corriendo ? ' (hay una tanda corriendo)' : ''}.${r.faltan.length ? ` Faltan: ${r.faltan.join(', ')}` : ''}`;
+  } catch (error) {
+    out.textContent = `Error: ${error.message}`;
+  }
+});
 
 load();

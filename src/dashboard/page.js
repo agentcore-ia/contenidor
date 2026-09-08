@@ -176,6 +176,7 @@ async function loadTab() {
     if (S.tab === 'overview') await loadOverview();
     if (S.tab === 'posts') await loadPosts();
     if (S.tab === 'calendar') await loadCalendar();
+    if (S.tab === 'viral') await loadViral();
     if (S.tab === 'analytics') await loadAnalytics();
     if (S.tab === 'brand') await loadBrand();
     if (S.tab === 'products') await loadProducts();
@@ -1226,6 +1227,95 @@ window.generateCalendar = async function generateCalendar(id, opts = {}) {
     await api('/api/generate-and-render', { method: 'POST', body });
     toast('Copy generado. La imagen se crea en segundo plano (~1 min).');
     await loadTab();
+    pollTabForRender();
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+};
+
+// --- Ideas virales -----------------------------------------------------------
+// La biblioteca de formatos que funcionan. Cada tarjeta muestra el molde (una
+// muestra generada una vez, igual para todas las marcas) y lo baja a una pieza
+// con el estilo de ESTA cuenta.
+
+async function loadViral() {
+  const data = await api('/api/viral-formats');
+  S.viralFormats = data.formats || [];
+  S.viralPilares = data.pilares || [];
+  renderViral();
+}
+
+function viralCard(format) {
+  const muestra = format.sample_url
+    ? `<img src="${esc(format.sample_url)}" alt="Muestra del formato ${esc(format.nombre)}" loading="lazy" />`
+    : `<div class="viral-nosample">${ICON.image}<span>Muestra en camino</span></div>`;
+
+  return `<article class="viral-card${format.usado ? ' is-used' : ''}">
+    <div class="viral-shot">
+      ${muestra}
+      <span class="viral-type">${ctypeChip(format.content_type)}</span>
+      ${format.usado ? '<span class="viral-used">Ya lo usaste</span>' : ''}
+    </div>
+    <div class="viral-body">
+      <div class="viral-name">${esc(format.nombre)}</div>
+      <div class="viral-hook">${esc(format.gancho)}</div>
+      <div class="viral-why"><strong>Por que funciona:</strong> ${esc(format.por_que)}</div>
+    </div>
+    <div class="viral-actions">
+      <button class="btn btn-sm btn-primary" onclick="useViral('${format.id}','now')">Generar con mi estilo</button>
+      <button class="btn btn-sm" onclick="useViral('${format.id}','schedule')">Agendar</button>
+    </div>
+  </article>`;
+}
+
+function renderViral() {
+  const pilarActivo = S.viralPilar || 'todos';
+  const visibles = pilarActivo === 'todos'
+    ? S.viralFormats
+    : S.viralFormats.filter((format) => format.pilar === pilarActivo);
+
+  const chip = (id, nombre, n) => `<button type="button" class="chip-opt${pilarActivo === id ? ' selected' : ''}" onclick="filterViral('${id}')">${esc(nombre)} <span class="chip-n">${n}</span></button>`;
+
+  const chips = [
+    chip('todos', 'Todos', S.viralFormats.length),
+    ...S.viralPilares.map((pilar) => chip(
+      pilar.id,
+      pilar.nombre,
+      S.viralFormats.filter((format) => format.pilar === pilar.id).length
+    ))
+  ].join('');
+
+  const pilar = S.viralPilares.find((item) => item.id === pilarActivo);
+
+  byId('content').innerHTML = `
+    ${pageHead(
+      'Ideas virales',
+      'Formatos que ya demostraron funcionar. Elegi uno y se genera con el estilo de tu cuenta.'
+    )}
+    <div class="chip-list">${chips}</div>
+    ${pilar ? `<p class="viral-pilar-note">${esc(pilar.descripcion)}</p>` : ''}
+    <div class="viral-grid">${visibles.map(viralCard).join('') || empty('No hay formatos en este pilar')}</div>`;
+}
+
+window.filterViral = function filterViral(pilarId) {
+  S.viralPilar = pilarId;
+  renderViral();
+};
+
+window.useViral = async function useViral(formatId, mode) {
+  const format = (S.viralFormats || []).find((item) => item.id === formatId);
+  const label = format ? format.nombre : 'el formato';
+
+  if (mode === 'now' && !confirm(`Generar "${label}" con el estilo de tu marca?\n\nConsume una pieza de tu plan.`)) return;
+
+  try {
+    const res = await api(`/api/viral-formats/${formatId}/use`, { method: 'POST', body: { mode } });
+    if (mode === 'schedule') {
+      toast(`"${label}" quedo agendado para el ${fmtDate(res.calendar?.publish_date)}`);
+      return;
+    }
+    toast('Generando tu pieza en segundo plano (~1 min)...');
+    window.location.hash = 'posts';
     pollTabForRender();
   } catch (error) {
     toast(error.message, 'error');

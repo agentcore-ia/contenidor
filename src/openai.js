@@ -155,6 +155,25 @@ ${compactJson(rows)}
 `;
 }
 
+// La receta del formato viral elegido desde la biblioteca del panel. Va DESPUES
+// del tema y ANTES de las reglas generales, y manda sobre ellas: si el cliente
+// eligio "Pantone del producto", la pieza tiene que ser un Pantone — no una
+// version tibia del tema con otra foto.
+function viralFormatBlock(viralFormat) {
+  if (!viralFormat?.receta) return '';
+  return `
+FORMATO VIRAL ELEGIDO POR EL CLIENTE: "${viralFormat.nombre}".
+Esta es la receta de la pieza y tiene PRIORIDAD sobre cualquier guia generica de mas abajo:
+${viralFormat.receta}
+
+Como aplicarla:
+- Aterriza la receta a ESTE negocio y su rubro: el formato es el molde, el contenido sale de la marca.
+- Respeta la estructura que pide la receta (cantidad de placas, que va en cada una, que texto lleva la imagen).
+- "visual_direction" y "background_idea" tienen que describir la ejecucion visual de ESTE formato, no una foto generica del producto.
+- Si la receta pide datos reales (precios, testimonios, hitos) usa solo los que figuren en el contexto de la marca. Nunca los inventes: si no hay, resolve la pieza sin ellos.
+`;
+}
+
 // Reglas de copy especificas de cada formato. La pieza no es "la misma idea en
 // otro tamano": cada formato de Instagram pide una escritura distinta.
 function formatRules(contentType) {
@@ -181,7 +200,7 @@ FORMATO: HISTORIA (vertical 9:16, dura 24 horas, la ve tu audiencia actual).
 - "slides": devolvela VACIA (este formato no lleva placas).`;
 }
 
-export async function generatePostContent({ brand, category, calendar, products = [] }) {
+export async function generatePostContent({ brand, category, calendar, products = [], viralFormat = null }) {
   const client = createOpenAIClient();
   const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
 
@@ -208,7 +227,7 @@ ${compactJson({
   publish_date: calendar.publish_date,
   content_type: calendar.content_type || 'image'
 })}
-${catalogBlock(products)}${formatRules(calendar.content_type)}
+${catalogBlock(products)}${viralFormatBlock(viralFormat)}${formatRules(calendar.content_type)}
 
 Reglas:${products.length ? `
 - Si el tema promociona un producto/servicio del catalogo, usa su nombre EXACTO y su precio EXACTO tal como figura. Jamas inventes ni redondees precios, y no menciones precios de items que no esten en el catalogo.` : ''}
@@ -1168,6 +1187,58 @@ export async function generatePostImageAsset(post, { brand, referenceBuffers = [
     buffer: Buffer.from(image.b64_json, 'base64'),
     raw: response
   };
+}
+
+// --- Muestras del catalogo de formatos virales ------------------------------
+// La imagen que ilustra un formato en la biblioteca del panel. Se genera UNA
+// vez y la ven todas las marcas, asi que a proposito NO lleva marca, logo ni
+// rubro: tiene que mostrar el MOLDE (la composicion, el recurso visual), no un
+// negocio puntual. La pieza con la marca del cliente sale despues, al usarlo.
+export async function generateViralSampleImage(format) {
+  const client = createOpenAIClient();
+  const model = process.env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL;
+  const size = format.content_type === 'story'
+    ? (process.env.OPENAI_IMAGE_SIZE_STORY || STORY_IMAGE_SIZE)
+    : (process.env.OPENAI_IMAGE_SIZE || DEFAULT_IMAGE_SIZE);
+  // Es un asset compartido que se genera una sola vez: va en la calidad buena
+  // aunque los clientes de prueba generen en 'low'. Se amortiza entre todos.
+  const quality = process.env.VIRAL_SAMPLE_QUALITY || 'medium';
+
+  const prompt = `Design a single, finished Instagram creative that serves as the CATALOGUE SAMPLE for a content format called "${format.nombre}".
+
+Its job is to show the FORMAT — the composition, the visual device, the way type and image relate — clearly enough that a business owner scrolling a gallery instantly understands "ah, that's what this format looks like".
+
+The format's visual brief:
+${format.muestra}
+
+Hard rules for a catalogue sample:
+- NO brand name, NO logo, NO wordmark, NO watermark anywhere in the piece.
+- Keep the subject generic and universally readable (a nice everyday product or scene). It must NOT read as one specific business or industry.
+- Any text in the image must be VERY short, generic and rendered crisply and correctly spelled, in neutral Spanish. Placeholder-style copy is fine ("Nuestro clasico", "Mito", "Antes / Despues"). Never invent prices, offers, phone numbers or CTAs.
+- Editorial, premium art direction. It should look like a piece a good studio would publish, not a stock template.
+- Beautiful and clean: this image is the shop window of the format.`;
+
+  let response;
+  try {
+    response = await client.images.generate({
+      model,
+      prompt,
+      n: 1,
+      size,
+      quality,
+      output_format: 'png',
+      background: 'opaque'
+    });
+  } catch (error) {
+    throw new AppError(`No se pudo generar la muestra de "${format.nombre}": ${error.message}`, 502, 'VIRAL_SAMPLE_FAILED');
+  }
+
+  const image = response.data?.[0];
+  if (!image?.b64_json) {
+    throw new AppError(`La muestra de "${format.nombre}" volvio vacia.`, 502, 'VIRAL_SAMPLE_EMPTY');
+  }
+
+  return { model, size, quality, prompt, buffer: Buffer.from(image.b64_json, 'base64') };
 }
 
 // --- Demo publica de la landing --------------------------------------------

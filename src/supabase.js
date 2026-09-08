@@ -31,6 +31,7 @@ function normalizeCalendarContent(row) {
       topic: row.topic,
       angle: row.angle,
       content_type: row.content_type,
+      viral_format: row.viral_format ?? null,
       status: row.status
     },
     brand: normalizeRelation(row.brand),
@@ -47,6 +48,7 @@ function calendarSelect() {
     topic,
     angle,
     content_type,
+    viral_format,
     status,
     brand:brands (*),
     category:content_categories (*)
@@ -255,6 +257,69 @@ export async function uploadReferenceImage(buffer, contentType) {
   }
 
   return data.publicUrl;
+}
+
+// --- Muestras del catalogo de formatos virales -------------------------------
+// Una imagen por formato, generada UNA vez y compartida por todas las marcas:
+// es la vidriera del catalogo, no la pieza de nadie. Por eso no llevan brand_id
+// ni pasan por el consumo del plan de ningun cliente.
+
+export async function uploadViralSampleImage(formatId, imageBuffer) {
+  const filePath = `viral-samples/${formatId}.png`;
+
+  const { error } = await supabase.storage
+    .from('post-assets')
+    .upload(filePath, imageBuffer, {
+      contentType: 'image/png',
+      cacheControl: '31536000',
+      upsert: true
+    });
+
+  if (error) {
+    throw new AppError(`Could not upload viral sample: ${error.message}`, 502, 'STORAGE_UPLOAD_FAILED');
+  }
+
+  const { data } = supabase.storage.from('post-assets').getPublicUrl(filePath);
+
+  if (!data?.publicUrl) {
+    throw new AppError('Supabase Storage did not return a public URL', 502, 'STORAGE_PUBLIC_URL_FAILED');
+  }
+
+  // La ruta es fija por formato, asi que al regenerar una muestra la URL no
+  // cambia: hay que romperle el cache al CDN o el panel sigue viendo la vieja.
+  return `${data.publicUrl}?v=${Date.now()}`;
+}
+
+export async function listViralFormatSamples() {
+  const { data, error } = await supabase
+    .from('viral_format_samples')
+    .select('format_id, image_url, model, created_at, updated_at');
+
+  if (error) {
+    throw wrapSupabaseError('Could not load viral format samples', error);
+  }
+
+  return data ?? [];
+}
+
+export async function upsertViralFormatSample({ formatId, imageUrl, model = null, prompt = null }) {
+  const { data, error } = await supabase
+    .from('viral_format_samples')
+    .upsert({
+      format_id: formatId,
+      image_url: imageUrl,
+      model,
+      prompt,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'format_id' })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw wrapSupabaseError('Could not save viral format sample', error);
+  }
+
+  return data;
 }
 
 async function upsertPostAsset({ postId, filePath, imageUrl }) {
