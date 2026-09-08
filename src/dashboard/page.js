@@ -1242,6 +1242,7 @@ async function loadViral() {
   const data = await api('/api/viral-formats');
   S.viralFormats = data.formats || [];
   S.viralPilares = data.pilares || [];
+  S.viralRubro = data.rubro || null;
   renderViral();
 }
 
@@ -1255,6 +1256,7 @@ function viralCard(format) {
       ${muestra}
       <span class="viral-type">${ctypeChip(format.content_type)}</span>
       ${format.usado ? '<span class="viral-used">Ya lo usaste</span>' : ''}
+      ${format.sample_url && !format.sample_es_del_rubro ? '<span class="viral-generic" title="Todavia no generamos la muestra de tu rubro: esta es la de referencia">Muestra generica</span>' : ''}
     </div>
     <div class="viral-body">
       <div class="viral-name">${esc(format.nombre)}</div>
@@ -1290,7 +1292,7 @@ function renderViral() {
   byId('content').innerHTML = `
     ${pageHead(
       'Ideas virales',
-      'Formatos que ya demostraron funcionar. Elegi uno y se genera con el estilo de tu cuenta.'
+      `Formatos que ya demostraron funcionar. Elegi uno y se genera con el estilo de tu cuenta${S.viralRubro ? `, adaptado a ${esc(S.viralRubro.nombre.toLowerCase())}` : ''}.`
     )}
     <div class="chip-list">${chips}</div>
     ${pilar ? `<p class="viral-pilar-note">${esc(pilar.descripcion)}</p>` : ''}

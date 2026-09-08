@@ -264,8 +264,8 @@ export async function uploadReferenceImage(buffer, contentType) {
 // es la vidriera del catalogo, no la pieza de nadie. Por eso no llevan brand_id
 // ni pasan por el consumo del plan de ningun cliente.
 
-export async function uploadViralSampleImage(formatId, imageBuffer) {
-  const filePath = `viral-samples/${formatId}.png`;
+export async function uploadViralSampleImage(formatId, rubro, imageBuffer) {
+  const filePath = `viral-samples/${rubro}/${formatId}.png`;
 
   const { error } = await supabase.storage
     .from('post-assets')
@@ -290,10 +290,16 @@ export async function uploadViralSampleImage(formatId, imageBuffer) {
   return `${data.publicUrl}?v=${Date.now()}`;
 }
 
-export async function listViralFormatSamples() {
-  const { data, error } = await supabase
+// Sin `rubro` devuelve TODAS las muestras de todos los rubros (lo que mira el
+// operador); con rubro, solo las de esa familia (lo que sirve el panel).
+export async function listViralFormatSamples(rubro = null) {
+  let query = supabase
     .from('viral_format_samples')
-    .select('format_id, image_url, model, created_at, updated_at');
+    .select('format_id, rubro, image_url, model, created_at, updated_at');
+
+  if (rubro) query = query.eq('rubro', rubro);
+
+  const { data, error } = await query;
 
   if (error) {
     throw wrapSupabaseError('Could not load viral format samples', error);
@@ -302,16 +308,17 @@ export async function listViralFormatSamples() {
   return data ?? [];
 }
 
-export async function upsertViralFormatSample({ formatId, imageUrl, model = null, prompt = null }) {
+export async function upsertViralFormatSample({ formatId, rubro, imageUrl, model = null, prompt = null }) {
   const { data, error } = await supabase
     .from('viral_format_samples')
     .upsert({
       format_id: formatId,
+      rubro,
       image_url: imageUrl,
       model,
       prompt,
       updated_at: new Date().toISOString()
-    }, { onConflict: 'format_id' })
+    }, { onConflict: 'format_id,rubro' })
     .select('*')
     .single();
 

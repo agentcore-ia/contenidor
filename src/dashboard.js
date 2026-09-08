@@ -25,7 +25,7 @@ import { adminOverview, isAdmin, requireAdmin } from './admin.js';
 import { billingConfigured, cancelSubscription, createCheckout, subscriptionFor, syncPreapproval } from './billing.js';
 import { PLANS } from './plans.js';
 import { applyWhatsappDecision, startViralSamplesInBackground, viralSamplesStatus, refreshBrandResults, generateAndRenderPost, generateCalendarIdeas, generatePostForCalendar, publishPost, renderPostInBackground, runDailyAutomation, sendApprovalForPost, useViralFormat } from './contentEngine.js';
-import { PILARES, listViralFormats } from './viralFormats.js';
+import { PILARES, RUBROS, getRubro, listViralFormats, rubroFamilyFor } from './viralFormats.js';
 import { buildAuthUrl, connectFromCode, connectWithToken, instagramConfigured, verifyState } from './instagram.js';
 import { isValidSignature, parseWebhookEvents, verifyWebhook, whatsappConfigured } from './whatsapp.js';
 import { refreshPostVideo, startPostVideo, videoConfigured } from './videoEngine.js';
@@ -683,9 +683,14 @@ export function registerDashboardRoutes(app) {
   // POST /api/admin/viral-formats/samples).
   app.get('/api/viral-formats', wrap(async (req, res) => {
     const brand = await requireBrand(req);
-    const [formats, samples] = await Promise.all([
+    // La muestra se sirve segun la familia de rubro de la marca: una peluqueria
+    // no puede ver la foto de una pizza. Mientras esa familia no tenga sus
+    // muestras generadas, cae a las 'generico', que son deliberadamente neutras.
+    const familia = rubroFamilyFor(brand);
+    const [formats, propias, genericas] = await Promise.all([
       listViralFormats(),
-      listViralFormatSamples().catch(() => [])
+      listViralFormatSamples(familia).catch(() => []),
+      familia === 'generico' ? Promise.resolve([]) : listViralFormatSamples('generico').catch(() => [])
     ]);
 
     const { data: usados } = await supabase
@@ -700,14 +705,19 @@ export function registerDashboardRoutes(app) {
       if (!previo || row.publish_date > previo.publish_date) usoPorFormato.set(row.viral_format, row);
     });
 
-    const sampleByFormat = new Map(samples.map((row) => [row.format_id, row.image_url]));
+    const sampleByFormat = new Map(genericas.map((row) => [row.format_id, row.image_url]));
+    propias.forEach((row) => sampleByFormat.set(row.format_id, row.image_url));
+    const propiaPara = new Set(propias.map((row) => row.format_id));
 
     res.json({
       success: true,
       pilares: PILARES,
+      rubro: { id: familia, nombre: getRubro(familia).nombre },
       formats: formats.map((format) => ({
         ...format,
         sample_url: sampleByFormat.get(format.id) || null,
+        // Para que la UI pueda avisar que esa muestra todavia no es del rubro.
+        sample_es_del_rubro: propiaPara.has(format.id),
         usado: usoPorFormato.has(format.id),
         ultimo_uso: usoPorFormato.get(format.id)?.publish_date || null
       }))
@@ -725,14 +735,16 @@ export function registerDashboardRoutes(app) {
   // vez para todos los clientes, asi que solo la dispara un operador. La tanda
   // corre en background: son decenas de imagenes y el proxy corta la request
   // mucho antes de que termine.
-  app.get('/api/admin/viral-formats/samples', requireAdmin, wrap(async (_req, res) => {
-    res.json({ success: true, ...(await viralSamplesStatus()) });
+  app.get('/api/admin/viral-formats/samples', requireAdmin, wrap(async (req, res) => {
+    const rubro = req.query?.rubro ? getRubro(req.query.rubro).id : null;
+    res.json({ success: true, rubros_disponibles: RUBROS.map((r) => ({ id: r.id, nombre: r.nombre })), ...(await viralSamplesStatus(rubro)) });
   }));
 
   app.post('/api/admin/viral-formats/samples', requireAdmin, wrap(async (req, res) => {
-    const estado = await viralSamplesStatus();
+    const rubro = getRubro(req.body?.rubro).id;
+    const estado = await viralSamplesStatus(rubro);
     const only = Array.isArray(req.body?.only) ? req.body.only : null;
-    const started = startViralSamplesInBackground({ only, force: req.body?.force === true });
+    const started = startViralSamplesInBackground({ rubro, only, force: req.body?.force === true });
     res.json({ success: true, ...started, ...estado });
   }));
 

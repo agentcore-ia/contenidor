@@ -1,6 +1,7 @@
 import OpenAI, { toFile } from 'openai';
 import { AppError, assertRequiredEnv } from './errors.js';
 import { imageQualityFor, planFor } from './plans.js';
+import { briefSample } from './viralFormats.js';
 
 const DEFAULT_MODEL = 'gpt-5.4-mini';
 const DEFAULT_IMAGE_MODEL = 'gpt-image-2';
@@ -1191,10 +1192,11 @@ export async function generatePostImageAsset(post, { brand, referenceBuffers = [
 
 // --- Muestras del catalogo de formatos virales ------------------------------
 // La imagen que ilustra un formato en la biblioteca del panel. Se genera UNA
-// vez y la ven todas las marcas, asi que a proposito NO lleva marca, logo ni
-// rubro: tiene que mostrar el MOLDE (la composicion, el recurso visual), no un
-// negocio puntual. La pieza con la marca del cliente sale despues, al usarlo.
-export async function generateViralSampleImage(format) {
+// vez POR FAMILIA DE RUBRO y la comparten todas las marcas de esa familia: a
+// proposito no lleva marca ni logo (muestra el MOLDE, no un negocio puntual),
+// pero SI lleva rubro — una peluqueria tiene que ver pelo, no chocolate. La
+// pieza con la marca del cliente sale despues, al usar el formato.
+export async function generateViralSampleImage(format, rubro = 'generico') {
   const client = createOpenAIClient();
   const model = process.env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL;
   const size = format.content_type === 'story'
@@ -1209,11 +1211,11 @@ export async function generateViralSampleImage(format) {
 Its job is to show the FORMAT — the composition, the visual device, the way type and image relate — clearly enough that a business owner scrolling a gallery instantly understands "ah, that's what this format looks like".
 
 The format's visual brief:
-${format.muestra}
+${briefSample(format, rubro)}
 
 Hard rules for a catalogue sample:
 - NO brand name, NO logo, NO wordmark, NO watermark anywhere in the piece.
-- Keep the subject generic and universally readable (a nice everyday product or scene). It must NOT read as one specific business or industry.
+- Show the trade named above, but keep it generic within it: it must read as ANY business of that trade, never as one specific shop.
 - Any text in the image must be VERY short, generic and rendered crisply and correctly spelled, in neutral Spanish. Placeholder-style copy is fine ("Nuestro clasico", "Mito", "Antes / Despues"). Never invent prices, offers, phone numbers or CTAs.
 - Editorial, premium art direction. It should look like a piece a good studio would publish, not a stock template.
 - Beautiful and clean: this image is the shop window of the format.`;
@@ -1238,7 +1240,7 @@ Hard rules for a catalogue sample:
     throw new AppError(`La muestra de "${format.nombre}" volvio vacia.`, 502, 'VIRAL_SAMPLE_EMPTY');
   }
 
-  return { model, size, quality, prompt, buffer: Buffer.from(image.b64_json, 'base64') };
+  return { model, size, quality, prompt, rubro, buffer: Buffer.from(image.b64_json, 'base64') };
 }
 
 // --- Demo publica de la landing --------------------------------------------

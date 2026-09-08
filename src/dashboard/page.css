@@ -2682,3 +2682,19 @@ input[type="checkbox"].toggle {
 /* Variante informativa del banner de prueba: acompana toda la semana (calidad
    reducida, sin videos) sin el tono de urgencia de los ultimos dias. */
 .trial-banner.info { background:#f8fafc; border-color:#e2e8f0; color:#475569; }
+
+/* Cuando el rubro del cliente todavia no tiene su muestra generada, la tarjeta
+   cae a la 'generico'. Se avisa: es mejor que el cliente sepa que esa foto no
+   es de su rubro a que crea que asi le va a quedar. */
+.viral-generic {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+  background: rgba(17, 17, 17, 0.62);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 650;
+  backdrop-filter: blur(4px);
+}

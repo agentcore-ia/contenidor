@@ -32,7 +32,7 @@ import {
   supabase
 } from './supabase.js';
 import { fetchRemoteImageBytes, generateContentIdeas, generateImageArtDirection, generatePostContent, generatePostImageAsset, generateViralSampleImage } from './openai.js';
-import { getViralFormat, listViralFormats } from './viralFormats.js';
+import { RUBROS, getRubro, getViralFormat, listViralFormats, rubroFamilyFor } from './viralFormats.js';
 import { publishToInstagram, refreshLongLivedToken } from './instagram.js';
 import { sendApprovalRequest, sendText, whatsappConfigured } from './whatsapp.js';
 import { renderPostImage } from './render.js';
@@ -586,16 +586,28 @@ export async function useViralFormat({ brandId = null, formatId, mode = 'now' } 
   return { format: format.id, calendar: item, generated: true, post_id: post.id, status: post.status };
 }
 
-// Cuantas muestras del catalogo ya existen. Es lo que mira el operador para
-// saber si la tanda en background termino.
-export async function viralSamplesStatus() {
+// Cuantas muestras hay por familia de rubro. Es lo que mira el operador para
+// decidir que rubro generar y para saber si la tanda en background termino.
+export async function viralSamplesStatus(rubro = null) {
   const [formats, samples] = await Promise.all([listViralFormats(), listViralFormatSamples()]);
-  const conMuestra = new Set(samples.map((row) => row.format_id));
+
+  const cuenta = (id) => {
+    const tiene = new Set(samples.filter((row) => row.rubro === id).map((row) => row.format_id));
+    return {
+      rubro: id,
+      nombre: getRubro(id).nombre,
+      con_muestra: formats.filter((format) => tiene.has(format.id)).length,
+      faltan: formats.filter((format) => !tiene.has(format.id)).map((format) => format.id)
+    };
+  };
+
+  const porRubro = (rubro ? [rubro] : RUBROS.map((item) => item.id)).map(cuenta);
+
   return {
     catalogo: formats.length,
-    con_muestra: formats.filter((format) => conMuestra.has(format.id)).length,
-    faltan: formats.filter((format) => !conMuestra.has(format.id)).map((format) => format.id),
-    corriendo: samplesRunning
+    corriendo: samplesRunning,
+    rubros: porRubro,
+    ...(rubro ? porRubro[0] : {})
   };
 }
 
@@ -625,9 +637,10 @@ export function startViralSamplesInBackground(opts = {}) {
 // Genera las imagenes de muestra del catalogo: una por formato, compartidas por
 // todas las marcas. Es idempotente — solo genera las que faltan — porque cada
 // muestra es plata nuestra y no tiene sentido rehacerlas en cada deploy.
-export async function ensureViralSamples({ only = null, force = false } = {}) {
+export async function ensureViralSamples({ rubro = 'generico', only = null, force = false } = {}) {
+  const familia = getRubro(rubro).id;
   const formats = await listViralFormats();
-  const existing = new Map((await listViralFormatSamples()).map((row) => [row.format_id, row]));
+  const existing = new Set((await listViralFormatSamples(familia)).map((row) => row.format_id));
 
   const pendientes = formats.filter((format) => {
     if (only?.length && !only.includes(format.id)) return false;
@@ -639,23 +652,25 @@ export async function ensureViralSamples({ only = null, force = false } = {}) {
 
   for (const format of pendientes) {
     try {
-      const asset = await generateViralSampleImage(format);
-      const imageUrl = await uploadViralSampleImage(format.id, asset.buffer);
+      const asset = await generateViralSampleImage(format, familia);
+      const imageUrl = await uploadViralSampleImage(format.id, familia, asset.buffer);
       await upsertViralFormatSample({
         formatId: format.id,
+        rubro: familia,
         imageUrl,
         model: asset.model,
         prompt: asset.prompt
       });
       generadas.push({ format: format.id, image_url: imageUrl });
-      console.log(`[viral:samples] ${format.id} lista (${generadas.length}/${pendientes.length})`);
+      console.log(`[viral:samples] ${familia}/${format.id} lista (${generadas.length}/${pendientes.length})`);
     } catch (error) {
-      console.error(`[viral:samples:error] ${format.id}: ${error.message}`);
+      console.error(`[viral:samples:error] ${familia}/${format.id}: ${error.message}`);
       fallidas.push({ format: format.id, message: error.message });
     }
   }
 
   return {
+    rubro: familia,
     catalogo: formats.length,
     ya_estaban: existing.size,
     pedidas: pendientes.length,

@@ -317,7 +317,7 @@ describe('de donde sale la IP del cliente', () => {
   });
 });
 
-const { PILARES, listViralFormats, getViralFormat, viralFormatIds } = await import('../src/viralFormats.js');
+const { PILARES, RUBROS, listViralFormats, getViralFormat, viralFormatIds, rubroFamilyFor, briefSample } = await import('../src/viralFormats.js');
 const formatos = await listViralFormats();
 
 describe('biblioteca de formatos virales', () => {
@@ -358,5 +358,59 @@ describe('biblioteca de formatos virales', () => {
 
   test('un formato inexistente falla con 404, no con undefined', async () => {
     await assert.rejects(() => getViralFormat('no-existe'), (error) => error.statusCode === 404);
+  });
+});
+
+describe('el rubro de la biblioteca viral', () => {
+  // La primera version tenia el rubro cocinado en las recetas y en los briefs:
+  // la muestra de macro-sensorial salio siendo chocolate y a una peluqueria le
+  // aparecia comida. El catalogo tiene que ser agnostico y el rubro entrar por
+  // RUBROS. Estos tests son el candado.
+  const GASTRO = /(appetiz\w*|mordisco|harina|ingredientes|pizza|comida|food|drink|eaten|taste|flavou?r)/i;
+
+  test('ninguna receta nombra un rubro: la lee el prompt de CUALQUIER marca', () => {
+    for (const formato of formatos) {
+      assert.ok(!GASTRO.test(formato.receta), `${formato.id} mete gastronomia en la receta`);
+    }
+  });
+
+  test('ningun brief visual trae sujeto de un rubro: el sujeto lo pone RUBROS', () => {
+    for (const formato of formatos) {
+      assert.ok(!GASTRO.test(formato.muestra), `${formato.id} mete gastronomia en la muestra`);
+    }
+  });
+
+  test('el rubro en texto libre cae en la familia correcta', () => {
+    const casos = [
+      ['Peluqueria y barberia', 'belleza'],
+      ['Heladeria artesanal', 'gastronomia'],
+      ['Estudio de pilates', 'fitness'],
+      ['Inmobiliaria boutique', 'inmobiliaria'],
+      ['Consultorio odontologico', 'salud'],
+      ['Tienda de indumentaria', 'retail'],
+      ['Estudio juridico', 'servicios']
+    ];
+    for (const [texto, esperado] of casos) {
+      assert.equal(rubroFamilyFor({ analysis: { rubro: texto } }), esperado, texto);
+    }
+  });
+
+  test('un rubro desconocido o vacio cae en generico, no rompe', () => {
+    assert.equal(rubroFamilyFor({}), 'generico');
+    assert.equal(rubroFamilyFor({ analysis: { rubro: 'qwertyuiop' } }), 'generico');
+    assert.equal(rubroFamilyFor(null), 'generico');
+  });
+
+  test('la familia generica no arrastra ningun rubro: es el fallback', () => {
+    const generico = RUBROS.find((r) => r.id === 'generico');
+    assert.deepEqual(generico.claves, [], 'generico no debe matchear por palabra: es el default');
+    assert.ok(!GASTRO.test(generico.sujetos), 'el fallback no puede ser comida');
+  });
+
+  test('el brief final cruza formato + sujeto del rubro', () => {
+    const formato = formatos.find((f) => f.id === 'pantone-producto');
+    const brief = briefSample(formato, 'belleza');
+    assert.ok(brief.includes(formato.muestra), 'debe conservar el brief del formato');
+    assert.ok(/hairdressing|salon/i.test(brief), 'debe inyectar el sujeto del rubro');
   });
 });

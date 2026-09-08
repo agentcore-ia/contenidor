@@ -260,10 +260,14 @@ function render() {
     <div class="card">
       <h3>Muestras del catalogo</h3>
       <p class="kpi-note" style="margin-bottom:12px">
-        Cada formato se ilustra con una imagen generada UNA vez y compartida por todas las marcas.
+        Cada formato se ilustra con una imagen por FAMILIA DE RUBRO, generada una vez y compartida
+        por todas las marcas de esa familia: una peluqueria tiene que ver pelo, no comida.
         Genera solo las que faltan, asi que apretarlo de nuevo no vuelve a gastar.
+        Mientras un rubro no tenga las suyas, sus clientes ven las de "Generico".
       </p>
-      <button class="seg-opt" id="gen-samples">Generar las muestras que falten</button>
+      <div class="rows" id="samples-rows" style="margin-bottom:12px"></div>
+      <select id="samples-rubro" style="margin-right:8px;padding:6px 8px"></select>
+      <button class="seg-opt" id="gen-samples">Generar las que falten de ese rubro</button>
       <button class="seg-opt" id="check-samples">Ver estado</button>
       <div class="kpi-note" id="samples-out" style="margin-top:10px"></div>
     </div>
@@ -289,6 +293,7 @@ async function load() {
   try {
     S.data = await api(`/api/admin/overview?days=${S.days}`);
     render();
+    loadSamplesStatus();
   } catch (error) {
     byId('app').innerHTML = `<div class="error-box">${esc(error.message)}</div>`;
   }
@@ -300,6 +305,26 @@ byId('range').addEventListener('click', (ev) => {
   S.days = Number(days);
   load();
 });
+// El estado de las muestras se pide aparte del overview: es una vista de
+// operacion, no una metrica de negocio, y tarda distinto.
+async function loadSamplesStatus() {
+  const cont = byId('samples-rows');
+  const sel = byId('samples-rubro');
+  if (!cont || !sel) return;
+  try {
+    const r = await api('/api/admin/viral-formats/samples');
+    if (!sel.options.length) {
+      sel.innerHTML = r.rubros_disponibles.map((x) => `<option value="${x.id}">${esc(x.nombre)}</option>`).join('');
+    }
+    cont.innerHTML = r.rubros.map((x) => {
+      const completo = x.con_muestra === r.catalogo;
+      return `<div class="row"><span>${esc(x.nombre)}</span><b style="color:${completo ? '#16a34a' : '#f59e0b'}">${x.con_muestra}/${r.catalogo}</b></div>`;
+    }).join('') + (r.corriendo ? '<div class="kpi-note" style="margin-top:8px">Hay una tanda corriendo ahora.</div>' : '');
+  } catch (error) {
+    cont.innerHTML = `<div class="kpi-note">No se pudo leer el estado: ${esc(error.message)}</div>`;
+  }
+}
+
 byId('reload').addEventListener('click', load);
 
 // Las muestras del catalogo se generan de a una contra el modelo de imagen: la
@@ -311,13 +336,14 @@ byId('app').addEventListener('click', async (ev) => {
   btn.disabled = true;
   out.textContent = '';
   try {
-    const r = await api('/api/admin/viral-formats/samples', { method: 'POST', body: {} });
+    const rubro = byId('samples-rubro').value;
+    const r = await api('/api/admin/viral-formats/samples', { method: 'POST', body: { rubro } });
     if (!r.started) {
       out.textContent = `No arranco: ${r.reason}.`;
     } else if (!r.faltan.length) {
-      out.textContent = `Ya estaban las ${r.catalogo} muestras del catalogo. No hay nada para generar.`;
+      out.textContent = `${r.nombre} ya tiene sus ${r.catalogo} muestras. No hay nada para generar.`;
     } else {
-      out.textContent = `Arranco: faltan ${r.faltan.length} de ${r.catalogo}. Tarda unos minutos; volve a apretar "Ver estado" para seguirlo.`;
+      out.textContent = `Arranco ${r.nombre}: faltan ${r.faltan.length} de ${r.catalogo}. Tarda unos minutos; apreta "Ver estado" para seguirlo.`;
     }
   } catch (error) {
     out.textContent = `Error: ${error.message}`;
@@ -330,8 +356,8 @@ byId('app').addEventListener('click', async (ev) => {
   if (ev.target?.id !== 'check-samples') return;
   const out = byId('samples-out');
   try {
-    const r = await api('/api/admin/viral-formats/samples');
-    out.textContent = `${r.con_muestra} de ${r.catalogo} con muestra${r.corriendo ? ' (hay una tanda corriendo)' : ''}.${r.faltan.length ? ` Faltan: ${r.faltan.join(', ')}` : ''}`;
+    await loadSamplesStatus();
+    out.textContent = 'Estado actualizado.';
   } catch (error) {
     out.textContent = `Error: ${error.message}`;
   }
